@@ -1,0 +1,132 @@
+{
+  "id": "campus-lsw0-port-shutdown-ys",
+  "title": "网关 ping 不通交换机（端口状态）",
+  "level": 2,
+  "chapter": "L01",
+  "difficulty": 2,
+  "est_minutes": 15,
+  "summary": "用户电脑能 ping 通交换机，却 ping 不通网关；网关也 ping 不通交换机",
+  "tags": [
+    "接口状态",
+    "交换机端口",
+    "链路排障"
+  ],
+  "platform": "yunshan",
+  "hosts": [
+    "PC1"
+  ],
+  "knowledge_tags": [
+    "接口状态",
+    "交换机端口",
+    "物理层排障",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "LSW0",
+    "PC1"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "LSW0",
+    "PC1"
+  ],
+  "symptom": "工单：接入交换机 LSW0 的管理地址是 Vlanif10（10.0.10.254/24），网关是 AR0 的 GE0/0/0（10.0.10.1/24）。AR0 GE0/0/0 接 LSW0 GE1/0/1，用户电脑 PC1（10.0.10.10/24，网关 10.0.10.1）接 LSW0 GE1/0/2，两个口都是 VLAN 10 的 Access 口。机房巡检之后，PC1 ping 交换机 10.0.10.254 正常，但 ping 网关 10.0.10.1 不通；从 AR0 ping 10.0.10.254 也不通。VLAN 配置没人动过。请排查并修复，使 AR0 能 ping 通 10.0.10.254、PC1 能 ping 通网关。（设备为华为 YunShan OS，配置立即生效；PC1 的终端只能执行 ping 等命令。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GE1/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface GE1/0/2",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24"
+    ],
+    "PC1": [
+      "ip address 10.0.10.10 24",
+      "ip gateway 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "LSW0": [
+      "system-view",
+      "interface GE1/0/1",
+      "shutdown"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "LSW0": [
+      "system-view",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo shutdown",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "interface GE1/0/2",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10"
+    ],
+    "PC1": [
+      "undo ip address",
+      "undo ip gateway"
+    ]
+  },
+  "checks": [
+    {
+      "device": "AR0",
+      "command": "ping -c 2 10.0.10.254",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "AR0 能 ping 通 LSW0 的管理地址 10.0.10.254"
+    },
+    {
+      "device": "PC1",
+      "command": "ping -c 2 10.0.10.1",
+      "expect": "\\b[12] received\\b",
+      "desc": "PC1 能 ping 通网关 10.0.10.1"
+    }
+  ],
+  "hints": [
+    "PC1 到交换机通、到网关不通，说明问题在交换机与网关之间这一段。先看这段链路两端的接口状态。",
+    "在 AR0 上执行 display interface brief 看 GE0/0/0；在 LSW0 上执行 display interface brief（留意 PHY 列）和 display port vlan，看 GE1/0/1。",
+    "LSW0 的上联口 GE1/0/1 被管理员关闭了（*down），VLAN 配置是对的。在 LSW0 上 interface GE1/0/1 → undo shutdown。"
+  ],
+  "reference_path": "PC1 ping 10.0.10.254 通、ping 10.0.10.1 不通 → 问题在 LSW0 与 AR0 之间 → AR0 display interface brief 看到 GE0/0/0 down → 登录 LSW0，display interface brief 看到 GE1/0/1 为 *down，display port vlan 确认 VLAN 正常 → interface GE1/0/1 → undo shutdown → AR0、PC1 再 ping 验证。",
+  "solution": {
+    "LSW0": [
+      "system-view",
+      "interface GE1/0/1",
+      "undo shutdown",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "利用「PC1 到交换机通、到网关不通」缩小范围到 LSW0—AR0 这一段",
+    "查两端接口状态，在 LSW0 上识别出 GE1/0/1 管理性关闭（*down）",
+    "只恢复 GE1/0/1，不改 VLAN、不改地址",
+    "修复后在 AR0 与 PC1 上分别 ping 验证"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 基线沿用已真机验证的 campus-lsw0-access-vlan-ys。 真机实测：LSW0 GE1/0/1 shutdown 后对端 AR0 GE0/0/0 显示 down/down（eNSP Pro 虚拟链路传递对端关闭）；LSW0 display interface brief 里关闭的端口显示 *down；undo shutdown 后几秒内恢复，PC1 先通，AR0 的第一轮 ping 可能还不通；shutdown / undo shutdown 由 restore + 整机复位撤销干净。"
+}

@@ -1,0 +1,124 @@
+{
+  "id": "enspro-t1-t2-two-faults",
+  "title": "T1 访问 T2 业务地址不通（多处故障）",
+  "level": 3,
+  "chapter": "L12",
+  "difficulty": 3,
+  "est_minutes": 25,
+  "summary": "T1 访问 T2 的业务地址不通，修好一处后可能还有别的问题",
+  "tags": [
+    "综合排障",
+    "分层排查",
+    "静态路由"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "分层排障",
+    "直连网段",
+    "静态路由",
+    "YunShan OS"
+  ],
+  "topology": "ainet_test",
+  "required_devices": [
+    "T1",
+    "T2"
+  ],
+  "accessible_devices": [
+    "T1",
+    "T2"
+  ],
+  "symptom": "工单：T1 与 T2 直连（T1 GE0/0/1 — T2 GE0/0/1），互联网段 10.0.12.0/24（T1 10.0.12.1，T2 10.0.12.2）。T1 的 LoopBack0 = 1.1.1.1/32，T2 的 LoopBack0 = 2.2.2.2/32（业务地址），两台用静态路由互通对方的 LoopBack0。昨晚两台设备都有人改过配置，现在 T1 以 1.1.1.1 为源 ping 2.2.2.2 不通。请逐层排查并修复，使 T1 以 1.1.1.1 为源能 ping 通 2.2.2.2。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "T1": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "interface LoopBack0",
+      "ip address 1.1.1.1 32",
+      "return",
+      "system-view",
+      "ip route-static 2.2.2.2 32 10.0.12.2"
+    ],
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.12.2 24",
+      "interface LoopBack0",
+      "ip address 2.2.2.2 32",
+      "return",
+      "system-view",
+      "ip route-static 1.1.1.1 32 10.0.12.1"
+    ]
+  },
+  "inject": {
+    "T1": [
+      "system-view",
+      "undo ip route-static 2.2.2.2 32 10.0.12.2",
+      "ip route-static 2.2.2.2 32 10.0.12.3"
+    ],
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.21.2 24"
+    ]
+  },
+  "restore": {
+    "T1": [
+      "system-view",
+      "undo ip route-static 2.2.2.2 32 10.0.12.3",
+      "undo ip route-static 2.2.2.2 32 10.0.12.2",
+      "undo interface LoopBack0",
+      "interface GE0/0/1",
+      "undo ip address"
+    ],
+    "T2": [
+      "system-view",
+      "undo ip route-static 1.1.1.1 32 10.0.12.1",
+      "undo interface LoopBack0",
+      "interface GE0/0/1",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "T1",
+      "command": "ping -c 2 10.0.12.2",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "T1 能 ping 通 T2 的互联地址 10.0.12.2（直连层）"
+    },
+    {
+      "device": "T1",
+      "command": "ping -c 2 -a 1.1.1.1 2.2.2.2",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "T1 以 1.1.1.1 为源能 ping 通 T2 的业务地址 2.2.2.2（路由层）"
+    }
+  ],
+  "hints": [
+    "按层来：先保证两台设备直连能通，再看路由。修好一层之后别急着下结论，重新验证一遍。",
+    "直连层：两端 display ip interface brief 对比互联接口的网段；路由层：T1 上 display ip routing-table 2.2.2.2，看下一跳是不是对端的互联地址。",
+    "两处故障：① T2 的 GE0/0/1 被改成 10.0.21.2/24，改回 ip address 10.0.12.2 24；② T1 去 2.2.2.2 的静态路由下一跳被写成 10.0.12.3，undo 掉后配 ip route-static 2.2.2.2 32 10.0.12.2。"
+  ],
+  "reference_path": "T1 ping -a 1.1.1.1 2.2.2.2 不通 → 先测直连 ping 10.0.12.2 也不通 → 两端 display ip interface brief，T2 互联口为 10.0.21.2/24 → 改回 10.0.12.2/24，直连恢复 → 再 ping 2.2.2.2 仍不通 → T1 display ip routing-table 2.2.2.2 下一跳 10.0.12.3（不存在）→ 改为 10.0.12.2 → 验证。",
+  "solution": {
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.12.2 24",
+      "return"
+    ],
+    "T1": [
+      "system-view",
+      "undo ip route-static 2.2.2.2 32 10.0.12.3",
+      "ip route-static 2.2.2.2 32 10.0.12.2",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "分层排查：先验证直连，再验证路由，而不是同时乱改多处",
+    "发现并修正 T2 互联接口的错误网段",
+    "修好第一处后重新验证，继续定位到 T1 静态路由下一跳错误",
+    "两处都只做最小修改，不加多余路由、不改 LoopBack",
+    "最终用 ping -a 1.1.1.1 2.2.2.2 验证"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 T1 GE0/0/1 <-> T2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：两处故障叠加有效（注入后两条判定都不通过）；先修 T2 互联地址后直连 ping 通，再改 T1 下一跳后 ping -c 2 -a 1.1.1.1 2.2.2.2 通过，修复后 6 秒自动判定通过；restore 撤销干净（整机复位 0 轮）。"
+}

@@ -1,0 +1,140 @@
+{
+  "id": "campus-ar0-dot1q-trunk-ys",
+  "title": "VLAN 20 用户上不了网关（单臂路由 Trunk）",
+  "level": 3,
+  "chapter": "L04",
+  "difficulty": 3,
+  "est_minutes": 20,
+  "summary": "单臂路由改造后，VLAN 20 的用户电脑 ping 不通自己的网关",
+  "tags": [
+    "VLAN",
+    "Trunk",
+    "单臂路由"
+  ],
+  "platform": "yunshan",
+  "hosts": [
+    "PC1"
+  ],
+  "knowledge_tags": [
+    "Trunk 端口",
+    "单臂路由",
+    "子接口",
+    "跨 VLAN 路由",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "LSW0",
+    "PC1"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "LSW0",
+    "PC1"
+  ],
+  "symptom": "工单：AR0 用单臂路由给两个 VLAN 做网关：AR0 GE0/0/0 接 LSW0 GE1/0/1（Trunk 口），子接口 GE0/0/0.10 = 10.0.10.1/24（VLAN 10）、GE0/0/0.20 = 10.0.20.1/24（VLAN 20）。LSW0 的管理地址 Vlanif10 = 10.0.10.254；用户电脑 PC1（10.0.20.10/24，网关 10.0.20.1）接 LSW0 GE1/0/2，是 VLAN 20 的 Access 口。改造完成后，AR0 能 ping 通 10.0.10.254，但 PC1 ping 不通网关 10.0.20.1，也访问不了交换机管理地址。请排查并修复，使 PC1 能 ping 通 10.0.20.1 和 10.0.10.254。（设备为华为 YunShan OS，配置立即生效；PC1 的终端只能执行 ping 等命令。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0.10",
+      "dot1q termination vid 10",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/0.20",
+      "dot1q termination vid 20",
+      "ip address 10.0.20.1 24"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10 20",
+      "interface GE1/0/1",
+      "port link-type trunk",
+      "port trunk allow-pass vlan 10 20",
+      "interface GE1/0/2",
+      "port link-type access",
+      "port default vlan 20",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ],
+    "PC1": [
+      "ip address 10.0.20.10 24",
+      "ip gateway 10.0.20.1"
+    ]
+  },
+  "inject": {
+    "LSW0": [
+      "system-view",
+      "interface GE1/0/1",
+      "undo port trunk allow-pass vlan 20"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo interface GE0/0/0.10",
+      "undo interface GE0/0/0.20"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo port trunk allow-pass vlan 10 20",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "interface GE1/0/2",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10 20"
+    ],
+    "PC1": [
+      "undo ip address",
+      "undo ip gateway"
+    ]
+  },
+  "checks": [
+    {
+      "device": "PC1",
+      "command": "ping -c 2 10.0.20.1",
+      "expect": "\\b[12] received\\b",
+      "desc": "PC1（VLAN 20）能 ping 通网关 10.0.20.1"
+    },
+    {
+      "device": "PC1",
+      "command": "ping -c 2 10.0.10.254",
+      "expect": "\\b[12] received\\b",
+      "desc": "PC1 能跨 VLAN 访问交换机管理地址 10.0.10.254"
+    }
+  ],
+  "hints": [
+    "VLAN 10 正常、VLAN 20 不通，说明链路和 AR0 本身没坏。VLAN 20 的帧从 PC1 出发，经过哪几个口才能到 AR0 的子接口？每一段都放行了吗？",
+    "在 LSW0 上执行 display port vlan 看 GE1/0/1 的 Trunk VLAN List，display vlan 20 看 VLAN 20 包含哪些端口；在 AR0 上 display ip interface brief 看子接口状态。",
+    "LSW0 GE1/0/1 的 Trunk 只放行了 VLAN 10，VLAN 20 被拦在交换机上。在 GE1/0/1 下执行 port trunk allow-pass vlan 20。"
+  ],
+  "reference_path": "PC1 ping 10.0.20.1 不通、AR0 ping 10.0.10.254 通 → 问题只影响 VLAN 20 → AR0 display ip interface brief 两个子接口都 up → LSW0 display port vlan 看到 GE1/0/1 Trunk 只放行 1 10 → interface GE1/0/1 → port trunk allow-pass vlan 20 → PC1 再 ping 网关与 10.0.10.254 验证。",
+  "solution": {
+    "LSW0": [
+      "system-view",
+      "interface GE1/0/1",
+      "port trunk allow-pass vlan 20",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "对比 VLAN 10 正常、VLAN 20 不通，把范围缩小到 VLAN 20 的二层路径",
+    "在 LSW0 上用 display port vlan / display vlan 查出 Trunk 没放行 VLAN 20",
+    "只在 Trunk 口补放行 VLAN 20，不改成 Access、不删子接口、不改 PC1 地址",
+    "修复后验证 PC1 到网关与跨 VLAN 到 10.0.10.254 都通"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 交换机侧的 trunk / allow-pass / undo 写法已在 S6700 上真机验证（docs/enspro-replacement.md §3.1）。 真机实测：AR6700 子接口写法 interface GE0/0/0.10 + dot1q termination vid 10 可用，不需要 arp broadcast enable（PC1 能 ping 通子接口地址并跨 VLAN 到 10.0.10.254）；undo interface GE0/0/0.10 直接删除子接口（restore 后整机复位 0 轮）；注入后 display port vlan 里 GE1/0/1 的 Trunk VLAN List 只剩「1 10」，主接口 GE0/0/0 显示 unassigned up/down。修复后第一次 ping 可能丢 1 个包。"
+}

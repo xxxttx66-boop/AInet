@@ -1,0 +1,52 @@
+{
+  "id": "ospf-2-1-r1-shutdown",
+  "title": "OSPF 邻居全部断开（R1）",
+  "level": 2,
+  "chapter": "L05",
+  "difficulty": 2,
+  "est_minutes": 15,
+  "summary": "R1 的 OSPF 邻居全部消失，学不到其他路由器的路由",
+  "tags": ["OSPF 邻居", "路由排障"],
+  "knowledge_tags": ["OSPF 邻居", "接口状态", "物理层排障"],
+  "topology": "2-1Single-Area OSPF.topo",
+  "required_devices": ["R1", "R2", "R3"],
+  "accessible_devices": ["R1", "R2", "R3"],
+  "symptom": "工单：单区域 OSPF 网络中，R1 突然学不到 R2、R3 的路由，业务中断。网络组反馈 R1 上 OSPF 邻居全部消失。请排查 R1 并恢复，使 R1 与邻居重新建立 Full 状态的 OSPF 邻接。",
+  "baseline": {},
+  "inject": {
+    "R1": ["system-view", "interface GigabitEthernet0/0/0", "shutdown"]
+  },
+  "restore": {
+    "R1": ["system-view", "interface GigabitEthernet0/0/0", "undo shutdown"]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ip interface brief",
+      "expect": "GigabitEthernet0/0/0\\s+\\S+\\s+up\\s+up",
+      "desc": "R1 的 GigabitEthernet0/0/0 物理与协议状态均为 up"
+    },
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\bFull\\b",
+      "desc": "R1 至少有一个 Full 状态的 OSPF 邻居"
+    }
+  ],
+  "hints": [
+    "邻居全没了，先别急着查 OSPF 配置，从最底层看起：R1 连接其他路由器的接口状态正常吗？",
+    "在 R1 上执行 display interface brief 看各接口的物理 / 协议状态（留意 PHY 列），再用 display ospf peer 查看邻居表。",
+    "R1 的 GigabitEthernet0/0/0 被管理员关闭了（*down）。在接口视图下执行 undo shutdown，稍等邻居重新协商到 Full。"
+  ],
+  "reference_path": "display ospf peer brief 发现无邻居 → display ip interface brief 看到 GE0/0/0 为 *down（administratively down）→ 进入接口执行 undo shutdown → 等待 DR/BDR 选举与 LSDB 同步 → display ospf peer brief 确认邻居 Full。",
+  "solution": {
+    "R1": ["system-view", "interface GigabitEthernet0/0/0", "undo shutdown", "return"]
+  },
+  "scoring_points": [
+    "邻居全部消失时先查物理层 / 接口状态（display interface brief 等），而不是先改 OSPF 配置",
+    "能从接口状态中识别出 administratively down（*down），并定位到被关闭的接口",
+    "只在故障接口上 undo shutdown，不重启 OSPF 进程、不 reset、不改动 network / area 等无关配置",
+    "修复后等待邻居协商并用 display ospf peer 确认 Full"
+  ],
+  "note": "依赖 eNSP 示例 2-1Single-Area OSPF 自带的 OSPF 配置（baseline 为空）。尚未真机验证。"
+}

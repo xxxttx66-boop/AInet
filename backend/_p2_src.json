@@ -1,0 +1,2474 @@
+{
+ "ainet_campus": {
+  "id": 3,
+  "resourceSandboxId": "3-b8cc4135-6640-4310-875a-f42a3d92c089",
+  "resourceProjectName": "standalone-1214",
+  "name": "ainet_campus",
+  "keepTime": 0,
+  "projectId": 1,
+  "userId": 1,
+  "createTime": 1791276850086,
+  "deleteRetries": 0,
+  "expiredTime": 253402185600000,
+  "status": 1,
+  "isPublic": 0,
+  "maxVms": 50,
+  "usedVms": 8,
+  "type": 0,
+  "devices": [
+   {
+    "id": 10,
+    "name": "AR2",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850137,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 118,
+     "positionX": 0.02,
+     "positionY": -0.25
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 100,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 120,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 101,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 121,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 102,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 122,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 103,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 123,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 104,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 124,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 105,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 125,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 106,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 126,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 107,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 127,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 108,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 128,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 109,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 129,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 110,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 130,
+       "positionX": 0.02,
+       "positionY": -0.25
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 10,
+      "name": "device.innerId",
+      "value": "3",
+      "deviceId": 10
+     }
+    ],
+    "innerId": 3,
+    "namePosition": {
+     "id": 119,
+     "positionX": 0.02,
+     "positionY": -0.25
+    }
+   },
+   {
+    "id": 11,
+    "name": "AR1",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850153,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 131,
+     "positionX": 0.2,
+     "positionY": -0.35
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 111,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 133,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 112,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 134,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 113,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 135,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 114,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 136,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 115,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 137,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 116,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 138,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 117,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 139,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 118,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 140,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 119,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 141,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 120,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 142,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     },
+     {
+      "id": 121,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 143,
+       "positionX": 0.2,
+       "positionY": -0.35
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 11,
+      "name": "device.innerId",
+      "value": "4",
+      "deviceId": 11
+     }
+    ],
+    "innerId": 4,
+    "namePosition": {
+     "id": 132,
+     "positionX": 0.2,
+     "positionY": -0.35
+    }
+   },
+   {
+    "id": 16,
+    "name": "R3",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850236,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 223,
+     "positionX": 0.15,
+     "positionY": 0.2
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 193,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 225,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 194,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 226,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 195,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 227,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 196,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 228,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 197,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 229,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 198,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 230,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 199,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 231,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 200,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 232,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 201,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 233,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 202,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 234,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 203,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 235,
+       "positionX": 0.15,
+       "positionY": 0.2
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 17,
+      "name": "device.innerId",
+      "value": "9",
+      "deviceId": 16
+     }
+    ],
+    "innerId": 9,
+    "namePosition": {
+     "id": 224,
+     "positionX": 0.15,
+     "positionY": 0.2
+    }
+   },
+   {
+    "id": 15,
+    "name": "R2",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850223,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 210,
+     "positionX": 0.0,
+     "positionY": 0.25
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 182,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 212,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 183,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 213,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 184,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 214,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 185,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 215,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 186,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 216,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 187,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 217,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 188,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 218,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 189,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 219,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 190,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 220,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 191,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 221,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     },
+     {
+      "id": 192,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 222,
+       "positionX": 0.0,
+       "positionY": 0.25
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 16,
+      "name": "device.innerId",
+      "value": "8",
+      "deviceId": 15
+     }
+    ],
+    "innerId": 8,
+    "namePosition": {
+     "id": 211,
+     "positionX": 0.0,
+     "positionY": 0.25
+    }
+   },
+   {
+    "id": 9,
+    "name": "AR0",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850124,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 105,
+     "positionX": -0.18,
+     "positionY": -0.25
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 89,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 107,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 90,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 108,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 91,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 109,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 92,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 110,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 93,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 111,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 94,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 112,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 95,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 113,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 96,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 114,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 97,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 115,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 98,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 116,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 99,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 117,
+       "positionX": -0.18,
+       "positionY": -0.25
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 9,
+      "name": "device.innerId",
+      "value": "2",
+      "deviceId": 9
+     }
+    ],
+    "innerId": 2,
+    "namePosition": {
+     "id": 106,
+     "positionX": -0.18,
+     "positionY": -0.25
+    }
+   },
+   {
+    "id": 8,
+    "name": "LSW0",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850107,
+    "manageIp": "",
+    "deviceType": {
+     "id": 111,
+     "name": "ENSP-LSW",
+     "superDeviceType": {
+      "id": 1,
+      "name": "switch"
+     },
+     "iconName": "S",
+     "deviceDesc": "ENSP-LSW",
+     "ifAssembles": [
+      {
+       "id": 111,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 1,
+       "ifPicId": 0,
+       "ifPortStart": 1,
+       "show": true
+      },
+      {
+       "id": 118,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "S",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 92,
+     "positionX": -0.35,
+     "positionY": -0.25
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 78,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 94,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 79,
+      "name": "GE1/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 95,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 80,
+      "name": "GE1/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 96,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 81,
+      "name": "GE1/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 97,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 82,
+      "name": "GE1/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 98,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 83,
+      "name": "GE1/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 99,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 84,
+      "name": "GE1/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 100,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 85,
+      "name": "GE1/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 101,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 86,
+      "name": "GE1/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 102,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 87,
+      "name": "GE1/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 103,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     },
+     {
+      "id": 88,
+      "name": "GE1/0/10",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 104,
+       "positionX": -0.35,
+       "positionY": -0.25
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 8,
+      "name": "device.innerId",
+      "value": "1",
+      "deviceId": 8
+     }
+    ],
+    "innerId": 1,
+    "namePosition": {
+     "id": 93,
+     "positionX": -0.35,
+     "positionY": -0.25
+    }
+   },
+   {
+    "id": 12,
+    "name": "PC1",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850171,
+    "manageIp": "",
+    "deviceType": {
+     "id": 26,
+     "name": "PC-CLIENT",
+     "superDeviceType": {
+      "id": 5,
+      "name": "terminate"
+     },
+     "iconName": "Client",
+     "deviceDesc": "PC-CLIENT",
+     "ifAssembles": [
+      {
+       "id": 36,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 1,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "PC-CLIENT",
+     "available": true,
+     "isSet": true,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 60,
+     "startupCpu": 0.2,
+     "startupRam": 0.25
+    },
+    "devicePosition": {
+     "id": 144,
+     "positionX": -0.35,
+     "positionY": -0.05
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 122,
+      "name": "GE1/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 146,
+       "positionX": -0.35,
+       "positionY": -0.05
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 12,
+      "name": "device.innerId",
+      "value": "5",
+      "deviceId": 12
+     },
+     {
+      "id": 13,
+      "name": "basic.mac",
+      "value": "10:ca:38:eb:c2:9f",
+      "deviceId": 12
+     },
+     {
+      "id": 18,
+      "name": "ipv4.type",
+      "value": "static",
+      "deviceId": 12
+     },
+     {
+      "id": 19,
+      "name": "ipv4.config.ip",
+      "value": "",
+      "deviceId": 12
+     },
+     {
+      "id": 20,
+      "name": "ipv4.config.ipmask",
+      "value": "",
+      "deviceId": 12
+     },
+     {
+      "id": 21,
+      "name": "ipv4.config.gateway",
+      "value": "",
+      "deviceId": 12
+     },
+     {
+      "id": 22,
+      "name": "ipv4.config.dns1",
+      "value": "",
+      "deviceId": 12
+     }
+    ],
+    "innerId": 5,
+    "namePosition": {
+     "id": 145,
+     "positionX": -0.35,
+     "positionY": -0.05
+    }
+   },
+   {
+    "id": 14,
+    "name": "R1",
+    "sandboxId": 3,
+    "sandboxName": "ainet_campus",
+    "createTime": 1791276850205,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 197,
+     "positionX": -0.15,
+     "positionY": 0.2
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 171,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 199,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 172,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 200,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 173,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 201,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 174,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 202,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 175,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 203,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 176,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 204,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 177,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 205,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 178,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 206,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 179,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 207,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 180,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 208,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     },
+     {
+      "id": 181,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 209,
+       "positionX": -0.15,
+       "positionY": 0.2
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 15,
+      "name": "device.innerId",
+      "value": "7",
+      "deviceId": 14
+     }
+    ],
+    "innerId": 7,
+    "namePosition": {
+     "id": 198,
+     "positionX": -0.15,
+     "positionY": 0.2
+    }
+   }
+  ],
+  "frames": [],
+  "links": [
+   {
+    "id": 6,
+    "leftDeviceId": 8,
+    "leftIfId": 79,
+    "rightDeviceId": 9,
+    "rightIfId": 89,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 7,
+    "leftDeviceId": 9,
+    "leftIfId": 90,
+    "rightDeviceId": 10,
+    "rightIfId": 100,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 8,
+    "leftDeviceId": 10,
+    "leftIfId": 102,
+    "rightDeviceId": 11,
+    "rightIfId": 112,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 9,
+    "leftDeviceId": 12,
+    "leftIfId": 122,
+    "rightDeviceId": 8,
+    "rightIfId": 80,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 13,
+    "leftDeviceId": 14,
+    "leftIfId": 172,
+    "rightDeviceId": 8,
+    "rightIfId": 81,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 14,
+    "leftDeviceId": 15,
+    "leftIfId": 182,
+    "rightDeviceId": 8,
+    "rightIfId": 82,
+    "sandboxId": 3,
+    "status": 0
+   },
+   {
+    "id": 15,
+    "leftDeviceId": 16,
+    "leftIfId": 194,
+    "rightDeviceId": 8,
+    "rightIfId": 83,
+    "sandboxId": 3,
+    "status": 0
+   }
+  ],
+  "graphicsVOList": [],
+  "_attrs": {
+   "AR2": {
+    "device.innerId": "3"
+   },
+   "AR1": {
+    "device.innerId": "4"
+   },
+   "R3": {
+    "device.innerId": "9"
+   },
+   "R2": {
+    "device.innerId": "8"
+   },
+   "AR0": {
+    "device.innerId": "2"
+   },
+   "LSW0": {
+    "device.innerId": "1"
+   },
+   "PC1": {
+    "ipv4.config.gateway": "",
+    "ipv4.config.dns1": "",
+    "ipv4.config.ip": "",
+    "device.innerId": "5",
+    "basic.mac": "10:ca:38:eb:c2:9f",
+    "ipv4.config.ipmask": "",
+    "ipv4.type": "static"
+   },
+   "R1": {
+    "device.innerId": "7"
+   }
+  }
+ },
+ "ainet_test": {
+  "id": 2,
+  "resourceSandboxId": "2-f27223e0-2ff3-489a-a7fd-c92b41125500",
+  "resourceProjectName": "standalone-1214",
+  "name": "ainet_test",
+  "keepTime": 0,
+  "projectId": 1,
+  "userId": 1,
+  "createTime": 1791267162770,
+  "deleteRetries": 0,
+  "expiredTime": 253402185600000,
+  "status": 1,
+  "isPublic": 0,
+  "maxVms": 50,
+  "usedVms": 2,
+  "type": 0,
+  "devices": [
+   {
+    "id": 6,
+    "name": "T1",
+    "sandboxId": 2,
+    "sandboxName": "ainet_test",
+    "createTime": 1791267162820,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 66,
+     "positionX": -0.3,
+     "positionY": -0.2
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 56,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 68,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 57,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 69,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 58,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 70,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 59,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 71,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 60,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 72,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 61,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 73,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 62,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 74,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 63,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 75,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 64,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 76,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 65,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 77,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 66,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 78,
+       "positionX": -0.3,
+       "positionY": -0.2
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 6,
+      "name": "device.innerId",
+      "value": "1",
+      "deviceId": 6
+     }
+    ],
+    "innerId": 1,
+    "namePosition": {
+     "id": 67,
+     "positionX": -0.3,
+     "positionY": -0.2
+    }
+   },
+   {
+    "id": 7,
+    "name": "T2",
+    "sandboxId": 2,
+    "sandboxName": "ainet_test",
+    "createTime": 1791267162828,
+    "manageIp": "",
+    "deviceType": {
+     "id": 25,
+     "name": "ENSP-AR",
+     "superDeviceType": {
+      "id": 2,
+      "name": "route"
+     },
+     "iconName": "AR",
+     "deviceDesc": "ENSP-AR",
+     "ifAssembles": [
+      {
+       "id": 120,
+       "ifType": {
+        "id": 4,
+        "name": "MEth"
+       },
+       "ifNumber": 1,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      },
+      {
+       "id": 33,
+       "ifType": {
+        "id": 2,
+        "name": "GE"
+       },
+       "ifNumber": 10,
+       "ifSlotId": 0,
+       "ifPicId": 0,
+       "ifPortStart": 0,
+       "show": true
+      }
+     ],
+     "displayName": "AR",
+     "available": true,
+     "isSet": false,
+     "radius": 0,
+     "type": 1,
+     "startupDuration": 900,
+     "startupCpu": 1.0,
+     "startupRam": 1.7
+    },
+    "devicePosition": {
+     "id": 79,
+     "positionX": -0.09999999999999998,
+     "positionY": -0.2
+    },
+    "status": 0,
+    "progress": 100,
+    "displayStatus": 11,
+    "deleteRetries": 0,
+    "deviceIfs": [
+     {
+      "id": 67,
+      "name": "MEth0/0/0",
+      "ifType": {
+       "id": 4,
+       "name": "MEth"
+      },
+      "status": 1,
+      "serialId": 0,
+      "namePosition": {
+       "id": 81,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 68,
+      "name": "GE0/0/0",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 1,
+      "namePosition": {
+       "id": 82,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 69,
+      "name": "GE0/0/1",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 2,
+      "namePosition": {
+       "id": 83,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 70,
+      "name": "GE0/0/2",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 3,
+      "namePosition": {
+       "id": 84,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 71,
+      "name": "GE0/0/3",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 4,
+      "namePosition": {
+       "id": 85,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 72,
+      "name": "GE0/0/4",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 5,
+      "namePosition": {
+       "id": 86,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 73,
+      "name": "GE0/0/5",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 6,
+      "namePosition": {
+       "id": 87,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 74,
+      "name": "GE0/0/6",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 7,
+      "namePosition": {
+       "id": 88,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 75,
+      "name": "GE0/0/7",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 8,
+      "namePosition": {
+       "id": 89,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 76,
+      "name": "GE0/0/8",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 9,
+      "namePosition": {
+       "id": 90,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     },
+     {
+      "id": 77,
+      "name": "GE0/0/9",
+      "ifType": {
+       "id": 2,
+       "name": "GE"
+      },
+      "status": 1,
+      "serialId": 10,
+      "namePosition": {
+       "id": 91,
+       "positionX": -0.09999999999999998,
+       "positionY": -0.2
+      }
+     }
+    ],
+    "deviceStartProgress": 100,
+    "configurations": [],
+    "extProps": [
+     {
+      "id": 7,
+      "name": "device.innerId",
+      "value": "2",
+      "deviceId": 7
+     }
+    ],
+    "innerId": 2,
+    "namePosition": {
+     "id": 80,
+     "positionX": -0.09999999999999998,
+     "positionY": -0.2
+    }
+   }
+  ],
+  "frames": [],
+  "links": [
+   {
+    "id": 5,
+    "leftDeviceId": 6,
+    "leftIfId": 58,
+    "rightDeviceId": 7,
+    "rightIfId": 69,
+    "sandboxId": 2,
+    "status": 0
+   }
+  ],
+  "graphicsVOList": [],
+  "_attrs": {
+   "T1": {
+    "device.innerId": "1"
+   },
+   "T2": {
+    "device.innerId": "2"
+   }
+  }
+ }
+}

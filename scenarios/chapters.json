@@ -1,0 +1,17 @@
+{
+  "_note": "课程章节（课程页「章节」列，从易到难）。场景 JSON 的 chapter 字段必须是这里的 id（加载时校验）。草案，可调整。",
+  "chapters": [
+    {"id": "L01", "title": "链路与接口", "order": 1},
+    {"id": "L02", "title": "IP 编址", "order": 2},
+    {"id": "L03", "title": "静态路由", "order": 3},
+    {"id": "L04", "title": "VLAN", "order": 4},
+    {"id": "L05", "title": "OSPF", "order": 5},
+    {"id": "L06", "title": "ACL", "order": 6},
+    {"id": "L07", "title": "DHCP", "order": 7},
+    {"id": "L08", "title": "DNS", "order": 8},
+    {"id": "L09", "title": "NAT", "order": 9},
+    {"id": "L10", "title": "STP", "order": 10},
+    {"id": "L11", "title": "防火墙", "order": 11},
+    {"id": "L12", "title": "综合排障", "order": 12}
+  ]
+}

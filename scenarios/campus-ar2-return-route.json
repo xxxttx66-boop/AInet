@@ -1,0 +1,144 @@
+{
+  "id": "campus-ar2-return-route",
+  "title": "管理网访问服务器网段不通（回程静态路由下一跳错误）",
+  "level": 3,
+  "chapter": "L03",
+  "difficulty": 3,
+  "est_minutes": 15,
+  "summary": "交换机访问服务器网段不通，网关自己却能访问",
+  "tags": [
+    "静态路由",
+    "回程路由",
+    "tracert"
+  ],
+  "knowledge_tags": [
+    "静态路由",
+    "回程路由",
+    "路由排障",
+    "tracert"
+  ],
+  "topology": "Campus_Network.topo",
+  "required_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "params": {
+    "bad_hop": {
+      "type": "int",
+      "min": 3,
+      "max": 254,
+      "default": 3
+    }
+  },
+  "symptom": "工单：交换机管理网 10.0.10.0/24（LSW0 管理地址 Vlanif10 = 10.0.10.254，网关 AR0 10.0.10.1）需要访问服务器网段 192.168.2.0/24（AR2 上的 LoopBack0，网关 192.168.2.1）。AR0 与 AR2 之间互联网段为 10.0.12.0/24（AR0 .1，AR2 .2），两端都用静态路由。现在从 LSW0 ping 192.168.2.1 不通，但在 AR0 上 ping 192.168.2.1 是通的。请排查并修复，使 LSW0 能 ping 通 192.168.2.1。",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GigabitEthernet0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GigabitEthernet0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 192.168.2.0 24 10.0.12.2"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GigabitEthernet0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface LoopBack0",
+      "ip address 192.168.2.1 24",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GigabitEthernet0/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "ip route-static 10.0.10.0 24 10.0.12.{bad_hop}"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 192.168.2.0 24 10.0.12.2",
+      "interface GigabitEthernet0/0/1",
+      "undo ip address",
+      "interface GigabitEthernet0/0/0",
+      "undo ip address"
+    ],
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.{bad_hop}",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "undo interface LoopBack0",
+      "interface GigabitEthernet0/0/0",
+      "undo ip address"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GigabitEthernet0/0/1",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10"
+    ]
+  },
+  "checks": [
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 192.168.2.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0（管理网 10.0.10.254）能 ping 通服务器网关 192.168.2.1"
+    }
+  ],
+  "hints": [
+    "AR0 能通、LSW0 不通，说明去程大概率没问题。想一想：AR2 回给 10.0.10.0/24 的包，交给了谁？",
+    "在 LSW0 上 tracert 192.168.2.1 看停在哪一跳；在 AR2 上执行 display ip routing-table 10.0.10.1 或 display current-configuration | include route-static，检查去往 10.0.10.0/24 的路由和下一跳。",
+    "AR2 去往 10.0.10.0/24 的静态路由下一跳被写成了 10.0.12.{bad_hop}（不存在的地址）。在 AR2 上执行 undo ip route-static 10.0.10.0 24 10.0.12.{bad_hop}，再配 ip route-static 10.0.10.0 24 10.0.12.1。"
+  ],
+  "reference_path": "LSW0 ping 192.168.2.1 不通 → AR0 上 ping 192.168.2.1 通（AR0 用 10.0.12.1 作源，回程是直连）→ 怀疑回程 → LSW0 tracert 192.168.2.1，或在 AR0 上 ping -a 10.0.10.1 192.168.2.1 复现 → 登录 AR2 display ip routing-table 查看 10.0.10.0/24 → 下一跳 10.0.12.{bad_hop} 不对 → 删除错误路由并指向 10.0.12.1 → LSW0 再 ping 验证。",
+  "solution": {
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.{bad_hop}",
+      "ip route-static 10.0.10.0 24 10.0.12.1",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "注意到 AR0 能通而 LSW0 不通，推断去程正常、问题在回程或与源地址有关",
+    "用 tracert 或 ping -a 指定源地址复现问题，缩小范围，而不是逐台乱改路由",
+    "登录 AR2 用 display ip routing-table 查看去往 10.0.10.0/24 的路由，发现下一跳 10.0.12.{bad_hop} 不是对端地址",
+    "只删除错误的静态路由并改为指向 10.0.12.1，不改动 AR0 / LSW0 上正确的路由和接口配置",
+    "修复后在 LSW0 上 ping 192.168.2.1 验证"
+  ],
+  "note": "连线按真机：AR0 GE0/0/0 <-> LSW0 GE0/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0（spec §14 第 10 项）。服务器网段用 AR2 的 LoopBack0 模拟，LSW0 管理地址扮演管理网主机（spec §6.2 第 2 条）。下一跳 10.0.12.3 在直连网段内，路由处于激活状态但 ARP 解析不到，现象是回程丢包。 参数化（里程碑 6）：错误下一跳 10.0.12.x 的末段 bad_hop（3~254，排除网络地址、两端 .1/.2 与广播，默认 3），种子 0 与原题一致。"
+}

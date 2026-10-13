@@ -1,0 +1,110 @@
+{
+  "id": "campus-ar0-dhcp-select-ys",
+  "title": "终端拿不到地址（DHCP 服务未生效）",
+  "level": 2,
+  "chapter": "L07",
+  "difficulty": 2,
+  "est_minutes": 15,
+  "summary": "新接入的终端一直拿不到 IP 地址，DHCP 地址池明明配好了",
+  "tags": [
+    "DHCP",
+    "地址池",
+    "DHCP 服务器"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "DHCP 服务器",
+    "全局地址池",
+    "接口启用 DHCP",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "R1",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "R1"
+  ],
+  "symptom": "工单：AR0 的 GE0/0/0（10.0.10.1/24）是 10.0.10.0/24 的网关兼 DHCP 服务器（全局地址池 campus，10.0.10.2~10.0.10.9 保留给服务器不分配），经接入交换机 LSW0 的 VLAN 1 与 R1 的 GE0/0/0 处在同一二层网段；R1 在这里扮演一台用 DHCP 自动获取地址的终端。现在 R1 一直拿不到地址（display ip interface brief 里 GE0/0/0 没有 IP）。管理员说地址池 campus 已经配好了。请排查 AR0 并修复，使 R1 通过 DHCP 获取到 10.0.10.0/24 的地址、并能 ping 通网关 10.0.10.1。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "dhcp enable",
+      "ip pool campus",
+      "gateway-list 10.0.10.1",
+      "network 10.0.10.0 mask 255.255.255.0",
+      "excluded-ip-address 10.0.10.2 10.0.10.9",
+      "return",
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "dhcp select global"
+    ]
+  },
+  "inject": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo dhcp select global"
+    ],
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address dhcp-alloc"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo dhcp select global",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo ip pool campus"
+    ],
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ip address dhcp-alloc"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ip interface brief",
+      "expect": "GE0/0/0\\s+10\\.0\\.10\\.\\d{1,3}/24",
+      "desc": "R1 的 GE0/0/0 通过 DHCP 获取到 10.0.10.0/24 的地址"
+    },
+    {
+      "device": "R1",
+      "command": "ping -c 2 10.0.10.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "R1 能 ping 通网关 10.0.10.1"
+    }
+  ],
+  "hints": [
+    "地址池配好了，不等于服务器会在这个接口上响应客户端的请求。DHCP 服务要在哪些地方都打开？",
+    "在 AR0 上执行 display ip pool name campus 看地址池；再用 display current-configuration interface GE0/0/0 看这个接口有没有启用 DHCP 服务（以及 dhcp enable 全局开关）。",
+    "AR0 的 GE0/0/0 下缺少 dhcp select global，接口不会用全局地址池应答。在 interface GE0/0/0 下执行 dhcp select global；R1 若迟迟不重新获取，可在 R1 的 GE0/0/0 下重新执行 ip address dhcp-alloc。"
+  ],
+  "reference_path": "R1 display ip interface brief 没有地址 → 登录 AR0：display ip pool name campus 地址池正常、Used 为 0 → display current-configuration interface GE0/0/0 没有 dhcp select global → 在接口下启用 → R1 重新获取地址 → R1 ping 10.0.10.1 验证。",
+  "solution": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "dhcp select global",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "先确认客户端确实没拿到地址，再到服务器上分段核对：全局开关、地址池、接口启用",
+    "发现 GE0/0/0 没有 dhcp select global",
+    "只在接口上启用 DHCP，不改地址池、不给 R1 配静态地址绕过",
+    "修复后确认 R1 拿到 10.0.10.0/24 的地址并能 ping 通网关"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 用路由器 R1 当 DHCP 客户端（spec §6.2 第 2 条；PC-CLIENT 的 DHCP 模式 ainet 还不支持，见规划 §4 L07）。R1 的 ip address dhcp-alloc 放在 inject 里、排在 AR0 之后执行：如果放进 baseline，R1 可能在注入之前就拿到地址，故障不生效。LSW0 不下发配置，只作为 VLAN 1 二层网段、不开放终端。注意：注入后的故障确认在 R1 还来不及拿到地址时就跑，总能通过，证明不了注入有效——真机验证时要等约 1 分钟，确认 R1 仍没有地址。 真机实测：dhcp enable 是 AR6700 的出厂配置（restore 不再 undo dhcp enable，否则整机复位还要补回）；ip pool / gateway-list / network … mask … / excluded-ip-address / dhcp select global 与客户端 ip address dhcp-alloc 写法都可用；注入后等 90 秒 R1 的 GE0/0/0 仍是 unassigned up/down（故障真的生效）；AR0 改回 dhcp select global 后 R1 不用重新 dhcp-alloc，约 20~35 秒自动拿到地址（实测 10.0.10.130/24）；display ip pool name campus 显示 Total 253、Idle 245、Disabled 8。"
+}

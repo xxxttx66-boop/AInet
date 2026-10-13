@@ -1,0 +1,49 @@
+{
+  "id": "campus-lsw0-access-vlan",
+  "title": "交换机管理地址 ping 不通（接入 VLAN 配错）",
+  "level": 2,
+  "knowledge_tags": ["VLAN", "Access 端口", "二层排障"],
+  "topology": "Campus_Network.topo",
+  "required_devices": ["AR0", "LSW0"],
+  "accessible_devices": ["AR0", "LSW0"],
+  "symptom": "工单：接入交换机 LSW0 的管理地址是 VLAN 10 的 Vlanif10（10.0.10.254/24），网关是 AR0 的 GigabitEthernet0/0/0（10.0.10.1/24）。AR0 与 LSW0 之间只有一条线：AR0 GE0/0/0 <-> LSW0 GE0/0/1，规划为 VLAN 10 的 Access 口。今天上午有人调整过交换机端口配置，之后从 AR0 ping 10.0.10.254 不通。请登录 AR0、LSW0 排查并修复，使 AR0 能 ping 通 10.0.10.254。",
+  "baseline": {
+    "AR0": ["system-view", "interface GigabitEthernet0/0/0", "ip address 10.0.10.1 24"],
+    "LSW0": ["system-view", "vlan batch 10", "interface GigabitEthernet0/0/1", "port link-type access",
+             "port default vlan 10", "interface Vlanif10", "ip address 10.0.10.254 24"]
+  },
+  "inject": {
+    "LSW0": ["system-view", "vlan batch 20", "interface GigabitEthernet0/0/1", "port default vlan 20"]
+  },
+  "restore": {
+    "AR0": ["system-view", "interface GigabitEthernet0/0/0", "undo ip address"],
+    "LSW0": ["system-view", "interface Vlanif10", "undo ip address", "return", "system-view", "undo interface Vlanif10",
+             "interface GigabitEthernet0/0/1", "undo port default vlan", "undo port link-type", "return", "system-view",
+             "undo vlan batch 10 20"]
+  },
+  "checks": [
+    {
+      "device": "AR0",
+      "command": "ping -c 2 10.0.10.254",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "AR0 能 ping 通 LSW0 的管理地址 10.0.10.254"
+    }
+  ],
+  "hints": [
+    "三层地址都在同一网段，问题多半在二层：AR0 发出的帧进了交换机的哪个 VLAN？和 Vlanif10 是不是同一个 VLAN？",
+    "在 LSW0 上执行 display port vlan 或 display vlan，看 GigabitEthernet0/0/1 的 PVID / 所属 VLAN；再用 display ip interface brief 看 Vlanif10 的状态。",
+    "LSW0 的 GigabitEthernet0/0/1 被改成了 port default vlan 20，Vlanif10 因为 VLAN 10 没有 up 的端口而 down。在接口视图下执行 port default vlan 10 即可。"
+  ],
+  "reference_path": "AR0 ping 10.0.10.254 不通 → AR0 上 display ip interface brief 确认 GE0/0/0 为 10.0.10.1/24 且 up → 登录 LSW0，display ip interface brief 发现 Vlanif10 协议 down → display port vlan 发现 GE0/0/1 的 PVID 是 20 → interface GigabitEthernet0/0/1 → port default vlan 10 → Vlanif10 up，回到 AR0 ping 验证。",
+  "solution": {
+    "LSW0": ["system-view", "interface GigabitEthernet0/0/1", "port default vlan 10", "return"]
+  },
+  "scoring_points": [
+    "先在 AR0 上确认本端接口地址与状态正常（display ip interface brief），再登录 LSW0 排查，而不是一上来就改配置",
+    "在 LSW0 上用 display ip interface brief 发现 Vlanif10 协议 down，并用 display port vlan / display vlan 查出 GE0/0/1 的 PVID 不是 VLAN 10",
+    "理解 Vlanif 只有在该 VLAN 有 up 的成员端口时才会 up，能把三层现象和二层原因联系起来",
+    "只在 GE0/0/1 上把 port default vlan 改回 10，不删除 VLAN、不改 Vlanif10 地址、不关闭接口",
+    "修复后在 AR0 上 ping 10.0.10.254 验证连通"
+  ],
+  "note": "连线按真机：AR0 GigabitEthernet0/0/0 <-> LSW0 GigabitEthernet0/0/1（2026-10-04 两端配同网段地址 ping 通，spec §14 第 10 项）。LSW0 用管理地址 Vlanif10 扮演 VLAN 10 里的主机（spec §6.2 第 2 条：系统能经 console 判定）。故障注入后 Vlanif10 因 VLAN 10 无 up 端口而协议 down。"
+}

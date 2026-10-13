@@ -1,0 +1,177 @@
+{
+  "id": "campus-ar2-easyip-acl-ys",
+  "title": "管理网访问外网不通（Easy IP）",
+  "level": 3,
+  "chapter": "L09",
+  "difficulty": 3,
+  "est_minutes": 20,
+  "summary": "出口路由器自己能访问外网，内网的交换机却访问不了",
+  "tags": [
+    "NAT",
+    "Easy IP",
+    "NAT 策略"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "Easy IP",
+    "NAT 策略（nat-policy）",
+    "源地址匹配",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR1",
+    "AR2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "symptom": "工单：园区出口：交换机管理网 10.0.10.0/24（LSW0 Vlanif10 = 10.0.10.254，网关 AR0 10.0.10.1）→ AR0（默认路由指向 AR2）→ 出口路由器 AR2 → 运营商 AR1。AR2 的 GE0/0/2 = 198.51.100.2/24 接运营商，AR1 = 198.51.100.1，运营商侧的外网测试地址是 203.0.113.1；运营商不认识内网的 10.x 地址。AR2 用 NAT 策略（nat-policy 里的规则 easyip，动作 Easy IP，出接口 GE0/0/2）把管理网的源地址转换成出接口地址后访问外网。现在 AR2 自己 ping 203.0.113.1 正常，但 LSW0 ping 203.0.113.1 不通。请排查并修复，使 LSW0 能 ping 通 203.0.113.1。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.12.2"
+    ],
+    "AR1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 198.51.100.1 24",
+      "interface LoopBack0",
+      "ip address 203.0.113.1 32"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface GE0/0/2",
+      "ip address 198.51.100.2 24",
+      "nat enable",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1",
+      "ip route-static 0.0.0.0 0 198.51.100.1",
+      "return",
+      "system-view",
+      "nat-policy",
+      "rule name easyip",
+      "source-address 10.0.10.0 24",
+      "egress-interface GE0/0/2",
+      "action source-nat easy-ip"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GE1/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "nat-policy",
+      "rule name easyip",
+      "source-address 10.0.20.0 24",
+      "undo source-address 10.0.10.0 24"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.12.2",
+      "interface GE0/0/1",
+      "undo ip address",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "AR1": [
+      "system-view",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10"
+    ],
+    "AR2": [
+      "system-view",
+      "nat-policy",
+      "undo rule name easyip",
+      "return",
+      "system-view",
+      "interface GE0/0/2",
+      "undo nat enable",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 198.51.100.1",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 203.0.113.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0（管理网 10.0.10.254）能 ping 通外网 203.0.113.1"
+    },
+    {
+      "device": "AR2",
+      "command": "display nat-policy rule name easyip",
+      "expect": "action source-nat easy-ip",
+      "desc": "AR2 仍用 NAT 策略 easyip 做 Easy IP 转换"
+    }
+  ],
+  "hints": [
+    "AR2 自己能通（源是公网口地址）、内网不通：内网的源地址出去之前被转换了吗？哪些源地址会被转换，由什么决定？",
+    "在 AR2 上用 display 命令查看 NAT 策略：先看各条规则有没有命中（HITS），再看做 Easy IP 的那条规则匹配的源地址，与管理网 10.0.10.0/24 对比。",
+    "AR2 的 NAT 规则 easyip 把源地址写成了 10.0.20.0/24，管理网的流量没被转换，运营商回不了包。在 nat-policy 视图下进入 rule name easyip，先 source-address 10.0.10.0 24，再 undo source-address 10.0.20.0 24。改完稍等几秒再从 LSW0 ping（紧接着的那次可能还不通）。"
+  ],
+  "reference_path": "LSW0 ping 203.0.113.1 不通、AR2 自己通 → 怀疑 NAT 没有作用于管理网 → AR2 display nat-policy rule all：easyip 规则 HITS 为 0 → display nat-policy rule name easyip：source-address 10.0.20.0，与管理网不符 → 改为 10.0.10.0/24 → LSW0 再 ping 验证。",
+  "solution": {
+    "AR2": [
+      "system-view",
+      "nat-policy",
+      "rule name easyip",
+      "source-address 10.0.10.0 24",
+      "undo source-address 10.0.20.0 24",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "从「出口自己通、内网不通」推断是源地址转换的范围问题，而不是路由",
+    "查出 NAT 规则匹配的源网段与管理网不符（规则没有命中）",
+    "只修正 NAT 规则的源地址，不删 NAT、不要求运营商加内网路由",
+    "修复后在 LSW0 上 ping 203.0.113.1 验证"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 AR1 扮演运营商（只配公网地址、没有去内网的路由），不开放终端。AR1 是第一次被题目使用，自动保存实验时留过 LoopBack99 等标记（docs/enspro-replacement.md §3.3）：验证前先与出厂配置比对、确认干净后用 POST /api/lab/baseline 手动记基线，否则自动记录会把旧配置当成干净基线（例如残留一条回内网的路由会让 Easy IP 故障不生效）。 真机实测（2026-10-07，AR6700 V600R025C10SPC100）：这一型号的 NAT 是防火墙式写法，接口下没有 nat outbound / nat static（报 Unrecognized command，接口视图的 nat 只有 enable、gratuitous-arp）。源 NAT 用 nat-policy 的规则（rule name … / source-address … / egress-interface … / action source-nat easy-ip），一对一发布用系统视图的 nat server <名字> global <公网> inside <内网>；两者都要求出接口上 nat enable，否则规则不命中（display nat-policy rule all 的 HITS 为 0）。不需要 license，不需要把接口加入安全区域（缺省 security-policy 为 permit）。 注入先加错误网段、再删正确网段：删掉规则里最后一个源地址会问 [Y/N]。 真机实测：按 nat-policy 写法改写后跑通：注入后 easyip 规则 HITS 为 0、流量全部命中 default（no-nat）；修复后紧接着的那次 ping 仍不通，几秒后通（自动判定在修复后约 16 秒通过）；undo rule name easyip 不问确认，restore 撤销干净（整机复位 0 轮）。AR1 开工前核对为出厂配置（没有 LoopBack99 等旧标记），已手动记基线。"
+}

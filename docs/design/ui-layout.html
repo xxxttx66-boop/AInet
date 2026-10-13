@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ainet 工作台布局方案</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#06080b;color:#d5dbe3;font-family:'IBM Plex Sans','Noto Sans SC',sans-serif}
+nav.tabs{position:sticky;top:0;z-index:10;display:flex;gap:6px;padding:10px 16px;background:#06080b;border-bottom:1px solid #262d38}
+nav.tabs button{height:34px;padding:0 14px;border:1px solid #2c3440;border-radius:6px;background:transparent;color:#aab3bf;font:inherit;cursor:pointer}
+nav.tabs button.on{background:#24303d;color:#fff;font-weight:600}
+.board{padding:16px;overflow-x:auto} .board h2{margin:0 0 10px;font-size:15px;font-weight:600}
+.frame{width:1440px;border:1px solid #262d38}
+.board .note{margin:0 0 10px;color:#f0b56a;font-size:12px}
+</style></head><body>
+<nav class="tabs"><button data-i="0" class=on>① 自由实验</button><button data-i="1">② 练习</button><button data-i="2">③ 考试</button><button data-i="3">④ 收起状态</button><button data-i="4">⑤ 课程选择</button><button data-i="5">⑥ 单层顶栏</button><span style="margin-left:auto;align-self:center;color:#8a94a3;font-size:12px">静态布局稿 · 演示数据</span></nav>
+<section class="board" id="b0"><h2>① 自由实验</h2><p class="note">2026-10-07 起操作页改为单层顶栏（见 ⑥）：①~④ 中的两层顶栏（顶栏 + 任务条 / 考试条）按 ⑥ 合并成一行，环境与拓扑收进题名气泡，「档案」移到学员菜单；其余布局不变。</p><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0e1217; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <header style="height: 52px; flex: none; display: flex; align-items: center; gap: 20px; padding: 0 16px; background: #151a21; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid #2c3440; border-radius: 6px; color: #aab3bf">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>
+      <span>拓扑 Campus · 运行 4/5 台</span>
+    </div>
+    <nav aria-label="模式" style="display: flex; gap: 4px; margin-left: 12px">
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600">实验</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">练习</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">考试</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">档案</button>
+    </nav>
+    <div style="flex: 1"></div>
+    <div style="color: #aab3bf">学生：[学生姓名]</div>
+  </header>
+
+  <main style="flex: 1; min-height: 0; display: flex">
+
+    <section aria-label="拓扑" style="width: 300px; flex: none; display: flex; flex-direction: column; background: #12171d; border-right: 1px solid #262d38">
+      <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid #262d38">
+        <strong style="font-weight: 600; color: #ffffff">拓扑</strong>
+        <button aria-label="收起拓扑" style="width: 28px; height: 28px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf">‹</button>
+      </div>
+      <div style="position: relative; flex: 1">
+        <div style="position: absolute; left: 140px; top: 70px; width: 2px; height: 110px; background: #4a5566"></div>
+        <div style="position: absolute; left: 60px; top: 180px; width: 160px; height: 2px; background: #4a5566"></div>
+        <div style="position: absolute; left: 60px; top: 180px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 220px; top: 180px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 60px; top: 270px; width: 2px; height: 110px; background: #4a5566"></div>
+
+        <div style="position: absolute; left: 110px; top: 40px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">AR0</div>
+        <div style="position: absolute; left: 110px; top: 160px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">AR1</div>
+        <div style="position: absolute; left: 30px; top: 250px; width: 62px; height: 40px; border: 2px solid #e8a33d; border-radius: 8px; background: #2a2216; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #ffffff">AR2</div>
+        <div style="position: absolute; left: 190px; top: 250px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">LSW0</div>
+        <div style="position: absolute; left: 30px; top: 370px; width: 62px; height: 40px; border: 1px dashed #5c6676; border-radius: 8px; background: #161b22; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #8a94a3">PC1</div>
+      </div>
+      <div style="padding: 10px 12px; border-top: 1px solid #262d38; color: #8a94a3; line-height: 1.6">点设备打开终端 · 橙框 = 当前终端<br>虚线 = 已停止（eNSP Pro 可点「启动」）</div>
+    </section>
+
+    <section aria-label="终端" style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #0b0e12">
+      <div style="height: 40px; flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 0 8px; background: #12171d; border-bottom: 1px solid #262d38">
+        <div style="height: 32px; padding: 0 14px; display: flex; align-items: center; background: #0b0e12; border: 1px solid #262d38; border-bottom: none; border-radius: 6px 6px 0 0; color: #ffffff; font-family: 'JetBrains Mono', monospace">AR2</div>
+        <div style="height: 32px; padding: 0 14px; display: flex; align-items: center; color: #8a94a3; font-family: 'JetBrains Mono', monospace">AR0</div>
+        <div style="flex: 1"></div>
+        <button style="height: 30px; margin-bottom: 5px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">分屏</button>
+      </div>
+      <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;AR2&gt;display ip interface brief
+Interface                         IP Address/Mask      Physical   Protocol
+GigabitEthernet0/0/0              10.0.12.2/24         up         up
+GigabitEthernet0/0/1              192.168.10.1/24      up         up
+LoopBack0                         2.2.2.2/32           up         up(s)
+NULL0                             unassigned           up         up(s)
+&lt;AR2&gt;ping 10.0.12.1
+  PING 10.0.12.1: 56  data bytes, press CTRL_C to break
+    Reply from 10.0.12.1: bytes=56 Sequence=1 ttl=255 time=30 ms
+    Reply from 10.0.12.1: bytes=56 Sequence=2 ttl=255 time=20 ms
+&lt;AR2&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+    </section>
+
+    <aside aria-label="Agent" style="width: 380px; flex: none; display: flex; flex-direction: column; background: #12171d; border-left: 1px solid #262d38">
+      <div style="height: 40px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid #262d38">
+        <strong style="font-weight: 600; color: #ffffff">Agent</strong>
+        <div style="display: flex; gap: 6px; align-items: center">
+          <span style="padding: 2px 8px; border-radius: 10px; background: #1d2a36; color: #8fc1e8; font-size: 12px">自由问答</span>
+          <button aria-label="收起 Agent 面板" style="width: 28px; height: 28px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf">›</button>
+        </div>
+      </div>
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px 12px; overflow: hidden">
+        <div style="align-self: flex-end; max-width: 280px; padding: 9px 12px; border-radius: 10px; background: #24303d; color: #ffffff; line-height: 1.55">AR2 的 GE0/0/0 连到哪台设备？路由表里有去 PC1 网段的路由吗？</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 330px">
+          <div style="padding: 8px 10px; border: 1px solid #2c3440; border-radius: 8px; background: #0f1419; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8a94a3">已在 AR2 执行（只读）：<span style="color: #c9d1d9">display ip routing-table</span></div>
+          <div style="line-height: 1.65">GE0/0/0 连到 <b style="color: #ffffff">AR1 的 GE0/0/2</b>（来自拓扑）。<br>AR2 路由表里有 192.168.10.0/24（直连），PC1 就在这个网段，所以从 AR2 能到 PC1。</div>
+        </div>
+        <div style="align-self: flex-end; max-width: 280px; padding: 9px 12px; border-radius: 10px; background: #24303d; color: #ffffff; line-height: 1.55">LoopBack0 后面的 up(s) 是什么意思？</div>
+        <div style="max-width: 330px; line-height: 1.65">(s) 表示 spoofing：环回口和 NULL0 这类逻辑接口没有物理链路，协议状态始终显示 up，所以标了 (s)。</div>
+      </div>
+      <div style="flex: none; padding: 10px 12px; border-top: 1px solid #262d38; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; gap: 6px; flex-wrap: wrap">
+          <button style="height: 30px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 15px; background: transparent; color: #aab3bf; font: inherit; font-size: 12px">解释上一条输出</button>
+          <button style="height: 30px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 15px; background: transparent; color: #aab3bf; font: inherit; font-size: 12px">各设备状态</button>
+        </div>
+        <label style="display: flex; gap: 8px; align-items: center">
+          <span style="position: absolute; left: -9999px">向 Agent 提问</span>
+          <input placeholder="问问当前环境…" style="flex: 1; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid #2c3440; border-radius: 8px; background: #0f1419; color: #d5dbe3; font: inherit">
+          <button style="height: 40px; padding: 0 16px; border: none; border-radius: 8px; background: #2f8f7f; color: #ffffff; font: inherit; font-weight: 600">发送</button>
+        </label>
+      </div>
+    </aside>
+  </main>
+</div>
+</div></section><section class="board" id="b1" hidden><h2>② 练习</h2><p class="note">2026-10-07 起操作页改为单层顶栏（见 ⑥）：①~④ 中的两层顶栏（顶栏 + 任务条 / 考试条）按 ⑥ 合并成一行，环境与拓扑收进题名气泡，「档案」移到学员菜单；其余布局不变。</p><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0e1217; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <header style="height: 52px; flex: none; display: flex; align-items: center; gap: 20px; padding: 0 16px; background: #151a21; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid #2c3440; border-radius: 6px; color: #aab3bf">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>
+      <span>拓扑 Campus · 运行 5/5 台</span>
+    </div>
+    <nav aria-label="模式" style="display: flex; gap: 4px; margin-left: 12px">
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">实验</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600">练习</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">考试</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">档案</button>
+    </nav>
+    <div style="color: #8a94a3">练习进行中，结束后才能切换</div>
+    <div style="flex: 1"></div>
+    <div style="color: #aab3bf">学生：[学生姓名]</div>
+  </header>
+
+  <div role="region" aria-label="任务条" style="height: 56px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 16px; background: #182029; border-bottom: 1px solid #2f3a47">
+    <span style="padding: 3px 9px; border-radius: 4px; background: #2f8f7f; color: #ffffff; font-weight: 600; font-size: 12px">练习</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+      <strong style="font-weight: 600; color: #ffffff; font-size: 14px">AR0 与 AR2 互联不通</strong>
+      <span style="color: #8a94a3; font-size: 12px">工单：分支机构反馈访问总部失败，请排查 AR0—AR2 链路</span>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; align-items: baseline; gap: 6px">
+      <span style="color: #8a94a3">用时</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #ffffff">12:48</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="color: #8a94a3">判定</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #17312a; color: #5fd3a7">互通 ✓</span>
+      <span style="padding: 3px 8px; border-radius: 4px; background: #33251a; color: #f0b56a">回归 1/2</span>
+    </div>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #3a4655; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">立即检查</button>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #6b3b3b; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit">结束练习</button>
+  </div>
+
+  <main style="flex: 1; min-height: 0; display: flex">
+
+    <section aria-label="拓扑" style="width: 260px; flex: none; display: flex; flex-direction: column; background: #12171d; border-right: 1px solid #262d38">
+      <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid #262d38">
+        <strong style="font-weight: 600; color: #ffffff">拓扑</strong>
+        <button aria-label="收起拓扑" style="width: 28px; height: 28px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf">‹</button>
+      </div>
+      <div style="position: relative; flex: 1">
+        <div style="position: absolute; left: 120px; top: 70px; width: 2px; height: 110px; background: #4a5566"></div>
+        <div style="position: absolute; left: 50px; top: 180px; width: 150px; height: 2px; background: #4a5566"></div>
+        <div style="position: absolute; left: 50px; top: 180px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 200px; top: 180px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 90px; top: 40px; width: 62px; height: 40px; border: 2px solid #e8a33d; border-radius: 8px; background: #2a2216; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #ffffff">AR0</div>
+        <div style="position: absolute; left: 90px; top: 160px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">AR1</div>
+        <div style="position: absolute; left: 20px; top: 250px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">AR2</div>
+        <div style="position: absolute; left: 170px; top: 250px; width: 62px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">LSW0</div>
+        <div style="position: absolute; left: 12px; top: 330px; width: 236px; box-sizing: border-box; padding: 8px 10px; border: 1px solid #2c3440; border-radius: 6px; color: #8a94a3; line-height: 1.55">本题涉及：AR0、AR2<br>本题设备不可停止</div>
+      </div>
+    </section>
+
+    <section aria-label="终端" style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: #0b0e12">
+      <div style="height: 40px; flex: none; display: flex; align-items: flex-end; gap: 2px; padding: 0 8px; background: #12171d; border-bottom: 1px solid #262d38">
+        <div style="height: 32px; padding: 0 14px; display: flex; align-items: center; background: #0b0e12; border: 1px solid #262d38; border-bottom: none; border-radius: 6px 6px 0 0; color: #ffffff; font-family: 'JetBrains Mono', monospace">AR0</div>
+        <div style="height: 32px; padding: 0 14px; display: flex; align-items: center; color: #8a94a3; font-family: 'JetBrains Mono', monospace">AR2</div>
+      </div>
+      <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;AR0&gt;ping 10.0.2.2
+  PING 10.0.2.2: 56  data bytes, press CTRL_C to break
+    Request time out
+    Request time out
+  --- 10.0.2.2 ping statistics ---
+    2 packet(s) transmitted
+    0 packet(s) received
+    100.00% packet loss
+&lt;AR0&gt;display ip interface brief
+Interface                         IP Address/Mask      Physical   Protocol
+GigabitEthernet0/0/2              10.0.20.1/24         up         up
+&lt;AR0&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+    </section>
+
+    <aside aria-label="工单与 Agent 导师" style="width: 380px; flex: none; display: flex; flex-direction: column; background: #12171d; border-left: 1px solid #262d38">
+      <div role="tablist" style="height: 40px; flex: none; display: flex; align-items: stretch; padding: 0 8px; border-bottom: 1px solid #262d38">
+        <button role="tab" aria-selected="false" style="padding: 0 14px; border: none; border-bottom: 2px solid transparent; background: transparent; color: #8a94a3; font: inherit">工单详情</button>
+        <button role="tab" aria-selected="true" style="padding: 0 14px; border: none; border-bottom: 2px solid #2f8f7f; background: transparent; color: #ffffff; font: inherit; font-weight: 600">Agent 导师</button>
+        <div style="flex: 1"></div>
+        <button aria-label="收起右侧面板" style="align-self: center; width: 28px; height: 28px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf">›</button>
+      </div>
+      <div style="flex: none; padding: 8px 12px; background: #1a2230; color: #8fc1e8; font-size: 12px; line-height: 1.5">导师模式：只引导思路，不直接给答案；对话会作为评分参考</div>
+      <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px 12px; overflow: hidden">
+        <div style="align-self: flex-end; max-width: 280px; padding: 9px 12px; border-radius: 10px; background: #24303d; color: #ffffff; line-height: 1.55">AR0 ping 不通 AR2，我该先查什么？</div>
+        <div style="max-width: 330px; line-height: 1.65">先确认两端是不是在同一网段。你刚看了 AR0 的接口地址，对端 AR2 那个口配的是什么？把两边的地址和掩码放在一起比一比。</div>
+        <div style="align-self: flex-end; max-width: 280px; padding: 9px 12px; border-radius: 10px; background: #24303d; color: #ffffff; line-height: 1.55">AR2 那边是 10.0.2.2/24</div>
+        <div style="max-width: 330px; line-height: 1.65">那么 AR0 这边 10.0.20.1/24 和它在同一网段吗？想清楚哪一端配错了，再动手改。</div>
+      </div>
+      <div style="flex: none; padding: 10px 12px; border-top: 1px solid #262d38; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; gap: 6px; align-items: center">
+          <span style="color: #8a94a3; font-size: 12px">提示</span>
+          <button style="height: 30px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 15px; background: transparent; color: #aab3bf; font: inherit; font-size: 12px">1 级 · 方向</button>
+          <button style="height: 30px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 15px; background: transparent; color: #aab3bf; font: inherit; font-size: 12px">2 级 · 位置</button>
+          <button style="height: 30px; padding: 0 10px; border: 1px solid #5a4630; border-radius: 15px; background: transparent; color: #f0b56a; font: inherit; font-size: 12px">3 级 · 扣分</button>
+        </div>
+        <label style="display: flex; gap: 8px; align-items: center">
+          <span style="position: absolute; left: -9999px">向导师提问</span>
+          <input placeholder="向导师提问…" style="flex: 1; height: 40px; box-sizing: border-box; padding: 0 12px; border: 1px solid #2c3440; border-radius: 8px; background: #0f1419; color: #d5dbe3; font: inherit">
+          <button style="height: 40px; padding: 0 16px; border: none; border-radius: 8px; background: #2f8f7f; color: #ffffff; font: inherit; font-weight: 600">发送</button>
+        </label>
+      </div>
+    </aside>
+  </main>
+</div>
+</div></section><section class="board" id="b2" hidden><h2>③ 考试</h2><p class="note">2026-10-07 起操作页改为单层顶栏（见 ⑥）：①~④ 中的两层顶栏（顶栏 + 任务条 / 考试条）按 ⑥ 合并成一行，环境与拓扑收进题名气泡，「档案」移到学员菜单；其余布局不变。</p><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0e1217; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <header style="height: 52px; flex: none; display: flex; align-items: center; gap: 20px; padding: 0 16px; background: #151a21; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid #2c3440; border-radius: 6px; color: #aab3bf">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>
+      <span>运行 5/5 台</span>
+    </div>
+    <nav aria-label="模式" style="display: flex; gap: 4px; margin-left: 12px">
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">实验</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">练习</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: #3a2a2a; color: #ffffff; font: inherit; font-weight: 600">考试</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">档案</button>
+    </nav>
+    <div style="flex: 1"></div>
+    <div style="color: #aab3bf">考生：[学生姓名]</div>
+  </header>
+
+  <div role="region" aria-label="考试条" style="height: 60px; flex: none; display: flex; align-items: center; gap: 22px; padding: 0 16px; background: #221a1c; border-bottom: 1px solid #4a3034">
+    <span style="padding: 3px 9px; border-radius: 4px; background: #b04a4a; color: #ffffff; font-weight: 600; font-size: 12px">考试</span>
+    <div style="display: flex; align-items: baseline; gap: 6px">
+      <span style="color: #b39a9d">剩余</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 600; color: #ffffff">38:12</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px">
+      <span style="color: #b39a9d">第</span>
+      <span style="width: 26px; height: 26px; border-radius: 50%; background: #3fb68b; color: #0e1217; display: flex; align-items: center; justify-content: center; font-weight: 600">1</span>
+      <span style="width: 26px; height: 26px; border-radius: 50%; border: 2px solid #ffffff; color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 600; box-sizing: border-box">2</span>
+      <span style="width: 26px; height: 26px; border-radius: 50%; border: 1px solid #5c4a4d; color: #8a7a7d; display: flex; align-items: center; justify-content: center; box-sizing: border-box">3</span>
+      <span style="color: #b39a9d">题</span>
+    </div>
+    <div style="display: flex; align-items: baseline; gap: 6px">
+      <span style="color: #b39a9d">本题</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; color: #f0b56a">09:40</span>
+    </div>
+    <button style="height: 36px; padding: 0 12px; border: 1px solid #5c4a4d; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">查看工单 ▾</button>
+    <div style="flex: 1"></div>
+    <button style="height: 36px; padding: 0 14px; border: none; border-radius: 6px; background: #2f8f7f; color: #ffffff; font: inherit; font-weight: 600">提交本题</button>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #5c4a4d; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">下一题</button>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #8a3d3d; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit">交卷</button>
+  </div>
+
+  <div style="position: relative; flex: none; height: 0">
+    <div style="position: absolute; left: 470px; top: 6px; width: 520px; z-index: 2; box-sizing: border-box; padding: 14px 16px; border: 1px solid #4a3034; border-radius: 8px; background: #1c1517; box-shadow: 0 10px 30px rgba(0,0,0,0.5); line-height: 1.65">
+      <strong style="display: block; margin-bottom: 4px; color: #ffffff; font-weight: 600">第 2 题 · 工单（展开状态）</strong>
+      财务部 VLAN 的终端无法获取网关，请恢复其访问。限用 display / 配置命令，禁止重启设备。
+    </div>
+  </div>
+
+  <main style="flex: 1; min-height: 0; display: flex">
+
+    <section aria-label="拓扑（已打码）" style="width: 220px; flex: none; display: flex; flex-direction: column; background: #12171d; border-right: 1px solid #262d38">
+      <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid #262d38">
+        <strong style="font-weight: 600; color: #ffffff">拓扑</strong>
+        <button aria-label="收起拓扑" style="width: 28px; height: 28px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf">‹</button>
+      </div>
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 12px">
+        <div style="padding: 10px; border: 1px solid #2c3440; border-radius: 6px; font-family: 'JetBrains Mono', monospace">设备 A</div>
+        <div style="padding: 10px; border: 1px solid #2c3440; border-radius: 6px; font-family: 'JetBrains Mono', monospace">设备 B</div>
+        <div style="padding: 10px; border: 1px solid #2c3440; border-radius: 6px; font-family: 'JetBrains Mono', monospace">设备 C</div>
+        <div style="margin-top: 6px; color: #8a94a3; line-height: 1.6">本场考试不提供拓扑：只列出可登录的设备，连线与名称已隐藏</div>
+      </div>
+    </section>
+
+    <section aria-label="终端（双屏）" style="flex: 1; min-width: 0; display: flex; background: #0b0e12">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #262d38">
+        <div style="height: 36px; flex: none; display: flex; align-items: center; padding: 0 12px; background: #12171d; border-bottom: 1px solid #262d38; font-family: 'JetBrains Mono', monospace; color: #ffffff">设备 B</div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;B&gt;display vlan
+VID  Type    Ports
+--------------------------------------------
+1    common  UT:GE0/0/1(U)  GE0/0/2(U)
+20   common  TG:GE0/0/24(U)
+&lt;B&gt;display port vlan GigabitEthernet0/0/2
+Port                 Link Type  PVID  Trunk VLAN List
+GigabitEthernet0/0/2 access     1     -
+&lt;B&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+      </div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+        <div style="height: 36px; flex: none; display: flex; align-items: center; padding: 0 12px; background: #12171d; border-bottom: 1px solid #262d38; font-family: 'JetBrains Mono', monospace; color: #8a94a3">设备 A</div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;A&gt;display ip interface brief
+Interface                    IP Address/Mask   Physical Protocol
+Vlanif20                     192.168.20.1/24   up       up
+&lt;A&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+      </div>
+    </section>
+  </main>
+
+  <footer style="height: 30px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #151a21; border-top: 1px solid #262d38; color: #8a94a3; font-size: 12px">
+    <span>无 Agent 面板（后端也拒绝 Agent 请求）</span>
+    <span>·</span>
+    <span>提示按模板设定：本场禁用</span>
+  </footer>
+</div>
+</div></section><section class="board" id="b3" hidden><h2>④ 收起状态</h2><p class="note">2026-10-07 起操作页改为单层顶栏（见 ⑥）：①~④ 中的两层顶栏（顶栏 + 任务条 / 考试条）按 ⑥ 合并成一行，环境与拓扑收进题名气泡，「档案」移到学员菜单；其余布局不变。</p><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0e1217; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <header style="height: 52px; flex: none; display: flex; align-items: center; gap: 20px; padding: 0 16px; background: #151a21; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 4px 10px; border: 1px solid #2c3440; border-radius: 6px; color: #aab3bf">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>
+      <span>拓扑 Campus · 运行 5/5 台</span>
+    </div>
+    <nav aria-label="模式" style="display: flex; gap: 4px; margin-left: 12px">
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">实验</button>
+      <button style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600">练习</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">考试</button>
+      <button disabled="" style="height: 34px; padding: 0 14px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">档案</button>
+    </nav>
+    <div style="flex: 1"></div>
+    <div style="color: #aab3bf">学生：[学生姓名]</div>
+  </header>
+
+  <div role="region" aria-label="任务条" style="height: 56px; flex: none; display: flex; align-items: center; gap: 18px; padding: 0 16px; background: #182029; border-bottom: 1px solid #2f3a47">
+    <span style="padding: 3px 9px; border-radius: 4px; background: #2f8f7f; color: #ffffff; font-weight: 600; font-size: 12px">练习</span>
+    <strong style="font-weight: 600; color: #ffffff; font-size: 14px">AR0 与 AR2 互联不通</strong>
+    <div style="flex: 1"></div>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #ffffff">12:48</span>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #3a4655; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">立即检查</button>
+    <button style="height: 36px; padding: 0 14px; border: 1px solid #6b3b3b; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit">结束练习</button>
+  </div>
+
+  <main style="flex: 1; min-height: 0; display: flex">
+
+    <nav aria-label="左侧图标栏" style="width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 10px; background: #12171d; border-right: 1px solid #262d38">
+      <button aria-label="展开拓扑" style="width: 36px; height: 36px; border: 1px solid #2c3440; border-radius: 8px; background: transparent; color: #aab3bf; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="2" width="6" height="5" rx="1"></rect><rect x="2" y="17" width="6" height="5" rx="1"></rect><rect x="16" y="17" width="6" height="5" rx="1"></rect><path d="M12 7v5M5 17v-5h14v5"></path></svg>
+      </button>
+      <span style="writing-mode: vertical-rl; color: #8a94a3; letter-spacing: 2px">拓扑</span>
+    </nav>
+
+    <section aria-label="终端（三分屏）" style="flex: 1; min-width: 0; display: flex; background: #0b0e12">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #262d38">
+        <div style="height: 36px; flex: none; display: flex; align-items: center; padding: 0 12px; background: #12171d; border-bottom: 1px solid #262d38; font-family: 'JetBrains Mono', monospace; color: #ffffff">AR0</div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">[AR0-GigabitEthernet0/0/2]ip address 10.0.2.1 24
+[AR0-GigabitEthernet0/0/2]return
+&lt;AR0&gt;ping 10.0.2.2
+    Reply from 10.0.2.2: bytes=56 ttl=255
+&lt;AR0&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+      </div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid #262d38">
+        <div style="height: 36px; flex: none; display: flex; align-items: center; padding: 0 12px; background: #12171d; border-bottom: 1px solid #262d38; font-family: 'JetBrains Mono', monospace; color: #8a94a3">AR2</div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;AR2&gt;display ip interface brief
+GigabitEthernet0/0/0   10.0.2.2/24  up  up
+&lt;AR2&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+      </div>
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+        <div style="height: 36px; flex: none; display: flex; align-items: center; padding: 0 12px; background: #12171d; border-bottom: 1px solid #262d38; font-family: 'JetBrains Mono', monospace; color: #8a94a3">AR1</div>
+        <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.55; color: #c9d1d9; white-space: pre-wrap">&lt;AR1&gt;<span style="background: #c9d1d9; color: #0b0e12"> </span></pre>
+      </div>
+    </section>
+
+    <nav aria-label="右侧图标栏" style="width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 10px; background: #12171d; border-left: 1px solid #262d38">
+      <button aria-label="展开工单" style="width: 36px; height: 36px; border: 1px solid #2c3440; border-radius: 8px; background: transparent; color: #aab3bf; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"></path><path d="M14 2v6h6M9 13h8M9 17h6"></path></svg>
+      </button>
+      <button aria-label="展开 Agent 导师" style="position: relative; width: 36px; height: 36px; border: 1px solid #2f8f7f; border-radius: 8px; background: transparent; color: #7cc4b8; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-5 4z"></path></svg>
+        <span style="position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%; background: #e8a33d"></span>
+      </button>
+      <span style="writing-mode: vertical-rl; color: #8a94a3; letter-spacing: 2px">导师有新回复</span>
+    </nav>
+  </main>
+</div>
+</div></section>
+<section class="board" id="b4" hidden><h2>⑤ 课程选择（登录后默认进入：环境 → 章节 → 课题 → 预览）</h2><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0e1217; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <header style="height: 52px; flex: none; display: flex; align-items: center; gap: 16px; padding: 0 16px; background: #151a21; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <div style="color: #8a94a3">课程选择</div>
+    <div style="flex: 1"></div>
+    <button style="height: 34px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">↻ 重新检测环境</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">[学员姓名] ▾</button>
+  </header>
+
+  <main style="flex: 1; min-height: 0; display: flex">
+
+    <nav aria-label="模拟环境" style="width: 210px; flex: none; display: flex; flex-direction: column; background: #10141a; border-right: 1px solid #262d38">
+      <div style="padding: 14px 16px 8px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">模拟环境</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 0 10px">
+        <button style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border: 1px solid #2f8f7f; border-radius: 10px; background: #15201e; color: #ffffff; font: inherit; text-align: left">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>eNSP Pro</span>
+          <span style="color: #8fd3c2; font-size: 12px">（在线 · YunShan · 3 个沙箱）</span>
+        </button>
+        <button disabled="" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; border: 1px solid #262d38; border-radius: 10px; background: transparent; color: #5c6676; font: inherit; text-align: left; cursor: not-allowed">
+          <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 50%; background: #4a5566"></span>eNSP</span>
+          <span style="font-size: 12px">（离线）</span>
+        </button>
+      </div>
+      <div style="flex: 1"></div>
+      <div style="padding: 12px 16px; border-top: 1px solid #262d38; color: #8a94a3; line-height: 1.6; font-size: 12px">打开本页时自动检测；离线的环境不可选</div>
+    </nav>
+
+    <nav aria-label="章节" style="width: 240px; flex: none; display: flex; flex-direction: column; background: #12171d; border-right: 1px solid #262d38">
+      <div style="padding: 14px 16px 8px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">eNSP Pro · 学习章节</div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px">
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #d5dbe3; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; color: #8a94a3; width: 30px">L01</span><span style="flex: 1">链路与接口</span><span style="color: #8a94a3">2</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; color: #7cc4b8; width: 30px">L02</span><span style="flex: 1">IP 编址与静态路由</span><span style="color: #aab3bf">2</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #d5dbe3; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; color: #8a94a3; width: 30px">L03</span><span style="flex: 1">VLAN</span><span style="color: #8a94a3">1</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #d5dbe3; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; color: #8a94a3; width: 30px">L04</span><span style="flex: 1">OSPF</span><span style="color: #8a94a3">1</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #d5dbe3; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; color: #8a94a3; width: 30px">L05</span><span style="flex: 1">ACL</span><span style="color: #8a94a3">1</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #5c6676; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; width: 30px">L06</span><span style="flex: 1">DHCP</span><span>待补充</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #5c6676; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; width: 30px">L07</span><span style="flex: 1">NAT</span><span>待补充</span></button>
+        <button style="display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 10px; border: none; border-radius: 8px; background: transparent; color: #5c6676; font: inherit; text-align: left"><span style="font-family: 'JetBrains Mono', monospace; width: 30px">L08</span><span style="flex: 1">STP</span><span>待补充</span></button>
+      </div>
+    </nav>
+
+    <section aria-label="课题" style="width: 360px; flex: none; display: flex; flex-direction: column; border-right: 1px solid #262d38">
+      <div style="padding: 14px 16px 8px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">L02 · 课题</div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 0 12px">
+        <button style="display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid #2f8f7f; border-radius: 10px; background: #15201e; color: #d5dbe3; font: inherit; text-align: left">
+          <span style="display: flex; justify-content: space-between; width: 100%"><strong style="color: #ffffff; font-size: 14px; font-weight: 600">AR2 回程路由缺失</strong><span style="color: #5fd3a7">已通过 ✓</span></span>
+          <span style="color: #aab3bf; line-height: 1.55">分支能 ping 通网关，访问总部却单向不通</span>
+          <span style="display: flex; gap: 6px"><span style="padding: 2px 8px; border-radius: 4px; background: #1d2a36; color: #8fc1e8; font-size: 12px">难度 ★★</span><span style="padding: 2px 8px; border-radius: 4px; background: #222a33; color: #aab3bf; font-size: 12px">约 15 分钟</span></span>
+        </button>
+        <button style="display: flex; flex-direction: column; gap: 6px; padding: 14px; border: 1px solid #2c3440; border-radius: 10px; background: transparent; color: #d5dbe3; font: inherit; text-align: left">
+          <span style="display: flex; justify-content: space-between; width: 100%"><strong style="color: #ffffff; font-size: 14px; font-weight: 600">AR0 与 AR2 互联地址冲突</strong><span style="color: #8a94a3">未开始</span></span>
+          <span style="color: #aab3bf; line-height: 1.55">互联链路物理 up，三层不通</span>
+          <span style="display: flex; gap: 6px"><span style="padding: 2px 8px; border-radius: 4px; background: #1d2a36; color: #8fc1e8; font-size: 12px">难度 ★★</span><span style="padding: 2px 8px; border-radius: 4px; background: #222a33; color: #aab3bf; font-size: 12px">约 10 分钟</span></span>
+        </button>
+      </div>
+      <div style="flex: 1"></div>
+      <div style="padding: 12px 16px; border-top: 1px solid #262d38; color: #8a94a3; line-height: 1.6">只列出 eNSP Pro 环境下的课题</div>
+    </section>
+
+    <section aria-label="预览" style="flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 18px 22px; gap: 14px">
+      <div style="display: flex; align-items: baseline; gap: 12px">
+        <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #ffffff">AR2 回程路由缺失</h1>
+        <span style="color: #8a94a3">L02 · 难度 ★★ · 约 15 分钟</span>
+      </div>
+      <p style="margin: 0; line-height: 1.7; color: #c3cad4">分支机构用户反馈：能访问本地网关，但访问总部服务器失败。请定位故障点并修复，使分支与总部双向互通。考查静态路由的来回路径与 display ip routing-table 的阅读。</p>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap">
+        <span style="padding: 3px 9px; border: 1px solid #2c3440; border-radius: 12px; color: #aab3bf">静态路由</span>
+        <span style="padding: 3px 9px; border: 1px solid #2c3440; border-radius: 12px; color: #aab3bf">回程路径</span>
+        <span style="padding: 3px 9px; border: 1px solid #2c3440; border-radius: 12px; color: #aab3bf">ping / tracert</span>
+      </div>
+
+      <div style="position: relative; flex: 1; min-height: 0; border: 1px solid #262d38; border-radius: 10px; background: #12171d">
+        <div style="position: absolute; left: 14px; top: 10px; color: #8a94a3; font-size: 12px">拓扑预览 · 沙箱 ainet_campus</div>
+        <div style="position: absolute; left: 330px; top: 90px; width: 2px; height: 100px; background: #4a5566"></div>
+        <div style="position: absolute; left: 180px; top: 190px; width: 300px; height: 2px; background: #4a5566"></div>
+        <div style="position: absolute; left: 180px; top: 190px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 480px; top: 190px; width: 2px; height: 90px; background: #4a5566"></div>
+        <div style="position: absolute; left: 180px; top: 280px; width: 2px; height: 70px; background: #4a5566"></div>
+        <div style="position: absolute; left: 298px; top: 60px; width: 66px; height: 40px; border: 1px solid #3fb68b; border-radius: 8px; background: #17231f; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace">AR1</div>
+        <div style="position: absolute; left: 148px; top: 260px; width: 66px; height: 40px; border: 2px solid #e8a33d; border-radius: 8px; background: #2a2216; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #ffffff">AR2</div>
+        <div style="position: absolute; left: 448px; top: 260px; width: 66px; height: 40px; border: 2px solid #e8a33d; border-radius: 8px; background: #2a2216; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #ffffff">AR0</div>
+        <div style="position: absolute; left: 148px; top: 340px; width: 66px; height: 40px; border: 1px dashed #5c6676; border-radius: 8px; background: #161b22; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; color: #8a94a3">PC1</div>
+        <div style="position: absolute; right: 14px; bottom: 12px; color: #8a94a3; font-size: 12px">橙框 = 本题涉及 · 虚线 = 未启动</div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid #2c3440; border-radius: 10px; background: #151a21">
+        <div style="flex: 1; line-height: 1.6; color: #aab3bf">进入时将切到沙箱 <b style="color: #ffffff">ainet_campus</b>，并启动本题需要的 4 台设备（约 2 分钟）</div>
+        <button style="height: 44px; padding: 0 22px; border: none; border-radius: 8px; background: #2f8f7f; color: #ffffff; font: inherit; font-size: 15px; font-weight: 600">开始练习</button>
+      </div>
+    </section>
+  </main>
+</div>
+</div></section><section class="board" id="b5" hidden><h2>⑥ 操作页单层顶栏（A 练习 / B 考试 / C 自由实验）</h2><div class="frame">
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 0; background: #0b0e12; color: #d5dbe3; font-family: 'IBM Plex Sans', 'Noto Sans SC', sans-serif; font-size: 13px">
+
+  <div style="padding: 14px 16px 6px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">A · 练习中（点题名弹出气泡：环境 / 拓扑 / 设备）</div>
+  <header style="position: relative; z-index: 3; height: 56px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: #151a21; border-top: 1px solid #262d38; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <nav aria-label="模式" style="display: flex; gap: 2px">
+      <button disabled="" style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">实验</button>
+      <button style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600">练习</button>
+      <button disabled="" style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: transparent; color: #5c6676; font: inherit">考试</button>
+    </nav>
+    <span style="width: 1px; height: 24px; background: #2c3440"></span>
+    <button aria-expanded="true" style="height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #2f8f7f; border-radius: 8px; background: #15201e; color: #ffffff; font: inherit">
+      <span style="padding: 2px 7px; border-radius: 4px; background: #2f8f7f; font-size: 12px; font-weight: 600">练习</span>
+      <strong style="font-weight: 600; font-size: 14px">AR2 回程路由缺失</strong><span style="color: #8a94a3">▾</span>
+    </button>
+    <div style="flex: 1"></div>
+    <span style="color: #8a94a3">用时</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: #ffffff">04:12</span>
+    <span style="padding: 3px 8px; border-radius: 4px; background: #33251a; color: #f0b56a">判定 0/1</span>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #3a4655; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">立即检查</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #6b3b3b; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit">结束练习</button>
+    <span style="width: 1px; height: 24px; background: #2c3440"></span>
+    <button style="height: 34px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">[学员姓名] ▾</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #3a4655; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">退出到课程</button>
+
+    <div role="dialog" aria-label="课题信息" style="position: absolute; left: 236px; top: 54px; width: 400px; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid #2c3440; border-radius: 10px; background: #1a2029; box-shadow: 0 14px 34px rgba(0,0,0,0.55); line-height: 1.6">
+      <div style="position: absolute; left: 40px; top: -7px; width: 12px; height: 12px; background: #1a2029; border-left: 1px solid #2c3440; border-top: 1px solid #2c3440; transform: rotate(45deg)"></div>
+      <div style="display: grid; grid-template-columns: 72px minmax(0, 1fr); row-gap: 6px; column-gap: 10px">
+        <span style="color: #8a94a3">模拟环境</span><span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3fb68b"></span>eNSP Pro · YunShan</span>
+        <span style="color: #8a94a3">拓扑</span><span>沙箱 ainet_campus · 运行 5/8 台</span>
+        <span style="color: #8a94a3">本题设备</span><span style="font-family: 'JetBrains Mono', monospace">AR0 · AR1 · AR2 · PC1</span>
+        <span style="color: #8a94a3">章节</span><span>L02 IP 编址与静态路由 · 难度 ★★</span>
+      </div>
+      <div style="padding-top: 10px; border-top: 1px solid #2c3440; color: #c3cad4">工单：分支机构能访问本地网关，但访问总部服务器失败。请定位并修复。</div>
+      <div style="display: flex; gap: 8px">
+        <button style="height: 32px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">↻ 刷新设备状态</button>
+        <button style="height: 32px; padding: 0 10px; border: 1px solid #2c3440; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">查看完整工单</button>
+      </div>
+    </div>
+  </header>
+  <div style="height: 300px; flex: none; display: flex; border-bottom: 1px solid #262d38">
+    <div style="width: 260px; background: #12171d; border-right: 1px solid #262d38"></div>
+    <pre style="flex: 1; margin: 0; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; color: #5c6676">(终端区，比原两层布局多出约 56px 高度)</pre>
+    <div style="width: 380px; background: #12171d; border-left: 1px solid #262d38"></div>
+  </div>
+
+  <div style="padding: 18px 16px 6px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">B · 考试中（同一行放计时与交卷；「退出到课程」不可用）</div>
+  <header style="height: 56px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: #221a1c; border-top: 1px solid #4a3034; border-bottom: 1px solid #4a3034">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <button style="height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #5c4a4d; border-radius: 8px; background: transparent; color: #ffffff; font: inherit">
+      <span style="padding: 2px 7px; border-radius: 4px; background: #b04a4a; font-size: 12px; font-weight: 600">考试</span>
+      <strong style="font-weight: 600; font-size: 14px">第 2 / 3 题</strong><span style="color: #b39a9d">▾</span>
+    </button>
+    <div style="display: flex; gap: 5px">
+      <span style="width: 22px; height: 22px; border-radius: 50%; background: #3fb68b"></span>
+      <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 2px solid #ffffff"></span>
+      <span style="width: 22px; height: 22px; box-sizing: border-box; border-radius: 50%; border: 1px solid #5c4a4d"></span>
+    </div>
+    <div style="flex: 1"></div>
+    <span style="color: #b39a9d">剩余</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; color: #ffffff">38:12</span>
+    <span style="color: #b39a9d">本题</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #f0b56a">09:40</span>
+    <button style="height: 34px; padding: 0 12px; border: none; border-radius: 6px; background: #2f8f7f; color: #ffffff; font: inherit; font-weight: 600">提交本题</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #5c4a4d; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">下一题</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #8a3d3d; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit">交卷</button>
+    <span style="width: 1px; height: 24px; background: #4a3034"></span>
+    <span style="color: #b39a9d">考生 [学员姓名]</span>
+  </header>
+
+  <div style="padding: 18px 16px 6px; color: #8a94a3; font-size: 12px; letter-spacing: 1px">C · 自由实验（左侧显示「自由实验」，同样可点开看环境 / 拓扑；右侧学员菜单展开状态）</div>
+  <header style="position: relative; z-index: 2; height: 56px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; background: #151a21; border-top: 1px solid #262d38; border-bottom: 1px solid #262d38">
+    <div style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 16px; color: #ffffff">ainet</div>
+    <nav aria-label="模式" style="display: flex; gap: 2px">
+      <button style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: #24303d; color: #ffffff; font: inherit; font-weight: 600">实验</button>
+      <button style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">练习</button>
+      <button style="height: 32px; padding: 0 12px; border: none; border-radius: 6px; background: transparent; color: #aab3bf; font: inherit">考试</button>
+    </nav>
+    <span style="width: 1px; height: 24px; background: #2c3440"></span>
+    <button style="height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid #2c3440; border-radius: 8px; background: transparent; color: #ffffff; font: inherit">
+      <strong style="font-weight: 600; font-size: 14px">自由实验</strong><span style="color: #8a94a3">▾</span>
+    </button>
+    <div style="flex: 1"></div>
+    <button style="height: 34px; padding: 0 10px; border: 1px solid #3a4655; border-radius: 6px; background: #1d2530; color: #ffffff; font: inherit">[学员姓名] ▴</button>
+    <button style="height: 34px; padding: 0 12px; border: 1px solid #3a4655; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit">退出到课程</button>
+
+    <div role="menu" aria-label="学员菜单" style="position: absolute; right: 118px; top: 52px; width: 210px; display: flex; flex-direction: column; padding: 6px; border: 1px solid #2c3440; border-radius: 10px; background: #1a2029; box-shadow: 0 12px 30px rgba(0,0,0,0.5)">
+      <button role="menuitem" style="height: 38px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit; text-align: left">我的档案</button>
+      <button role="menuitem" style="height: 38px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #d5dbe3; font: inherit; text-align: left">切换学员</button>
+      <button role="menuitem" style="height: 38px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #f0a0a0; font: inherit; text-align: left">登出</button>
+    </div>
+  </header>
+  <div style="flex: 1; background: #0b0e12"></div>
+</div>
+</div></section>
+<script>
+document.querySelectorAll('nav.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.board').forEach((s,i)=>s.hidden=String(i)!==b.dataset.i);
+});
+</script></body></html>

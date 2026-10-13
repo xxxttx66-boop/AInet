@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>考试模板管理</title>
+  <link rel="stylesheet" href="../static/app.css" />
+  <style>
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; }
+    body > main { max-width: 980px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+    main a { color: var(--info); }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+    th { background: var(--panel); color: var(--sub); font-weight: 500; }
+    button, select, input, textarea { background: #0f1419; color: var(--fg); border: 1px solid var(--line2); border-radius: 3px;
+      font: inherit; padding: 2px 6px; }
+    button { cursor: pointer; }
+    button:hover { border-color: #888; }
+    button.danger { border-color: #8e3b3b; }
+    .note { color: #999; font-size: 12px; }
+    .warn { color: #ffb74d; }
+    .err { color: #ef5350; white-space: pre-wrap; }
+    .ok { color: #8bc34a; }
+    .form { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 6px 12px; align-items: center; margin: 8px 0; }
+    .form label { color: #bbb; }
+    .form input[type=number] { width: 90px; }
+    .qrow { display: flex; gap: 6px; align-items: center; margin: 3px 0; flex-wrap: wrap; }
+    .qrow select { min-width: 0; flex: 1 1 260px; max-width: 460px; }
+    .qrow input { width: 90px; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 260px; }
+    .wrap { overflow-x: auto; }
+    .actions { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+    ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    :hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .28); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .45); }
+    @supports not selector(::-webkit-scrollbar) {
+      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
+    }
+  </style>
+</head>
+<body class="page" data-root="../">
+<header class="topbar">
+  <a class="logo" href="../courses" title="课程选择">ainet</a>
+  <nav class="mode-nav" aria-label="导航"><a href="../courses">课程</a><a href=".././">操作页</a><a href="../profile">档案</a></nav>
+  <span class="page-title">考试模板管理</span>
+  <span id="user"><span><span id="who-label">学生：</span><span id="who">…</span></span><a href="../login" title="切换学生">切换</a><button id="logout" class="link-btn">登出</button></span>
+</header>
+<main>
+  <h1>考试模板管理</h1>
+  <p class="note warn">目前系统没有管理员角色，任何登录用户都能新建、编辑、删除考试模板（以后在这里加权限）。</p>
+
+  <h2>模板列表</h2>
+  <div id="list" class="wrap"></div>
+  <div class="actions"><button id="btn-new">新建模板</button></div>
+
+  <div id="editor" hidden>
+    <h2 id="ed-title">新建模板</h2>
+    <div class="form">
+      <label for="f-name">名称</label><input id="f-name" maxlength="100" />
+      <label for="f-duration">总时长（分钟）</label><input id="f-duration" type="number" min="0.01" step="0.01" />
+      <label for="f-qduration">单题时长（分钟，空 = 不限）</label><input id="f-qduration" type="number" min="0.01" step="0.01" />
+      <label for="f-retries">每题允许重试次数</label><input id="f-retries" type="number" min="0" max="20" step="1" />
+      <label for="f-hints">允许提示</label><span><input id="f-hints" type="checkbox" />
+        每级扣 <input id="f-penalty" type="number" min="0" max="100" step="0.5" /> 分（扣本题总分），
+        最多第 <select id="f-maxlevel"><option>1</option><option>2</option><option>3</option></select> 级</span>
+      <label>评分权重（结果 / 过程 / 规范）</label><span>
+        <input id="f-w-result" type="number" min="0" step="1" /> /
+        <input id="f-w-process" type="number" min="0" step="1" /> /
+        <input id="f-w-side" type="number" min="0" step="1" /> <span class="note">按比例缩放到 100；全空 = 系统默认</span></span>
+      <label for="f-topo">显示拓扑图</label><input id="f-topo" type="checkbox" />
+      <label for="f-auto">自动判定（考试一般关闭）</label><input id="f-auto" type="checkbox" />
+      <label for="f-replay">记录命令回放</label><input id="f-replay" type="checkbox" />
+      <label for="f-shuffle">题目乱序</label><input id="f-shuffle" type="checkbox" />
+    </div>
+    <div><b>题目</b> <span class="note">种子留空 = 每次开考随机（参数化题每次注入值不同）；填整数可复现；0 = 题目默认值</span></div>
+    <div id="f-questions"></div>
+    <div class="actions"><button id="btn-addq">添加题目</button></div>
+    <details id="json-box"><summary>高级：直接编辑 JSON（保存时以 JSON 为准）</summary>
+      <textarea id="f-json" spellcheck="false"></textarea>
+      <div class="actions"><button id="btn-json-load">用表单内容生成 JSON</button><button id="btn-json-apply">把 JSON 填回表单</button></div>
+    </details>
+    <div class="actions"><button id="btn-save">保存</button><button id="btn-cancel">取消</button></div>
+    <div id="ed-msg"></div>
+  </div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let scenarios = {}, platforms = {}, editing = null, jsonDirty = false;
+  // 题名不带平台后缀：两个平台可能有同名题，列表与下拉框都带上平台
+  const ptag = (k) => (platforms[k] && window.LabSwitch ? window.LabSwitch.platformTag(platforms[k]) : '');
+  const ptext = (k) => (platforms[k] && window.LabSwitch ? ` · ${window.LabSwitch.platformText(platforms[k])}` : '');
+
+  async function api(method, url, body) {
+    const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {},
+      body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { location.href = '../login'; throw new Error('未登录'); }
+    const d = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((d && d.detail) || `HTTP ${r.status}`);
+    return d;
+  }
+  const mins = (s) => (s == null ? '不限' : `${Math.round(s / 6) / 10} 分钟`);
+
+  async function load() {
+    const d = await api('GET', '../api/exam/templates');
+    scenarios = d.scenarios;
+    platforms = d.platforms || {};
+    if (!d.templates.length) { $('list').innerHTML = '<p class="note">暂无模板</p>'; return; }
+    $('list').innerHTML = '<table><thead><tr><th>名称</th><th>题目</th><th>时长</th><th>规则</th><th>操作</th></tr></thead><tbody>' +
+      d.templates.map((t) => {
+        const c = t.config;
+        return `<tr data-id="${t.id}"><td>${esc(t.name)}</td>` +
+          `<td>${c.questions.map((q, i) => `${i + 1}. ${esc(scenarios[q.scenario] || q.scenario)}${ptag(q.scenario)}${q.seed != null ? `（种子 ${q.seed}）` : ''}`).join('<br>')}</td>` +
+          `<td>总 ${mins(c.duration_s)}<br>单题 ${mins(c.question_duration_s)}</td>` +
+          `<td>重试 ${c.retries} 次；${c.hints.allowed ? `提示每级扣 ${c.hints.penalty} 分` : '禁用提示'}；${c.show_topology ? '显示拓扑' : '隐藏拓扑'}；` +
+          `${c.auto_judge ? '自动判定' : '提交验收'}；${c.record_replay ? '记录回放' : '不回放'}${c.shuffle ? '；乱序' : ''}</td>` +
+          `<td><button class="ed">编辑</button> <button class="del danger">删除</button></td></tr>`;
+      }).join('') + '</tbody></table>';
+    for (const tr of $('list').querySelectorAll('tr[data-id]')) {
+      const t = d.templates.find((x) => x.id === Number(tr.dataset.id));
+      tr.querySelector('.ed').onclick = () => edit(t);
+      tr.querySelector('.del').onclick = async () => {
+        if (!confirm(`删除模板「${t.name}」？已有的考试记录不受影响。`)) return;
+        try { await api('DELETE', `../api/exam/templates/${t.id}`); load(); } catch (e) { alert(`删除失败：${e.message}`); }
+      };
+    }
+  }
+
+  function qRow(q) {
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    row.innerHTML = `<select class="q-sc">${Object.entries(scenarios).map(([k, v]) =>
+      `<option value="${esc(k)}"${k === q.scenario ? ' selected' : ''}>${esc(v)}${esc(ptext(k))}（${esc(k)}）</option>`).join('')}</select>` +
+      `种子 <input class="q-seed" type="number" min="0" step="1" placeholder="随机" value="${q.seed ?? ''}" />` +
+      `权重 <input class="q-w" type="number" min="0" step="0.5" value="${q.weight ?? 1}" />` +
+      '<button class="q-up" title="上移">↑</button><button class="q-del danger" title="删除">×</button>';
+    row.querySelector('.q-del').onclick = () => row.remove();
+    row.querySelector('.q-up').onclick = () => { if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling); };
+    $('f-questions').appendChild(row);
+  }
+
+  function fill(name, c) {
+    $('f-name').value = name;
+    $('f-duration').value = Math.round(c.duration_s / 0.6) / 100;
+    $('f-qduration').value = c.question_duration_s ? Math.round(c.question_duration_s / 0.6) / 100 : '';
+    $('f-retries').value = c.retries;
+    $('f-hints').checked = !!c.hints.allowed;
+    $('f-penalty').value = c.hints.penalty;
+    $('f-maxlevel').value = String(c.hints.max_level);
+    const w = c.weights || {};
+    $('f-w-result').value = w.result ?? ''; $('f-w-process').value = w.process ?? ''; $('f-w-side').value = w.side ?? '';
+    $('f-topo').checked = c.show_topology !== false;
+    $('f-auto').checked = !!c.auto_judge;
+    $('f-replay').checked = c.record_replay !== false;
+    $('f-shuffle').checked = !!c.shuffle;
+    $('f-questions').innerHTML = '';
+    for (const q of c.questions) qRow(q);
+  }
+
+  function formConfig() {
+    const num = (id) => ($(id).value === '' ? null : Number($(id).value));
+    const sec = (id) => (num(id) == null ? null : Math.round(num(id) * 60));
+    const wr = [num('f-w-result'), num('f-w-process'), num('f-w-side')];
+    return {
+      questions: [...$('f-questions').querySelectorAll('.qrow')].map((r) => ({
+        scenario: r.querySelector('.q-sc').value,
+        seed: r.querySelector('.q-seed').value === '' ? null : Number(r.querySelector('.q-seed').value),
+        weight: Number(r.querySelector('.q-w').value || 1) })),
+      duration_s: sec('f-duration'), question_duration_s: sec('f-qduration'), retries: num('f-retries') ?? 0,
+      hints: { allowed: $('f-hints').checked, penalty: num('f-penalty') ?? 0, max_level: Number($('f-maxlevel').value) },
+      weights: wr.every((x) => x == null) ? null : { result: wr[0] ?? 0, process: wr[1] ?? 0, side: wr[2] ?? 0 },
+      show_topology: $('f-topo').checked, auto_judge: $('f-auto').checked,
+      record_replay: $('f-replay').checked, shuffle: $('f-shuffle').checked,
+    };
+  }
+
+  const DEFAULT = { questions: [], duration_s: 1800, question_duration_s: 600, retries: 1,
+    hints: { allowed: true, penalty: 5, max_level: 2 }, weights: null, show_topology: true, auto_judge: false,
+    record_replay: true, shuffle: false };
+
+  function edit(t) {
+    editing = t ? t.id : null;
+    $('editor').hidden = false;
+    $('ed-title').textContent = t ? `编辑模板：${t.name}` : '新建模板';
+    fill(t ? t.name : '', t ? t.config : { ...DEFAULT, questions: Object.keys(scenarios).slice(0, 2).map((s) => ({ scenario: s, seed: null, weight: 1 })) });
+    $('f-json').value = JSON.stringify(t ? t.config : formConfig(), null, 2);
+    jsonDirty = false;
+    $('ed-msg').textContent = '';
+    $('editor').scrollIntoView({ block: 'start' });
+  }
+  $('btn-new').onclick = () => edit(null);
+  $('btn-addq').onclick = () => qRow({ scenario: Object.keys(scenarios)[0], seed: null, weight: 1 });
+  $('btn-cancel').onclick = () => { $('editor').hidden = true; };
+  $('f-json').oninput = () => { jsonDirty = true; };
+  $('btn-json-load').onclick = () => { $('f-json').value = JSON.stringify(formConfig(), null, 2); jsonDirty = false; };
+  $('btn-json-apply').onclick = () => {
+    try { fill($('f-name').value, { ...DEFAULT, ...JSON.parse($('f-json').value) }); jsonDirty = false; $('ed-msg').innerHTML = ''; }
+    catch (e) { $('ed-msg').innerHTML = `<p class="err">JSON 无效：${esc(e.message)}</p>`; }
+  };
+  $('btn-save').onclick = async () => {
+    let config;
+    try { config = jsonDirty && $('json-box').open ? JSON.parse($('f-json').value) : formConfig(); }
+    catch (e) { $('ed-msg').innerHTML = `<p class="err">JSON 无效：${esc(e.message)}</p>`; return; }
+    const body = { name: $('f-name').value.trim(), config };
+    try {
+      await api(editing ? 'PUT' : 'POST', editing ? `../api/exam/templates/${editing}` : '../api/exam/templates', body);
+      $('ed-msg').innerHTML = '<p class="ok">已保存</p>';
+      $('editor').hidden = true;
+      load();
+    } catch (e) { $('ed-msg').innerHTML = `<p class="err">保存失败：${esc(e.message)}</p>`; }
+  };
+  window.__admin = { load, edit, formConfig };
+  load().catch((e) => { $('list').innerHTML = `<p class="err">${esc(e.message)}</p>`; });
+})();
+</script>
+<script src="../static/labswitch.js"></script>
+<script src="../static/page.js"></script>
+</body>
+</html>

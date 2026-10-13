@@ -1,0 +1,152 @@
+{
+  "id": "ospf-r3-area-mismatch-ys",
+  "title": "R3 的 OSPF 邻居建不起来（区域）",
+  "level": 2,
+  "chapter": "L05",
+  "difficulty": 2,
+  "est_minutes": 15,
+  "summary": "R3 割接后和 R1、R2 都建不起邻居，其他两台之间正常",
+  "tags": [
+    "OSPF 邻居",
+    "OSPF 区域",
+    "network 宣告"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "OSPF 区域",
+    "network 宣告",
+    "OSPF 邻居建立条件",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "R1",
+    "R2",
+    "R3",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "R1",
+    "R2",
+    "R3"
+  ],
+  "symptom": "工单：单区域 OSPF 网络（area 0）中，R1、R2、R3 的 GE0/0/0 接在同一个二层网段 10.0.123.0/24（经交换机 LSW0），各自的 LoopBack0（1.1.1.1 / 2.2.2.2 / 3.3.3.3，router-id 相同）也发布进 OSPF。R3 今天上午重新录入过 OSPF 配置，之后 R1、R2 上都看不到 R3 这个邻居，也学不到 3.3.3.3；R1 和 R2 之间正常。请排查并恢复，使 R1 与 R2、R3 都建立 Full 状态的 OSPF 邻接。（设备为华为 YunShan OS，配置立即生效；广播网络上邻居恢复到 Full 需要几十秒。）",
+  "baseline": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.1 24",
+      "interface LoopBack0",
+      "ip address 1.1.1.1 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 1.1.1.1",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 1.1.1.1 0.0.0.0"
+    ],
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.2 24",
+      "interface LoopBack0",
+      "ip address 2.2.2.2 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 2.2.2.2",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 2.2.2.2 0.0.0.0"
+    ],
+    "R3": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.3 24",
+      "interface LoopBack0",
+      "ip address 3.3.3.3 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 3.3.3.3",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 3.3.3.3 0.0.0.0"
+    ]
+  },
+  "inject": {
+    "R3": [
+      "system-view",
+      "ospf 1",
+      "area 0",
+      "undo network 10.0.123.0 0.0.0.255",
+      "return",
+      "system-view",
+      "ospf 1",
+      "area 1",
+      "network 10.0.123.0 0.0.0.255"
+    ]
+  },
+  "restore": {
+    "R1": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "R2": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "R3": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\b3\\.3\\.3\\.3\\s+Full\\b",
+      "desc": "R1 与 R3（3.3.3.3）的邻居为 Full"
+    },
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\b2\\.2\\.2\\.2\\s+Full\\b",
+      "desc": "R1 与 R2（2.2.2.2）的邻居为 Full"
+    }
+  ],
+  "hints": [
+    "只有 R3 建不起来，接口和地址都正常的话，就看 R3 的 OSPF 配置：这个网段被宣告进了哪个区域？",
+    "在 R3 上执行 display ospf interface 看 GE0/0/0 属于哪个 Area，display current-configuration configuration ospf 看 network 写在哪个 area 下；再和 R1 对比。",
+    "R3 把 10.0.123.0/24 宣告进了 area 1（应为 area 0），与邻居区域号不一致。在 R3 的 ospf 1 → area 1 下 undo network 10.0.123.0 0.0.0.255，再到 area 0 下 network 10.0.123.0 0.0.0.255。"
+  ],
+  "reference_path": "R1 display ospf peer brief 没有 3.3.3.3 → R3 display ospf peer brief 没有邻居 → R3 接口 up、地址同网段 → display ospf interface 看到 GE0/0/0 在 Area 0.0.0.1 → 配置里 network 10.0.123.0 写在 area 1 下 → 移回 area 0 → 等几十秒确认 Full。",
+  "solution": {
+    "R3": [
+      "system-view",
+      "ospf 1",
+      "area 1",
+      "undo network 10.0.123.0 0.0.0.255",
+      "return",
+      "system-view",
+      "ospf 1",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "定位到只有 R3 异常，先排除接口与地址",
+    "查出 R3 的互联网段宣告在 area 1，与 R1 / R2 的 area 0 不一致",
+    "把 network 移回 area 0，不改 R1 / R2，不重启 OSPF 进程",
+    "修复后确认 R1 与 R2、R3 都是 Full"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 LSW0 只作为二层网段（缺省 VLAN 1），不开放终端，列入 required_devices 以便开题前核对基线、结束时整机复位。OSPF 配置由 baseline 下发、restore 用 undo ospf 1 撤销（问 [Y/N]，自动回答），沿用已真机验证的 ospf-r1-shutdown-ys。注意：baseline 与 inject 连续执行，注入后的故障确认时邻居本来就还没建立，所以确认故障总能通过，不能证明注入生效——真机验证时要等 1 分钟看邻居是否仍不 Full。 注入里的 return + system-view 是为了从 area 0 视图回到顶层再进 area 1（不能用 quit）。 真机实测：注入后等 90 秒，R1 的 display ospf peer brief 只有 2.2.2.2 Full、R3 一个邻居都没有（故障真的生效，不只是还没收敛）；display ospf peer brief 各列为 Area Id / Interface / Neighbor id / State，Neighbor id 与 State 相邻，判定正则可用；undo network 写法同 VRP5；display current-configuration configuration ospf 可用，区域显示成 area 0.0.0.1；修复后邻居从 Init 到 Full 只要几秒。"
+}

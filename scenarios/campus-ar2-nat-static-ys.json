@@ -1,0 +1,169 @@
+{
+  "id": "campus-ar2-nat-static-ys",
+  "title": "外网访问不到发布的内网设备（静态 NAT）",
+  "level": 4,
+  "chapter": "L09",
+  "difficulty": 4,
+  "est_minutes": 25,
+  "summary": "对外发布的公网地址从外网 ping 不通，内网设备本身正常",
+  "tags": [
+    "NAT",
+    "静态 NAT",
+    "NAT Server",
+    "地址发布"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "静态 NAT",
+    "NAT Server",
+    "一对一地址映射",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR1",
+    "AR2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "symptom": "工单：园区出口：交换机管理网 10.0.10.0/24（LSW0 Vlanif10 = 10.0.10.254，网关 AR0 10.0.10.1）→ AR0（默认路由指向 AR2）→ 出口路由器 AR2 → 运营商 AR1。AR2 的 GE0/0/2 = 198.51.100.2/24 接运营商，AR1 = 198.51.100.1，运营商侧的外网测试地址是 203.0.113.1；运营商不认识内网的 10.x 地址。为了让运营商侧能远程巡检交换机，AR2 用 NAT Server（名为 mgmt）把公网地址 198.51.100.10 一对一映射到 LSW0 的管理地址 10.0.10.254（GE0/0/2 已开启 NAT）。运营商反馈从 AR1 ping 198.51.100.10 不通；内网里 AR0 ping 10.0.10.254 正常。请排查并修复，使 AR1 能 ping 通 198.51.100.10（由系统在 AR1 上验证）。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.12.2"
+    ],
+    "AR1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 198.51.100.1 24",
+      "interface LoopBack0",
+      "ip address 203.0.113.1 32"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface GE0/0/2",
+      "ip address 198.51.100.2 24",
+      "nat enable",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1",
+      "ip route-static 0.0.0.0 0 198.51.100.1",
+      "return",
+      "system-view",
+      "nat server mgmt global 198.51.100.10 inside 10.0.10.254"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GE1/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "undo nat server name mgmt",
+      "nat server mgmt global 198.51.100.10 inside 10.0.10.253"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.12.2",
+      "interface GE0/0/1",
+      "undo ip address",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "AR1": [
+      "system-view",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10"
+    ],
+    "AR2": [
+      "system-view",
+      "undo nat server name mgmt",
+      "return",
+      "system-view",
+      "interface GE0/0/2",
+      "undo nat enable",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 198.51.100.1",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "AR1",
+      "command": "ping -c 2 198.51.100.10",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "运营商 AR1 能 ping 通发布地址 198.51.100.10"
+    },
+    {
+      "device": "AR2",
+      "command": "display nat server",
+      "expect": "inside-start-addr\\s*:\\s*10\\.0\\.10\\.254\\b",
+      "desc": "AR2 的 NAT Server 把公网地址映射到 LSW0 的管理地址 10.0.10.254"
+    }
+  ],
+  "hints": [
+    "内网设备本身正常、外网到公网地址不通：公网地址被翻译成了哪个内网地址？翻译之后的包能到达那台设备吗？",
+    "在 AR2 上执行 display nat server 查看映射（global / inside 地址），核对 inside 地址与 LSW0 的管理地址。",
+    "AR2 的 NAT Server mgmt 把 198.51.100.10 映射到了 10.0.10.253（应为 10.0.10.254）。同名不能直接覆盖（报 already exists）：先 undo nat server name mgmt，再 nat server mgmt global 198.51.100.10 inside 10.0.10.254。"
+  ],
+  "reference_path": "AR1 ping 198.51.100.10 不通、内网正常 → AR2 display nat server 看到 198.51.100.10 ↔ 10.0.10.253 → 与 LSW0 管理地址 10.0.10.254 不符 → 删除错误映射、配置正确映射 → 请运营商（系统在 AR1 上）再 ping 验证。",
+  "solution": {
+    "AR2": [
+      "system-view",
+      "undo nat server name mgmt",
+      "nat server mgmt global 198.51.100.10 inside 10.0.10.254",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "理解静态 NAT（NAT Server）是公网地址与内网地址的一对一映射，外网访问依赖映射正确",
+    "在 AR2 上查映射，发现 inside 地址与 LSW0 管理地址不符",
+    "只修正映射，不改 LSW0 地址去迁就错误映射",
+    "修复后确认外网能访问发布地址（可在 AR2 上用 display session all 观察）"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 AR1 扮演运营商（只配公网地址、没有去内网的路由），不开放终端。AR1 是第一次被题目使用，自动保存实验时留过 LoopBack99 等标记（docs/enspro-replacement.md §3.3）：验证前先与出厂配置比对、确认干净后用 POST /api/lab/baseline 手动记基线，否则自动记录会把旧配置当成干净基线（例如残留一条回内网的路由会让 Easy IP 故障不生效）。 真机实测（2026-10-07，AR6700 V600R025C10SPC100）：这一型号的 NAT 是防火墙式写法，接口下没有 nat outbound / nat static（报 Unrecognized command，接口视图的 nat 只有 enable、gratuitous-arp）。源 NAT 用 nat-policy 的规则（rule name … / source-address … / egress-interface … / action source-nat easy-ip），一对一发布用系统视图的 nat server <名字> global <公网> inside <内网>；两者都要求出接口上 nat enable，否则规则不命中（display nat-policy rule all 的 HITS 为 0）。不需要 license，不需要把接口加入安全区域（缺省 security-policy 为 permit）。 公网地址与出接口同网段时 AR2 会代答 ARP（AR1 能直接 ping 通 198.51.100.10）；同名 nat server 不能直接覆盖（Error: The name of the NAT server already exists），要先 undo nat server name <名字>。 真机实测：按 nat server 写法改写后跑通：注入后 AR1 ping 198.51.100.10 不通、display nat server 显示 inside-start-addr : 10.0.10.253；修复（undo nat server name mgmt 后重配）后约 9 秒自动判定通过；restore 撤销干净（整机复位 0 轮）。"
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UNICODE" ?>
+<topo version="1.2.00.300">
+    <devices>
+        <dev id="731C700B-2A15-4f0d-A3E1-733EFA506FB4" name="S2" model="S5700" settings="" com_port="2001" bootmode="1" cx="621.000000" cy="337.000000" edit_left="649" edit_top="324">
+            <slot number="slot17" isMainBoard="1">
+                <interface sztype="Ethernet" interfacename="GE" count="24" />
+            </slot>
+        </dev>
+        <dev id="365D367E-1407-406a-882D-ED6CAC96E35A" name="S1" model="S5700" settings="" com_port="2000" bootmode="1" cx="321.000000" cy="337.000000" edit_left="350" edit_top="322">
+            <slot number="slot17" isMainBoard="1">
+                <interface sztype="Ethernet" interfacename="GE" count="24" />
+            </slot>
+        </dev>
+    </devices>
+    <lines>
+        <line srcDeviceID="365D367E-1407-406a-882D-ED6CAC96E35A" destDeviceID="731C700B-2A15-4f0d-A3E1-733EFA506FB4">
+            <interfacePair lineName="Copper" srcIndex="8" srcBoundRectIsMoved="1" srcBoundRect_X="391.183777" srcBoundRect_Y="364.000000" srcOffset_X="-17.000000" srcOffset_Y="-20.000000" tarIndex="8" tarBoundRectIsMoved="1" tarBoundRect_X="604.816223" tarBoundRect_Y="364.000000" tarOffset_X="-28.000000" tarOffset_Y="-19.000000" />
+            <interfacePair lineName="Copper" srcIndex="9" srcBoundRectIsMoved="1" srcBoundRect_X="403.183777" srcBoundRect_Y="376.000000" srcOffset_X="-29.000000" srcOffset_Y="6.000000" tarIndex="9" tarBoundRectIsMoved="1" tarBoundRect_X="616.816223" tarBoundRect_Y="376.000000" tarOffset_X="-40.000000" tarOffset_Y="5.000000" />
+        </line>
+    </lines>
+    <shapes />
+    <txttips>
+        <txttip left="37" top="23" right="1045" bottom="102" content="Scenario:&#x0D;&#x0A;Assume that you are a network administrator of a company. The company network consists of two layers: core layer and access layer. &#x0D;&#x0A;The network uses a design that supports network redundancy. STP will be used to prevent loops. The STP network should include setting &#x0D;&#x0A;the bridge priority to control STP root bridge election, and configuration of features to speed up STP route convergence.&#x0D;&#x0A;" fontname="Consolas" fontstyle="0" editsize="100" txtcolor="-16777216" txtbkcolor="-7278960" charset="1" />
+        <txttip left="37" top="122" right="675" bottom="264" content="Learning Objectives:&#x0D;&#x0A;As part of this lab section, you are expected to achieve the following tasks:&#x0D;&#x0A;1.Enable and disable STP.&#x0D;&#x0A;2.Change the STP mode that is used by a switch.&#x0D;&#x0A;3.Change the bridge priority to control root bridge election.&#x0D;&#x0A;4.Change the port priority to control election of the root port and designated port.&#x0D;&#x0A;5.Change the port cost to control election of the root port and designated port.&#x0D;&#x0A;6.Configure an edge port.&#x0D;&#x0A;" fontname="Consolas" fontstyle="0" editsize="100" txtcolor="-16777216" txtbkcolor="-7278960" charset="1" />
+    </txttips>
+</topo>

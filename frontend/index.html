@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ainet 工作台</title>
+  <link rel="stylesheet" href="vendor/xterm.css" />
+  <link rel="stylesheet" href="static/app.css" />
+</head>
+<!-- 布局（docs/design/ui-layout.html ⑥）：单层顶栏 → 通知条 → 拓扑 | 终端 | 右侧面板（工单 / Agent）。
+     顶栏：ainet、模式（实验 / 练习 / 考试）、「模式标签 + 题名 ▾」（点开气泡：环境 / 拓扑 / 本题设备 / 章节 / 工单）、
+     计时 / 判定 / 操作按钮、学员名 ▾（我的档案 / 切换学员 / 登出）、「退出到课程」。课题从课程页带入（?s=场景 id）；
+     换题、换环境、换拓扑都要「退出到课程」。
+     body 上的状态类：mode-lab|mode-practice|mode-exam、practice-active、exam-active、topo-collapsed、
+     side-collapsed、narrow（< 1100px，右侧面板改抽屉）、drawer-open、resizing。 -->
+<body class="mode-lab">
+  <header id="bar" class="topbar op-bar">
+    <a class="logo" href="courses" title="回到课程选择">ainet</a>
+    <nav id="mode-nav" class="mode-nav" aria-label="模式">
+      <button id="vt-topo" data-mode="lab" class="on">实验</button>
+      <button id="vt-practice" data-mode="practice">练习</button>
+      <button id="vt-exam" data-mode="exam">考试</button>
+    </nav>
+    <span class="tb-sep"></span>
+    <div id="topic-wrap" class="topic-wrap">
+      <button id="topic-btn" class="topic-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="topic-pop">
+        <span id="env-dot" class="env-dot" title="模拟环境状态"></span>
+        <span id="topic-badge" class="tb-badge" hidden></span>
+        <strong id="topic-title">自由实验</strong><span class="caret">▾</span>
+      </button>
+      <div id="topic-pop" class="popover" role="dialog" aria-label="课题信息" hidden>
+        <div id="ex-name" class="dd-title" hidden></div>
+        <div id="tp-grid" class="tp-grid">
+          <span class="k tp-envrow">模拟环境</span><span id="tp-env" class="tp-envrow"></span>
+          <span class="k tp-envrow">拓扑</span><span id="topo-status" class="tp-envrow" title="按模拟器中正在运行的设备自动确定">检测中…</span>
+          <span class="k tp-info">本题设备</span><span id="tp-devs" class="mono tp-info"></span>
+          <span class="k tp-info">章节</span><span id="tp-chapter" class="tp-info"></span>
+        </div>
+        <div id="tp-ticket" class="tp-ticket"></div>
+        <!-- 考试作答中：气泡只放工单（题号、工单、可访问设备、提交记录、已用提示） -->
+        <div id="ex-ticket" class="tp-exam" hidden>
+          <div id="ex-qno" class="dd-title"></div>
+          <div class="pr-sec"><div class="pr-label">工单</div><div id="ex-symptom"></div></div>
+          <div class="pr-sec"><div class="pr-label">可访问设备（点按钮打开终端）</div><div id="ex-devices"></div></div>
+          <div id="ex-subs"></div>
+          <div id="ex-hints"></div>
+        </div>
+        <div class="tp-actions">
+          <button id="btn-refresh" class="sm" title="立即重新检测运行中的设备">↻ 刷新设备状态</button>
+          <button id="tp-full" class="sm">查看完整工单</button>
+        </div>
+      </div>
+    </div>
+    <span id="ex-progress" class="ex-progress" hidden></span>
+    <button id="btn-relogin" hidden title="eNSP Pro 同一账号只能有一个会话：重新登录会挤掉别处的会话">重新登录 eNSP Pro</button>
+    <span id="topo-msg"></span>
+    <!-- 练习进行中：用时、判定、立即检查、结束练习 -->
+    <div id="pr-active-view" class="tb-group" role="region" aria-label="练习控制" hidden>
+      <span class="tb-k">用时</span><b id="pr-timer" class="tb-clock" title="用时">00:00</b>
+      <span id="pr-check-result" class="tb-chip">尚未检查</span>
+      <button id="pr-check" class="tb-btn" title="立即判定是否已修复">立即检查</button>
+      <button id="pr-end" class="tb-btn danger">结束练习</button>
+    </div>
+    <!-- 考试作答中：剩余、本题、提示、提交本题、下一题、交卷（里程碑 6，exam.js） -->
+    <div id="ex-active-view" class="tb-group exam" role="region" aria-label="考试控制" hidden>
+      <span class="tb-kv ex-clock" title="考试剩余时间（以服务器为准）"><span class="tb-k">剩余</span><b id="ex-timer" class="tb-clock big">--:--</b></span>
+      <span class="tb-kv" id="ex-qtimer-wrap" title="本题剩余时间"><span class="tb-k">本题</span><b id="ex-qtimer" class="tb-clock">--:--</b></span>
+      <button id="ex-hint" class="tb-btn" hidden>提示</button>
+      <button id="ex-submit" class="tb-btn primary" title="我修好了：系统验收本题">提交本题</button>
+      <button id="ex-next" class="tb-btn" title="结束本题，进入下一题">下一题</button>
+      <button id="ex-finish" class="tb-btn danger">交卷</button>
+    </div>
+    <span class="tb-sep"></span>
+    <div class="user-wrap">
+      <button id="user-btn" class="user-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu"><span id="who-label" class="who-label"></span><span id="who">…</span> <span class="caret">▾</span></button>
+      <div id="user-menu" class="menu" role="menu" aria-label="学员菜单" hidden>
+        <a role="menuitem" id="um-profile" href="profile">我的档案</a>
+        <button role="menuitem" id="um-ai" type="button">AI 设置</button>
+        <a role="menuitem" id="um-switch" href="login">切换学员</a>
+        <button role="menuitem" id="logout" class="danger-item">登出</button>
+      </div>
+    </div>
+    <button id="btn-exit" class="tb-btn" title="回到课程选择页（换题、换环境、换拓扑）">退出到课程</button>
+  </header>
+
+  <!-- 顶栏下方的通知条：通关横幅、操作消息、还原失败；考试的开题失败（重试 / 跳过）、交卷二次确认 -->
+  <div id="pr-strip" class="strip">
+    <div id="pr-banner" hidden></div>
+    <div id="pr-msg"></div>
+  </div>
+  <div id="ex-strip" class="strip exam">
+    <div id="ex-banner" hidden></div>
+    <div id="ex-confirm" hidden>
+      <span id="ex-confirm-text"></span>
+      <button id="ex-confirm-yes" class="danger">确认交卷</button>
+      <button id="ex-confirm-no">取消</button>
+    </div>
+    <div id="ex-msg"></div>
+  </div>
+
+  <div id="main">
+    <!-- 左：拓扑（可折叠成 48px 图标栏，可拖宽） -->
+    <nav id="topo-rail" class="rail left" aria-label="左侧图标栏">
+      <button id="btn-expand-topo" class="rail-btn" title="展开拓扑" aria-label="展开拓扑">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5"/></svg>
+      </button>
+      <span class="rail-label">拓扑</span>
+    </nav>
+    <section id="topo-panel" aria-label="拓扑">
+      <div id="topo-head" class="panel-head">
+        <strong id="topo-title">拓扑</strong>
+        <span class="topo-tools">
+          <label title="显示连线两端接口名"><input type="checkbox" id="chk-if" checked /> 接口</label>
+          <button id="btn-fit" class="sm" title="复位缩放">适配</button>
+        </span>
+        <button id="btn-collapse" class="icon-btn" title="收起拓扑" aria-label="收起拓扑">‹</button>
+      </div>
+      <div id="topo-body">
+        <svg id="topo-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="topo-empty">正在检测运行中的设备…</div>
+        <div id="topo-devlist" hidden></div>
+        <!-- PC 设置气泡（点拓扑里的 PC 弹出；eNSP Pro 可设 IP / 掩码 / 网关 / DNS，eNSP 经典版只提示在 eNSP 软件中设置） -->
+        <div id="pc-pop" class="popover pc-pop" role="dialog" aria-label="PC 设置" hidden>
+          <div class="pc-head"><b id="pc-name"></b><span id="pc-status" class="pc-st"></span><span class="spacer"></span>
+            <button id="pc-close" class="icon-btn sm" title="关闭" aria-label="关闭">×</button></div>
+          <div id="pc-note" class="pc-note" hidden></div>
+          <form id="pc-form" class="pc-form" autocomplete="off">
+            <label>IP 地址<input id="pc-ip" type="text" inputmode="decimal" placeholder="10.0.10.10" /></label>
+            <label>子网掩码<input id="pc-mask" type="text" inputmode="decimal" placeholder="255.255.255.0 或 24" /></label>
+            <label>网关<input id="pc-gw" type="text" inputmode="decimal" placeholder="10.0.10.1" /></label>
+            <label>DNS<input id="pc-dns" type="text" inputmode="decimal" placeholder="可不填" /></label>
+            <div class="pc-btns"><button type="submit" id="pc-apply" class="primary">应用</button>
+              <button type="button" id="pc-term">打开终端</button></div>
+          </form>
+          <div id="pc-msg" class="pc-msg" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+      <div id="topo-foot"></div>
+    </section>
+    <div id="split-main" class="splitter" title="拖动调整宽度，双击恢复默认"></div>
+
+    <!-- 中：终端（标签页 + 分屏） -->
+    <div id="term-area" aria-label="终端">
+      <div id="tabs">
+        <div id="tab-list"></div>
+        <span id="tab-tools">
+          <select id="open-select" title="打开设备终端"><option value="">打开终端…</option></select>
+          <button id="btn-single" class="on" title="单屏">单屏</button>
+          <button id="btn-split" title="左右两屏">分屏</button>
+        </span>
+      </div>
+      <div id="panes">
+        <div class="pane focused" data-idx="0">
+          <div class="pane-head"><span class="pane-label">左屏：</span><select class="pane-select"></select></div>
+          <div class="pane-body"><div class="pane-empty">点击拓扑图中的设备打开终端</div></div>
+        </div>
+        <div id="split-panes" class="splitter" title="拖动调整宽度，双击恢复默认"></div>
+        <div class="pane" data-idx="1" style="display:none">
+          <div class="pane-head"><span class="pane-label">右屏：</span><select class="pane-select"></select></div>
+          <div class="pane-body"><div class="pane-empty">在上方选择要显示的终端</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：工单详情 / Agent（可收起成 48px 图标栏，可拖宽；窄屏为抽屉；考试作答中整个不出现） -->
+    <div id="split-side" class="splitter" title="拖动调整宽度，双击恢复默认"></div>
+    <aside id="side" aria-label="右侧面板">
+      <div id="side-head" class="panel-head">
+        <div id="side-tabs" role="tablist">
+          <button id="st-task" role="tab" data-tab="task" aria-selected="false">工单详情</button>
+          <button id="st-agent" role="tab" data-tab="agent" aria-selected="true">Agent</button>
+        </div>
+        <span class="spacer"></span>
+        <span id="agent-badge" class="pill">自由问答</span>
+        <button id="btn-side-collapse" class="icon-btn" title="收起右侧面板" aria-label="收起右侧面板">›</button>
+      </div>
+
+      <div id="side-task" class="side-pane" role="tabpanel" hidden>
+        <div id="practice-body">
+          <div id="pr-list-view">
+            <div class="pr-head"><span class="pr-h">本题练习</span><button id="pr-refresh" class="sm" title="重新检测就绪状态">刷新</button></div>
+            <div id="pr-list"></div>
+            <div id="pr-errors"></div>
+          </div>
+          <div id="pr-detail" hidden>
+            <div class="pr-sec"><div class="pr-label">工单</div><div id="pr-symptom"></div></div>
+            <div class="pr-sec"><div class="pr-label">可访问设备（点按钮打开终端）</div><div id="pr-devices"></div></div>
+            <div class="pr-sec"><div class="pr-label">判定</div><div id="pr-check-detail">尚未检查</div></div>
+            <div class="pr-sec"><div class="pr-label">已查看的提示（在「Agent 导师」页签底部获取）</div><div id="pr-hints"><span class="muted">还没有使用提示</span></div></div>
+          </div>
+          <div id="pr-summary-view" hidden>
+            <div class="pr-head"><span class="pr-h">练习总结</span></div>
+            <div id="pr-summary"></div>
+            <div class="pr-actions"><button id="pr-back">再练一次</button><a class="ex-link" href="courses">回到课程选择</a></div>
+          </div>
+        </div>
+        <!-- 考试列表 / 已交卷（作答中整个右侧面板不出现，作答界面在考试条） -->
+        <div id="exam-body" hidden>
+          <div id="ex-list-view">
+            <div class="pr-head"><span class="pr-h">考试</span>
+              <a class="ex-link" href="exam/templates" title="新建 / 编辑考试模板">管理模板</a>
+              <button id="ex-refresh" class="sm" title="刷新">刷新</button></div>
+            <div id="ex-list"></div>
+            <div id="ex-last"></div>
+          </div>
+          <div id="ex-done-view" hidden>
+            <div class="pr-head"><span class="pr-h">已交卷</span></div>
+            <div id="ex-done"></div>
+            <div class="pr-actions"><button id="ex-back">返回</button><a class="ex-link" href="courses">回到课程选择</a></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="side-agent" class="side-pane" role="tabpanel">
+        <div id="agent-note" hidden>导师模式：只引导思路，不直接给答案；对话会作为评分参考，回复若含答案级内容按第 3 级提示扣分</div>
+        <div id="agent-log" aria-live="polite">
+          <div class="ag-empty" id="agent-empty">问问当前环境：拓扑、设备状态、命令输出的含义……<br>Agent 可以在设备上执行只读命令（display / ping），你的终端里看不到这些命令。</div>
+        </div>
+        <div id="agent-foot">
+          <div id="agent-hints" hidden>
+            <span class="muted">提示</span>
+            <button class="hint-lv" id="pr-hint-1" data-level="1">1 级 · 方向</button>
+            <button class="hint-lv" id="pr-hint-2" data-level="2">2 级 · 命令</button>
+            <button class="hint-lv lv3" id="pr-hint-3" data-level="3" title="直接揭示故障点和修复方法，按规则扣分">3 级 · 揭示（扣分）</button>
+          </div>
+          <div id="agent-quick">
+            <button data-q="解释一下我刚执行的上一条命令的输出">解释上一条输出</button>
+            <button data-q="各设备现在的状态怎么样？">各设备状态</button>
+          </div>
+          <form id="agent-form" autocomplete="off">
+            <label class="sr-only" for="agent-input">向 Agent 提问</label>
+            <textarea id="agent-input" rows="1" maxlength="2000" placeholder="问问当前环境…" title="Enter 发送，Shift+Enter 换行"></textarea>
+            <button id="agent-send" type="submit" class="primary">发送</button>
+          </form>
+        </div>
+      </div>
+    </aside>
+    <nav id="side-rail" class="rail right" aria-label="右侧图标栏">
+      <button id="rail-task" class="rail-btn" data-tab="task" title="展开工单详情" aria-label="展开工单详情">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h6"/></svg>
+      </button>
+      <button id="rail-agent" class="rail-btn" data-tab="agent" title="展开 Agent" aria-label="展开 Agent">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H9l-5 4z"/></svg>
+        <span id="agent-dot" class="new-dot" hidden></span>
+      </button>
+      <span id="rail-label" class="rail-label"></span>
+    </nav>
+    <div id="drawer-mask"></div>
+  </div>
+  <div id="parking"></div>
+  <div id="drag-mask"></div>
+
+  <script src="vendor/xterm.js"></script>
+  <script src="vendor/xterm-addon-fit.js"></script>
+  <script src="static/labswitch.js"></script>
+  <script src="static/aiset.js"></script>
+  <script src="static/app.js"></script>
+  <script src="static/exam.js"></script>
+  <script src="static/agent.js"></script>
+</body>
+</html>

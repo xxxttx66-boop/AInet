@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ainet 课程选择</title>
+  <link rel="stylesheet" href="static/app.css" />
+</head>
+<!-- 课程选择页（spec §16.3，布局见 docs/design/ui-layout.html ⑤）：模拟环境 → 章节 → 课题 → 预览四列。
+     点环境只是浏览（GET api/scenarios?env=），不触发切换；点「自由实验 / 开始练习 / 单题考试」才按题目准备环境
+     （eNSP Pro：POST api/lab/prepare 轮询进度；eNSP 经典版：提示在 eNSP 中打开拓扑，就绪后才放行），再进操作页。 -->
+<body class="course-page">
+  <header id="bar" class="topbar">
+    <a class="logo" href="courses" title="课程选择">ainet</a>
+    <span class="page-title">课程选择</span>
+    <span class="spacer"></span>
+    <button id="c-recheck" class="tb-btn sm-h" title="重新探测各模拟环境是否在线">↻ 重新检测环境</button>
+    <div class="user-wrap">
+      <button id="user-btn" class="user-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu"><span id="who">…</span> <span class="caret">▾</span></button>
+      <div id="user-menu" class="menu" role="menu" aria-label="学员菜单" hidden>
+        <a role="menuitem" href="profile">我的档案</a>
+        <button role="menuitem" id="um-ai" type="button">AI 设置</button>
+        <a role="menuitem" id="um-switch" href="login">切换学员</a>
+        <button role="menuitem" id="logout" class="danger-item">登出</button>
+      </div>
+    </div>
+  </header>
+  <div id="c-active" class="c-active" hidden>
+    <span id="c-active-text"></span>
+    <button id="c-active-go" class="primary">回到操作页</button>
+  </div>
+
+  <main id="c-main" class="c-main">
+    <nav class="c-col c-envs" aria-label="模拟环境">
+      <div class="c-head c-head-row"><span>模拟环境</span><button id="c-env-add" type="button" class="c-env-add" title="添加环境（如另一台 eNSP Pro）" aria-label="添加模拟环境" hidden>+</button></div>
+      <div id="c-envs" class="c-list"><div class="muted c-pad">检测中…</div></div>
+      <div class="c-foot">打开本页时自动检测；离线的环境不可选，⚙ 可查看 / 修改接入地址，+ 可添加环境</div>
+    </nav>
+    <nav class="c-col c-chapters" aria-label="章节">
+      <div id="c-chap-head" class="c-head">学习章节</div>
+      <div id="c-chapters" class="c-list"></div>
+    </nav>
+    <section class="c-col c-topics" aria-label="课题">
+      <div id="c-topic-head" class="c-head">课题</div>
+      <div id="c-topics" class="c-list cards"></div>
+      <div id="c-topic-foot" class="c-foot"></div>
+    </section>
+    <section class="c-col c-preview" aria-label="预览">
+      <div id="c-preview" class="c-preview-body"><div class="muted">选择左侧的课题查看详情</div></div>
+      <div id="c-actions" class="c-actions" hidden>
+        <div id="c-prep" class="c-prep"></div>
+        <div class="c-btns">
+          <button id="c-lab" class="c-btn" title="不注入故障，在本题的拓扑上自由操作">自由实验</button>
+          <button id="c-practice" class="c-btn primary">开始练习</button>
+          <button id="c-exam" class="c-btn" title="本题的考试：计时 15 分钟、无 Agent、无提示，交卷后出成绩单">单题考试</button>
+          <button id="c-exam-tpl" class="c-btn primary" hidden>开始考试</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 准备环境浮层（spec §16.3「进入」）：遮罩 + 居中卡片；步骤条、整体进度条（已用 / 预计还需）、设备卡片、
+       自动重启警示、轮播提示、本题工单；出错时显示后端原因与「重试 / 返回课程」，就绪后短暂停留再进操作页。 -->
+  <div id="c-prep-ov" class="pv-ov" hidden>
+    <div id="c-progress" class="pv-card" role="dialog" aria-modal="true" aria-labelledby="c-prog-title"
+         aria-describedby="pv-sub" tabindex="-1">
+      <div class="pv-head">
+        <span id="pv-icon" class="pv-icon" aria-hidden="true"></span>
+        <div class="pv-ht">
+          <h2 id="c-prog-title">正在准备练习环境</h2>
+          <div id="pv-sub" class="pv-sub"></div>
+        </div>
+      </div>
+      <ol id="pv-steps" class="pv-steps" aria-label="准备步骤"></ol>
+      <div class="pv-prog">
+        <div id="pv-bar" class="pv-bar" role="progressbar" aria-label="准备进度" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow="0"><div id="pv-fill" class="pv-fill"></div></div>
+        <div class="pv-meta"><b id="pv-pct">0%</b><span id="c-prog-elapsed"></span><span id="pv-eta"></span></div>
+      </div>
+      <div id="c-prog-stage" class="pv-stage"></div>
+      <div id="pv-alert" class="pv-alert" hidden></div>
+      <div id="c-prog-devs" class="pv-devs" aria-label="本题设备"></div>
+      <div id="c-prog-msg" class="c-prog-msg"></div>
+      <div id="pv-tip" class="pv-tip"><span class="pv-tip-k">提示</span><span id="pv-tip-t" class="pv-tip-t"></span></div>
+      <details id="pv-ticket" class="pv-ticket" open>
+        <summary>本题工单（等待时可以先读）</summary>
+        <div id="pv-ticket-body" class="pv-ticket-body"></div>
+      </details>
+      <div class="pv-btns">
+        <button id="c-cancel" class="c-btn">取消</button>
+        <button id="pv-back" class="c-btn" hidden>返回课程</button>
+        <button id="pv-retry" class="c-btn primary" hidden>重试</button>
+      </div>
+      <div id="pv-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+    </div>
+  </div>
+
+  <script src="static/labswitch.js"></script>
+  <script src="static/aiset.js"></script>
+  <script src="static/courses.js"></script>
+</body>
+</html>

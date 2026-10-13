@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ainet 登录</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #1e1e1e; color: #ddd;
+      font-family: ui-monospace, Menlo, Consolas, monospace; }
+    main { max-width: 360px; margin: 60px auto; padding: 0 16px; }
+    h1 { font-size: 18px; }
+    h2 { font-size: 14px; margin-top: 28px; color: #aaa; }
+    label { display: block; font-size: 13px; margin: 10px 0 4px; }
+    input, select, button { width: 100%; box-sizing: border-box; padding: 6px 8px;
+      background: #2b2b2b; color: #ddd; border: 1px solid #555; font: inherit; }
+    button { margin-top: 12px; cursor: pointer; background: #37474f; }
+    .msg { margin-top: 10px; font-size: 13px; min-height: 1em; }
+    .err { color: #ef5350; } .ok { color: #8bc34a; }
+    details { margin-top: 28px; }
+    summary { cursor: pointer; font-size: 14px; color: #aaa; }
+    /* 隐藏式滚动条（与 app.css 一致）：平时透明，悬停时显示 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+    ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    :hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .28); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .45); }
+    @supports not selector(::-webkit-scrollbar) {
+      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ainet 局域网运维实操练习</h1>
+
+  <form id="loginForm">
+    <label for="pick">快速切换学生</label>
+    <select id="pick"><option value="">— 选择已有学生 —</option></select>
+    <label for="login">登录名</label>
+    <input id="login" autocomplete="username" required />
+    <label for="password">密码</label>
+    <input id="password" type="password" autocomplete="current-password" required />
+    <button type="submit">登录</button>
+    <div id="loginMsg" class="msg"></div>
+  </form>
+
+  <details id="newBox">
+    <summary>新建学生</summary>
+    <form id="newForm">
+      <label for="nLogin">登录名</label>
+      <input id="nLogin" required />
+      <label for="nName">姓名</label>
+      <input id="nName" required />
+      <label for="nPassword">密码</label>
+      <input id="nPassword" required />
+      <button type="submit">创建</button>
+      <div id="newMsg" class="msg"></div>
+    </form>
+  </details>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  function setMsg(el, text, ok) {
+    el.textContent = text;
+    el.className = 'msg ' + (ok ? 'ok' : 'err');
+  }
+
+  async function loadStudents(selectLogin) {
+    const res = await fetch('api/students');
+    const list = await res.json();
+    const pick = $('pick');
+    pick.length = 1;
+    for (const s of list) {
+      const o = document.createElement('option');
+      o.value = s.login;
+      o.textContent = `${s.name}（${s.login}）`;
+      pick.appendChild(o);
+    }
+    if (selectLogin) { pick.value = selectLogin; $('login').value = selectLogin; }
+  }
+
+  $('pick').onchange = () => {
+    if ($('pick').value) { $('login').value = $('pick').value; $('password').focus(); }
+  };
+
+  $('loginForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const res = await fetch('api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: $('login').value, password: $('password').value }),
+    });
+    if (res.ok) { location.href = 'courses'; return; }
+    const err = await res.json().catch(() => ({}));
+    setMsg($('loginMsg'), err.detail || `登录失败（${res.status}）`, false);
+  };
+
+  $('newForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const login = $('nLogin').value;
+    const res = await fetch('api/students', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, name: $('nName').value, password: $('nPassword').value }),
+    });
+    if (res.ok) {
+      setMsg($('newMsg'), '已创建，请在上方输入密码登录', true);
+      $('newForm').reset();
+      await loadStudents(login);
+      $('password').focus();
+      return;
+    }
+    const err = await res.json().catch(() => ({}));
+    const detail = typeof err.detail === 'string' ? err.detail : '字段不能为空';
+    setMsg($('newMsg'), detail, false);
+  };
+
+  loadStudents();
+</script>
+</body>
+</html>

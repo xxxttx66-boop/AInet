@@ -1,0 +1,157 @@
+{
+  "id": "campus-ar2-acl-telnet-ys",
+  "title": "禁 Telnet 的策略把 ping 也挡了（ACL）",
+  "level": 3,
+  "chapter": "L06",
+  "difficulty": 3,
+  "est_minutes": 20,
+  "summary": "只想禁止管理网远程登录服务器，结果管理网连 ping 都不通了",
+  "tags": [
+    "ACL",
+    "高级 ACL",
+    "traffic-filter"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "高级 ACL",
+    "协议与端口匹配",
+    "traffic-filter",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "symptom": "工单：交换机管理网 10.0.10.0/24（LSW0 管理地址 10.0.10.254，网关 AR0 10.0.10.1）经 AR0、AR2 访问服务器网段 192.168.2.0/24（AR2 的 LoopBack0 = 192.168.2.1），两端静态路由正常。安全规范要求：管理网不允许 Telnet（TCP 23）到服务器网段，其他访问（包括 ping）照常。安全组昨天在 AR2 的 GE0/0/0 入方向下发了策略，之后 LSW0 连 ping 192.168.2.1 都不通了。请修正策略：恢复 LSW0 ping 192.168.2.1，同时继续禁止管理网 Telnet 服务器网段。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 192.168.2.0 24 10.0.12.2"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface LoopBack0",
+      "ip address 192.168.2.1 24",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GE1/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "acl number 3001",
+      "rule 5 deny ip source 10.0.10.0 0.0.0.255 destination 192.168.2.0 0.0.0.255",
+      "rule 10 permit ip",
+      "return",
+      "system-view",
+      "interface GE0/0/0",
+      "traffic-filter inbound acl 3001"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 192.168.2.0 24 10.0.12.2",
+      "interface GE0/0/1",
+      "undo ip address",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo traffic-filter inbound",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo acl number 3001",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "undo interface LoopBack0"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10"
+    ]
+  },
+  "checks": [
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 192.168.2.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0（管理网 10.0.10.254）能 ping 通 192.168.2.1"
+    },
+    {
+      "device": "AR2",
+      "command": "display acl all",
+      "expect": "deny tcp .*destination-port eq (telnet|23)\\b",
+      "desc": "AR2 的 ACL 里仍有禁止 Telnet（TCP 23）的规则"
+    },
+    {
+      "device": "AR2",
+      "command": "display current-configuration interface GE0/0/0",
+      "expect": "traffic-filter inbound acl",
+      "desc": "AR2 的 GE0/0/0 入方向仍应用着包过滤"
+    }
+  ],
+  "hints": [
+    "策略的本意只针对一种应用（Telnet），现在却把所有流量都拦了。看看规则匹配的协议是不是写得太宽。",
+    "在 AR2 上执行 display acl all 看各条规则匹配的协议、源 / 目的和命中次数，再用 display current-configuration interface GE0/0/0 看接口上应用的是哪个 ACL。",
+    "AR2 的 ACL 3001 rule 5 写成了 deny ip（所有 IP 流量）。在 acl number 3001 下 undo rule 5，再配 rule 5 deny tcp source 10.0.10.0 0.0.0.255 destination 192.168.2.0 0.0.0.255 destination-port eq telnet，接口上的 traffic-filter 保留。"
+  ],
+  "reference_path": "LSW0 ping 192.168.2.1 不通 → AR0 自己 ping 通（源 10.0.12.1 不受影响）→ 登录 AR2，display current-configuration interface GE0/0/0 看到 traffic-filter inbound acl 3001 → display acl all：rule 5 deny ip 源 10.0.10.0/24 有命中 → 协议应为 tcp、目的端口 23 → 改写 rule 5 → LSW0 ping 验证，display acl 确认仍禁 Telnet。",
+  "solution": {
+    "AR2": [
+      "system-view",
+      "acl number 3001",
+      "undo rule 5",
+      "rule 5 deny tcp source 10.0.10.0 0.0.0.255 destination 192.168.2.0 0.0.0.255 destination-port eq telnet",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "先确认路由正常，再从 AR2 的包过滤与 ACL 命中次数定位到 rule 5",
+    "理解 deny ip 匹配所有 IP 协议，禁 Telnet 应匹配 tcp + 目的端口 23",
+    "改写 rule 5 而不是删掉 ACL 或取消接口过滤（直接放开属于破坏安全策略）",
+    "修复后 LSW0 ping 验证，并确认禁止 Telnet 的规则仍在"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 基线与 ACL / traffic-filter 写法沿用已真机验证的 campus-ar2-acl-block-ys（AR6700 上 undo acl number 会连带删掉接口上的 traffic-filter）。 真机实测：rule 5 deny tcp … destination-port eq telnet 写法可用，display acl all 里照原样显示 destination-port eq telnet（不是 23），后面带「(N times matched)」；高级 ACL 视图提示符为 [HUAWEI-acl4-advance-3001]；traffic-filter 与 undo acl number 由 restore 撤销干净（整机复位 0 轮）。"
+}

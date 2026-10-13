@@ -1,0 +1,98 @@
+{
+  "id": "enspro-t2-port-shutdown",
+  "title": "T1 与 T2 链路中断（接口状态）",
+  "level": 1,
+  "chapter": "L01",
+  "difficulty": 1,
+  "est_minutes": 10,
+  "summary": "T1 与 T2 之间的直连链路突然不通，两端地址都没动过",
+  "tags": [
+    "接口状态",
+    "物理层",
+    "链路排障"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "接口状态",
+    "物理层排障",
+    "display interface",
+    "YunShan OS"
+  ],
+  "topology": "ainet_test",
+  "required_devices": [
+    "T1",
+    "T2"
+  ],
+  "accessible_devices": [
+    "T1",
+    "T2"
+  ],
+  "symptom": "工单：T1 与 T2 之间有一条直连链路（T1 GE0/0/1 — T2 GE0/0/1），网段 10.0.12.0/24，T1 一端 10.0.12.1，T2 一端 10.0.12.2。今天上午维护窗口之后，从 T1 ping 10.0.12.2 不通。两端的 IP 地址都没有人改过。请登录 T1、T2 排查并恢复链路，使 T1 能 ping 通 10.0.12.2。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "T1": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24"
+    ],
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.12.2 24"
+    ]
+  },
+  "inject": {
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "shutdown"
+    ]
+  },
+  "restore": {
+    "T1": [
+      "system-view",
+      "interface GE0/0/1",
+      "undo ip address"
+    ],
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "undo ip address",
+      "undo shutdown"
+    ]
+  },
+  "checks": [
+    {
+      "device": "T2",
+      "command": "display ip interface brief",
+      "expect": "GE0/0/1\\s+\\S+\\s+up\\s+up",
+      "desc": "T2 的 GE0/0/1 物理与协议状态均为 up"
+    },
+    {
+      "device": "T1",
+      "command": "ping -c 2 10.0.12.2",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "T1 能 ping 通 T2 的互联地址 10.0.12.2"
+    }
+  ],
+  "hints": [
+    "地址没人动过，那就从最底层查起：两端互联接口现在是什么状态？只看本端还不够。",
+    "在 T1、T2 上分别执行 display interface brief（看 PHY / Protocol 两列）和 display ip interface brief，对比 GE0/0/1 的状态。",
+    "T2 的 GE0/0/1 被管理员关闭了（PHY 显示 *down）。在 T2 上 system-view → interface GE0/0/1 → undo shutdown，再从 T1 ping 验证。"
+  ],
+  "reference_path": "T1 ping 10.0.12.2 不通 → T1 display interface brief 看到 GE0/0/1 down（对端关闭导致本端也 down）→ 登录 T2，display interface brief 看到 GE0/0/1 为 *down（administratively down）→ interface GE0/0/1 → undo shutdown → 两端 up 后 T1 再 ping 验证。",
+  "solution": {
+    "T2": [
+      "system-view",
+      "interface GE0/0/1",
+      "undo shutdown",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "先看接口状态（display interface brief / display ip interface brief），而不是先改地址或路由",
+    "本端看到链路 down 后登录对端核对，识别出 *down = 管理性关闭",
+    "只在 T2 的 GE0/0/1 上恢复接口，不改地址、不动其他接口",
+    "修复后在 T1 上 ping 10.0.12.2 验证连通"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 T1 GE0/0/1 <-> T2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：T2 关闭 GE0/0/1 后 T1 的 GE0/0/1 也显示 down/down（虚拟链路传递对端关闭）；T2 自己的 display ip interface brief 里该口物理状态显示 *down（管理关闭）；undo shutdown 后几秒内恢复，自动判定通过；沙箱 ainet_test 只有 T1、T2，未接线的 GE0/0/2 显示 down/down。"
+}

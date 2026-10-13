@@ -1,0 +1,113 @@
+{
+  "id": "campus-pc1-gateway-ys",
+  "title": "用户电脑访问服务器不通（网关）",
+  "level": 1,
+  "chapter": "L02",
+  "difficulty": 1,
+  "est_minutes": 10,
+  "summary": "用户电脑能 ping 通网关，访问其他网段的服务器却不通",
+  "tags": [
+    "IP 编址",
+    "默认网关",
+    "PC 设置"
+  ],
+  "platform": "yunshan",
+  "hosts": [
+    "PC1"
+  ],
+  "knowledge_tags": [
+    "默认网关",
+    "主机地址配置",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR2",
+    "LSW0",
+    "PC1"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "PC1"
+  ],
+  "symptom": "工单：用户电脑 PC1 接在接入交换机 LSW0 上，规划地址 10.0.10.10/24、网关 10.0.10.1（AR0 的 GE0/0/0）；服务器网段 192.168.2.0/24 在 AR2 后面，网络组确认 AR0、AR2 的路由都正常。用户反映：今天重装系统后，PC1 ping 网关 10.0.10.1 是通的，但访问服务器 192.168.2.1 不通。请排查并修复（PC1 的地址在拓扑上点 PC1 →「PC 设置」查看和修改），使 PC1 能 ping 通 192.168.2.1。（PC1 的终端只能执行 ping 等命令。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 192.168.2.0 24 10.0.12.2"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface LoopBack0",
+      "ip address 192.168.2.1 24",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1"
+    ],
+    "PC1": [
+      "ip address 10.0.10.10 24",
+      "ip gateway 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "PC1": [
+      "ip gateway 10.0.10.100"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 192.168.2.0 24 10.0.12.2",
+      "interface GE0/0/1",
+      "undo ip address",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "PC1": [
+      "undo ip address",
+      "undo ip gateway"
+    ]
+  },
+  "checks": [
+    {
+      "device": "PC1",
+      "command": "ping -c 2 192.168.2.1",
+      "expect": "\\b[12] received\\b",
+      "desc": "PC1 能 ping 通服务器网关 192.168.2.1"
+    }
+  ],
+  "hints": [
+    "同网段能通、跨网段不通：跨网段的包要交给谁？看看 PC1 自己的网络设置。",
+    "在拓扑上点 PC1 打开「PC 设置」，逐项核对 IP、掩码、网关是否与工单的规划一致（PC1 终端里的 ifconfig 也能看到）。",
+    "PC1 的网关被设成了 10.0.10.100（网段里没有这台设备），跨网段的包发不出去。在 PC 设置里把网关改回 10.0.10.1。"
+  ],
+  "reference_path": "PC1 ping 10.0.10.1 通、ping 192.168.2.1 不通 → 同网段正常、跨网段异常，怀疑网关 → 打开 PC 设置（或 ifconfig）看到网关为 10.0.10.100 → 改回 10.0.10.1 → PC1 再 ping 192.168.2.1 验证。",
+  "solution": {
+    "PC1": [
+      "ip gateway 10.0.10.1"
+    ]
+  },
+  "scoring_points": [
+    "从「同网段通、跨网段不通」推断问题在默认网关，而不是先去改路由器",
+    "查看 PC1 的地址配置，发现网关与规划不符",
+    "只改 PC1 的网关，不改 AR0 / AR2 的路由",
+    "修复后在 PC1 上 ping 192.168.2.1 验证"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 本题 LSW0 不下发配置（缺省 VLAN 1 即可把 AR0 GE0/0/0 与 PC1 放在同一二层网段，ospf-r1-shutdown-ys 已验证 VLAN 1 转发），列入 required 以便核对基线、整机复位。故障放在 PC 地址上（spec §6.2 第 2 条，学员用 PC 设置气泡修复）。 真机实测：PC1 网关指向不存在的 10.0.10.100 时，ping 同网段 10.0.10.1 通，ping 192.168.2.1 输出 Destination Host Unreachable、「2 packets transmitted, 0 received, +2 errors」（判定只认 received，不受影响）；经 PC 设置气泡改回 10.0.10.1 后 PC 命令行重启，第一次 ping 仍可能 0 received（ARP），十几秒内自动判定通过。"
+}

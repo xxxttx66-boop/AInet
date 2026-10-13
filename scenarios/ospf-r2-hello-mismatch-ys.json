@@ -1,0 +1,140 @@
+{
+  "id": "ospf-r2-hello-mismatch-ys",
+  "title": "R2 与 R1 建不起 OSPF 邻居（定时器）",
+  "level": 3,
+  "chapter": "L05",
+  "difficulty": 3,
+  "est_minutes": 20,
+  "summary": "R1 只和 R3 建立了邻居，和 R2 怎么也建不起来",
+  "tags": [
+    "OSPF 邻居",
+    "Hello 定时器",
+    "路由排障"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "OSPF 邻居建立条件",
+    "Hello / Dead 定时器",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "R1",
+    "R2",
+    "R3",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "R1",
+    "R2",
+    "R3"
+  ],
+  "symptom": "工单：单区域 OSPF 网络（area 0）中，R1、R2、R3 的 GE0/0/0 接在同一个二层网段 10.0.123.0/24（经交换机 LSW0），各自的 LoopBack0（1.1.1.1 / 2.2.2.2 / 3.3.3.3，router-id 相同）也发布进 OSPF。R2 昨晚做过「接口参数优化」，之后 R1 学不到 2.2.2.2，R1 上只看到和 R3 的邻居。接口状态与地址都正常。请排查并恢复，使 R1 与 R2、R3 都建立 Full 状态的 OSPF 邻接。（设备为华为 YunShan OS，配置立即生效；广播网络上邻居恢复到 Full 需要几十秒。）",
+  "baseline": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.1 24",
+      "interface LoopBack0",
+      "ip address 1.1.1.1 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 1.1.1.1",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 1.1.1.1 0.0.0.0"
+    ],
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.2 24",
+      "interface LoopBack0",
+      "ip address 2.2.2.2 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 2.2.2.2",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 2.2.2.2 0.0.0.0"
+    ],
+    "R3": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.3 24",
+      "interface LoopBack0",
+      "ip address 3.3.3.3 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 3.3.3.3",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 3.3.3.3 0.0.0.0"
+    ]
+  },
+  "inject": {
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ospf timer hello 20"
+    ]
+  },
+  "restore": {
+    "R1": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "R2": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ospf timer hello",
+      "undo ip address"
+    ],
+    "R3": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\b2\\.2\\.2\\.2\\s+Full\\b",
+      "desc": "R1 与 R2（2.2.2.2）的邻居为 Full"
+    },
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\b3\\.3\\.3\\.3\\s+Full\\b",
+      "desc": "R1 与 R3（3.3.3.3）的邻居为 Full"
+    }
+  ],
+  "hints": [
+    "同一网段里 R3 能建、R2 不能建，说明网络本身没问题。两台路由器要成为邻居，Hello 报文里哪些参数必须一致？",
+    "在 R1、R2 上分别执行 display ospf interface GE0/0/0（看 Timers 里的 Hello / Dead），对比两边；display ospf peer brief 看邻居状态。",
+    "R2 的 GE0/0/0 把 OSPF Hello 间隔改成了 20 秒（其他路由器是缺省 10 秒），Hello 参数不一致建不起邻居。在 R2 的 GE0/0/0 下执行 undo ospf timer hello。"
+  ],
+  "reference_path": "R1 display ospf peer brief 只有 3.3.3.3 → R2 上 display ospf peer brief 没有邻居 → 接口 up、地址同网段、area 都是 0 → display ospf interface GE0/0/0 对比 Timers：R2 Hello 20 / Dead 80，R1 Hello 10 / Dead 40 → R2 接口下恢复缺省定时器 → 等几十秒 R1 上 2.2.2.2 变 Full。",
+  "solution": {
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ospf timer hello",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "先排除接口、地址、区域等基础条件，再对比 OSPF 接口参数",
+    "用 display ospf interface 发现 R2 的 Hello / Dead 与邻居不一致",
+    "只在 R2 接口上恢复定时器，不改 R1 / R3 去迁就 R2，不重启 OSPF 进程",
+    "修复后等待并确认 R1 与 R2、R3 都是 Full"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 LSW0 只作为二层网段（缺省 VLAN 1），不开放终端，列入 required_devices 以便开题前核对基线、结束时整机复位。OSPF 配置由 baseline 下发、restore 用 undo ospf 1 撤销（问 [Y/N]，自动回答），沿用已真机验证的 ospf-r1-shutdown-ys。注意：baseline 与 inject 连续执行，注入后的故障确认时邻居本来就还没建立，所以确认故障总能通过，不能证明注入生效——真机验证时要等 1 分钟看邻居是否仍不 Full。 真机实测：接口视图 ospf timer hello 20 / undo ospf timer hello 写法可用；改 Hello 后 Dead 随之变成 4 倍（display ospf interface GE0/0/0 显示 Hello 20 , Dead 80）；注入后等 90 秒，R1 只有 3.3.3.3 Full、没有 2.2.2.2（故障真的生效）；修复后约 18 秒邻居 Full、自动判定通过。"
+}

@@ -1,0 +1,155 @@
+{
+  "id": "campus-mgmt-two-faults-ys",
+  "title": "管理网访问服务器不通（多处故障）",
+  "level": 4,
+  "chapter": "L12",
+  "difficulty": 4,
+  "est_minutes": 30,
+  "summary": "交换机访问服务器网段不通，昨晚有两个人分别改过配置",
+  "tags": [
+    "综合排障",
+    "VLAN",
+    "静态路由"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "分层排障",
+    "Access 端口",
+    "回程路由",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2",
+    "LSW0"
+  ],
+  "symptom": "工单：交换机管理网 10.0.10.0/24（LSW0 管理地址 Vlanif10 = 10.0.10.254，网关 AR0 GE0/0/0 = 10.0.10.1，AR0 GE0/0/0 接 LSW0 GE1/0/1，规划为 VLAN 10 的 Access 口）需要访问服务器网段 192.168.2.0/24（AR2 的 LoopBack0，网关 192.168.2.1）。AR0 与 AR2 之间互联网段 10.0.12.0/24（AR0 .1，AR2 .2），两端都用静态路由。昨晚交换机组和路由组各自做过变更，今天 LSW0 ping 192.168.2.1 不通。请逐段排查并修复，使 LSW0 能 ping 通网关 10.0.10.1 和服务器网关 192.168.2.1。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "interface GE0/0/1",
+      "ip address 10.0.12.1 24",
+      "return",
+      "system-view",
+      "ip route-static 192.168.2.0 24 10.0.12.2"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.12.2 24",
+      "interface LoopBack0",
+      "ip address 192.168.2.1 24",
+      "return",
+      "system-view",
+      "ip route-static 10.0.10.0 24 10.0.12.1"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 10",
+      "interface GE1/0/1",
+      "port link-type access",
+      "port default vlan 10",
+      "interface Vlanif10",
+      "ip address 10.0.10.254 24",
+      "return",
+      "system-view",
+      "ip route-static 0.0.0.0 0 10.0.10.1"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "ip route-static 10.0.10.0 24 10.0.12.3"
+    ],
+    "LSW0": [
+      "system-view",
+      "vlan batch 30",
+      "interface GE1/0/1",
+      "port default vlan 30"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "undo ip route-static 192.168.2.0 24 10.0.12.2",
+      "interface GE0/0/1",
+      "undo ip address",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.3",
+      "undo ip route-static 10.0.10.0 24 10.0.12.1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "LSW0": [
+      "system-view",
+      "undo ip route-static 0.0.0.0 0 10.0.10.1",
+      "interface Vlanif10",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo interface Vlanif10",
+      "interface GE1/0/1",
+      "undo port default vlan",
+      "undo port link-type",
+      "return",
+      "system-view",
+      "undo vlan batch 10 30"
+    ]
+  },
+  "checks": [
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 10.0.10.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0 能 ping 通网关 10.0.10.1（二层）"
+    },
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 192.168.2.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0 能 ping 通服务器网关 192.168.2.1（三层）"
+    }
+  ],
+  "hints": [
+    "两个组各改过一处，就可能有两处故障。从 LSW0 出发一段一段地验证：先到网关，再到服务器。修好一段要重新测下一段。",
+    "二层：LSW0 上 display port vlan、display vlan 看 GE1/0/1 与 Vlanif10 是否在同一个 VLAN；三层：LSW0 上 tracert 192.168.2.1，AR2 上 display ip routing-table 10.0.10.1 看回程下一跳。",
+    "两处故障：① LSW0 的 GE1/0/1 被改成了 VLAN 30，改回 port default vlan 10；② AR2 回 10.0.10.0/24 的静态路由下一跳被改成 10.0.12.3，undo 掉后配 ip route-static 10.0.10.0 24 10.0.12.1。"
+  ],
+  "reference_path": "LSW0 ping 10.0.10.1 也不通 → 先查二层：display port vlan 看到 GE1/0/1 PVID 不是 10 → 改回 VLAN 10，网关通 → ping 192.168.2.1 仍不通，AR0 自己能通 → 怀疑回程 → AR2 display ip routing-table 10.0.10.1 下一跳 10.0.12.3 → 改为 10.0.12.1 → 验证。",
+  "solution": {
+    "LSW0": [
+      "system-view",
+      "interface GE1/0/1",
+      "port default vlan 10",
+      "return"
+    ],
+    "AR2": [
+      "system-view",
+      "undo ip route-static 10.0.10.0 24 10.0.12.3",
+      "ip route-static 10.0.10.0 24 10.0.12.1",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "分段验证（先网关、后服务器），不同时乱改多台设备",
+    "在 LSW0 上查出 GE1/0/1 的接入 VLAN 被改错",
+    "修好二层后继续定位到 AR2 的回程路由下一跳错误",
+    "两处都只做最小修改，不删 VLAN、不加多余路由",
+    "最终 LSW0 到网关与服务器网关都 ping 通"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 两处故障的写法分别沿用已真机验证的 campus-lsw0-access-vlan-ys 与 campus-ar2-return-route-ys，组合本身未在真机上跑过。 真机实测：两处故障组合有效且分层：只修好 LSW0 接入 VLAN 后，LSW0 能 ping 通网关 10.0.10.1、仍 ping 不通 192.168.2.1；再修 AR2 回程下一跳后两条判定都通过；undo vlan batch 10 30 与回程路由的撤销由 restore 撤销干净（整机复位 0 轮）。"
+}

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UNICODE" ?>
+<topo version="1.2.00.300">
+    <devices>
+        <dev id="E123E0C7-B754-4ba4-B2E9-3704ABE572CA" name="S2" model="S5700" settings="" com_port="2001" bootmode="1" cx="453.000000" cy="307.000000" edit_left="480" edit_top="361">
+            <slot number="slot17" isMainBoard="1">
+                <interface sztype="Ethernet" interfacename="GE" count="24" />
+            </slot>
+        </dev>
+        <dev id="83992CF9-640C-4714-A54F-43292278F9E6" name="S1" model="S5700" settings="" com_port="2000" bootmode="1" cx="153.000000" cy="307.000000" edit_left="180" edit_top="361">
+            <slot number="slot17" isMainBoard="1">
+                <interface sztype="Ethernet" interfacename="GE" count="24" />
+            </slot>
+        </dev>
+    </devices>
+    <lines>
+        <line srcDeviceID="83992CF9-640C-4714-A54F-43292278F9E6" destDeviceID="E123E0C7-B754-4ba4-B2E9-3704ABE572CA">
+            <interfacePair lineName="Copper" srcIndex="8" srcBoundRectIsMoved="1" srcBoundRect_X="223.183762" srcBoundRect_Y="334.000000" srcOffset_X="-15.000000" srcOffset_Y="-19.000000" tarIndex="8" tarBoundRectIsMoved="1" tarBoundRect_X="436.816223" tarBoundRect_Y="334.000000" tarOffset_X="-33.000000" tarOffset_Y="-14.000000" />
+            <interfacePair lineName="Copper" srcIndex="9" srcBoundRectIsMoved="1" srcBoundRect_X="235.183762" srcBoundRect_Y="346.000000" srcOffset_X="-26.000000" srcOffset_Y="3.000000" tarIndex="9" tarBoundRectIsMoved="1" tarBoundRect_X="448.816223" tarBoundRect_Y="346.000000" tarOffset_X="-47.000000" tarOffset_Y="3.000000" />
+        </line>
+    </lines>
+    <shapes>
+        <shape type="2" filloption="1" color="12632256" upleftcorner="197,283" width="264" height="111" startpt="0,0" endpt="0,0" borderStyle="0" borderWidth="1" />
+    </shapes>
+    <txttips>
+        <txttip left="304" top="312" right="346" bottom="329" content="Trunk" fontname="Consolas" fontstyle="0" editsize="100" txtcolor="-16777216" txtbkcolor="-7278960" charset="1" />
+        <txttip left="19" top="12" right="661" bottom="97" content="Scenario:&#x0D;&#x0A;As a network administrator of an existing enterprise network, it has been requested that the &#x0D;&#x0A;connections between the switches be used more effectively by preparing the switches to support &#x0D;&#x0A;link aggregation before establishing manual link aggregation, for which the media between the &#x0D;&#x0A;switches are to be configured as member links.&#x0D;&#x0A;" fontname="Consolas" fontstyle="0" editsize="90" txtcolor="-16777216" txtbkcolor="-7278960" charset="1" />
+        <txttip left="19" top="109" right="604" bottom="219" content="Learning Objectives&#x0D;&#x0A;As part of this lab section, you are expected to achieve the following tasks:&#x0D;&#x0A;1.Manually set the line rate and duplex mode on an interface.&#x0D;&#x0A;2.Configuration of manual mode link aggregation.&#x0D;&#x0A;3.Configuration of link aggregation using static LACP mode.&#x0D;&#x0A;4.Management of the priority of interfaces in static LACP mode.&#x0D;&#x0A;" fontname="Consolas" fontstyle="0" editsize="100" txtcolor="-16777216" txtbkcolor="-7278960" charset="1" />
+    </txttips>
+</topo>

@@ -1,0 +1,38 @@
+﻿AInet 服务 使用说明
+========================================
+
+【启动服务】
+  双击  启动服务.bat
+  - 会弹出一个黑色窗口，窗口里跑的就是服务；
+  - 约 3 秒后浏览器自动打开  http://localhost:8000/
+  - 这个黑窗口不要关，关掉就等于停止服务。
+
+【停止服务】
+  双击  停止服务.bat
+  - 会杀掉占用 8000 端口的进程，几秒后提示 “Done”；
+  - 也可以直接在启动服务的黑窗口里按 Ctrl+C 或点右上角 ×。
+
+【重复启动不会出错】
+  如果服务已经在跑，再双击「启动服务.bat」不会报错，
+  它只会帮你打开浏览器页面。
+
+【打开失败怎么办】
+  1) 先确认「启动服务.bat」的黑窗口还开着；
+  2) 手动在浏览器输入：http://localhost:8000/
+  3) 若提示端口被占用，先双击一次「停止服务.bat」再启动。
+
+【常用地址】
+  首页 / 课程页 : http://localhost:8000/
+  终端页        : http://localhost:8000/?port=2000
+  考试模板管理  : http://localhost:8000/exam/templates
+
+【日志】
+  后台版日志在  backend\data\server.log
+  （双击 启动服务.bat 的方式，日志直接显示在黑窗口里）
+
+【开机自启（可选，需要管理员权限）】
+  在管理员 CMD 里执行：
+    schtasks /create /tn ainet /tr "cmd /c D:\AInet\start_silent.bat" /sc onlogon /rl highest
+  停止并取消自启：
+    schtasks /end /tn ainet
+    schtasks /delete /tn ainet /f

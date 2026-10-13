@@ -1,0 +1,72 @@
+{
+  "id": "campus-ar2-acl-block",
+  "title": "管理网 ping 不通服务器（ACL 误拦截）",
+  "level": 3,
+  "knowledge_tags": ["ACL", "traffic-filter", "访问控制排障"],
+  "topology": "Campus_Network.topo",
+  "required_devices": ["AR0", "AR2", "LSW0"],
+  "accessible_devices": ["AR0", "AR2", "LSW0"],
+  "symptom": "工单：交换机管理网 10.0.10.0/24（LSW0 管理地址 10.0.10.254，网关 AR0 10.0.10.1）要能 ping 通服务器网段网关 192.168.2.1（AR2 的 LoopBack0）。路由组确认 AR0、AR2 两端静态路由都正确，AR0 上 ping 192.168.2.1 也正常。安全组昨天在 AR2 上加过访问控制策略，原意是只禁止访客网段 10.0.20.0/24 访问服务器。现在 LSW0 ping 192.168.2.1 不通。请排查并修复，使 LSW0 能 ping 通 192.168.2.1，同时不要放开访客网段。",
+  "baseline": {
+    "AR0": ["system-view", "interface GigabitEthernet0/0/0", "ip address 10.0.10.1 24",
+            "interface GigabitEthernet0/0/1", "ip address 10.0.12.1 24", "return", "system-view",
+            "ip route-static 192.168.2.0 24 10.0.12.2"],
+    "AR2": ["system-view", "interface GigabitEthernet0/0/0", "ip address 10.0.12.2 24",
+            "interface LoopBack0", "ip address 192.168.2.1 24", "return", "system-view",
+            "ip route-static 10.0.10.0 24 10.0.12.1"],
+    "LSW0": ["system-view", "vlan batch 10", "interface GigabitEthernet0/0/1", "port link-type access",
+             "port default vlan 10", "interface Vlanif10", "ip address 10.0.10.254 24", "return", "system-view",
+             "ip route-static 0.0.0.0 0 10.0.10.1"]
+  },
+  "inject": {
+    "AR2": ["system-view", "acl number 3000", "rule 5 deny ip source 10.0.10.0 0.0.0.255 destination 192.168.2.0 0.0.0.255",
+            "rule 10 permit ip", "return", "system-view", "interface GigabitEthernet0/0/0", "traffic-filter inbound acl 3000"]
+  },
+  "restore": {
+    "AR0": ["system-view", "undo ip route-static 192.168.2.0 24 10.0.12.2",
+            "interface GigabitEthernet0/0/1", "undo ip address", "interface GigabitEthernet0/0/0", "undo ip address"],
+    "AR2": ["system-view", "interface GigabitEthernet0/0/0", "undo traffic-filter inbound", "undo ip address", "return", "system-view",
+            "undo acl number 3000", "undo ip route-static 10.0.10.0 24 10.0.12.1", "undo interface LoopBack0"],
+    "LSW0": ["system-view", "undo ip route-static 0.0.0.0 0 10.0.10.1", "interface Vlanif10", "undo ip address",
+             "return", "system-view", "undo interface Vlanif10", "interface GigabitEthernet0/0/1", "undo port default vlan",
+             "undo port link-type", "return", "system-view", "undo vlan batch 10"]
+  },
+  "checks": [
+    {
+      "device": "LSW0",
+      "command": "ping -c 2 192.168.2.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "LSW0（管理网 10.0.10.254）能 ping 通服务器网关 192.168.2.1"
+    },
+    {
+      "device": "AR2",
+      "command": "display acl all",
+      "expect": "deny ip source 10\\.0\\.20\\.0 0\\.0\\.0\\.255",
+      "desc": "AR2 上仍有禁止访客网段 10.0.20.0/24 的 ACL 规则"
+    },
+    {
+      "device": "AR2",
+      "command": "display current-configuration interface GigabitEthernet0/0/0",
+      "expect": "traffic-filter inbound acl",
+      "desc": "AR2 的 GigabitEthernet0/0/0 入方向仍应用着包过滤"
+    }
+  ],
+  "hints": [
+    "路由没问题、AR0 自己能通，那就看看路径上有没有设备在「挑」流量放行。安全组动过 AR2。",
+    "在 AR2 上执行 display acl all 看规则内容和命中次数，再用 display current-configuration interface GigabitEthernet0/0/0 看接口上应用了哪个 ACL、哪个方向。",
+    "AR2 的 ACL 3000 rule 5 把源写成了管理网 10.0.10.0/24（本应是访客网段 10.0.20.0/24）。在 acl number 3000 视图下执行 undo rule 5，再执行 rule 5 deny ip source 10.0.20.0 0.0.0.255 destination 192.168.2.0 0.0.0.255，接口上的 traffic-filter 保留。"
+  ],
+  "reference_path": "LSW0 ping 192.168.2.1 不通 → AR0 上 ping 192.168.2.1 通，ping -a 10.0.10.1 192.168.2.1 不通（与源地址有关）→ 登录 AR2，display current-configuration interface GigabitEthernet0/0/0 看到 traffic-filter inbound acl 3000 → display acl 3000 发现 rule 5 deny 源 10.0.10.0/24 且有命中 → 改为访客网段 10.0.20.0/24 → LSW0 再 ping 验证，ACL 仍然生效。",
+  "solution": {
+    "AR2": ["system-view", "acl number 3000", "undo rule 5",
+            "rule 5 deny ip source 10.0.20.0 0.0.0.255 destination 192.168.2.0 0.0.0.255", "return"]
+  },
+  "scoring_points": [
+    "先确认路由与 AR0 自身连通正常，再从「同一目的、不同源」的差异推断存在按源地址的过滤（如 ping -a）",
+    "登录 AR2 查看接口上应用的 traffic-filter 与 ACL 规则内容、命中次数，定位到 rule 5 把源写成了管理网 10.0.10.0/24",
+    "只修正 rule 5 的源地址为访客网段 10.0.20.0/24，保留 rule 10 与接口上的 traffic-filter；直接删除 ACL 或取消接口过滤属于破坏安全策略",
+    "不关闭接口、不删除路由等与故障无关的配置",
+    "修复后在 LSW0 上 ping 192.168.2.1 验证，并确认访客网段仍被禁止（display acl）"
+  ],
+  "note": "连线按真机：AR0 GE0/0/0 <-> LSW0 GE0/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0（spec §14 第 10 项）。后两条判定防止「直接删掉 ACL / 取消接口过滤」这种破坏安全策略的修法被判通关。真机实测：undo traffic-filter 只能带方向（不带 acl 参数）。"
+}

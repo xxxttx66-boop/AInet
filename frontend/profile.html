@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>学生档案</title>
+  <link rel="stylesheet" href="static/app.css" />
+  <style>
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; }
+    body > main { max-width: 860px; margin: 0 auto; padding: 16px; }
+        main a { color: var(--info); }
+    h1 { font-size: 18px; }
+    h2 { font-size: 15px; margin-top: 24px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+    table { border-collapse: collapse; width: 100%; font-size: 13px; }
+    th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; }
+    th { background: var(--panel); color: var(--sub); font-weight: 500; }
+    .empty { color: #888; font-size: 13px; }
+    .wrap { overflow-x: auto; }
+    /* 隐藏式滚动条（与 app.css 一致）：平时透明，悬停时显示 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+    ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    :hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .28); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .45); }
+    @supports not selector(::-webkit-scrollbar) {
+      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
+    }
+  </style>
+</head>
+<body class="page" data-root="">
+<header class="topbar">
+  <a class="logo" href="courses" title="课程选择">ainet</a>
+  <nav class="mode-nav" aria-label="导航"><a href="courses">课程</a><a href="./">操作页</a><a href="profile" class="on">档案</a></nav>
+  <span class="page-title">学生档案</span>
+  <span id="user"><span><span id="who-label">学生：</span><span id="who">…</span></span><a href="login" title="切换学生">切换</a><button id="logout" class="link-btn">登出</button></span>
+</header>
+<main>
+  <h1 id="title">学生档案</h1>
+
+  <h2>身份</h2>
+  <div id="identity"></div>
+
+  <h2>进度</h2>
+  <div id="progress"></div>
+
+  <h2>掌握度</h2>
+  <div id="mastery" class="wrap"></div>
+
+  <h2>考试记录</h2>
+  <div id="exams" class="wrap"></div>
+
+  <h2>最近练习 / 考试</h2>
+  <div id="recent" class="wrap"></div>
+
+  <h2>错题本</h2>
+  <div id="wrong" class="wrap"></div>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? '').replace(/[&<>"]/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // rows 为空时显示「暂无」，否则按 cols=[[字段, 表头], ...] 渲染表格
+  function table(el, rows, cols) {
+    if (!rows || rows.length === 0) { el.innerHTML = '<p class="empty">暂无</p>'; return; }
+    const head = cols.map(([, h]) => `<th>${esc(h)}</th>`).join('');
+    // 列名以 _html 结尾的字段已是 HTML（平台标签），不再转义
+    const body = rows.map((r) =>
+      '<tr>' + cols.map(([k]) => `<td>${k.endsWith('_html') ? r[k] : esc(r[k])}</td>`).join('') + '</tr>').join('');
+    el.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  async function load() {
+    const res = await fetch('api/me');
+    if (res.status === 401) { location.href = 'login'; return; }
+    const p = await res.json();
+    const s = p.student;
+    $('title').textContent = `学生档案 — ${s.name}`;
+    table($('identity'), [s], [['login', '登录名'], ['name', '姓名'], ['created_at', '创建时间']]);
+    $('progress').innerHTML =
+      `<p>已完成场景：${esc(p.progress.completed_scenarios)}</p>`;
+    table($('mastery'), p.mastery,
+      [['tag_name', '知识点'], ['category', '分类'], ['level', '熟练度'], ['updated_at', '更新时间']]);
+    const MODE = { practice: '练习', exam: '考试' };
+    // 场景名 + 平台标签（两个平台可能有同名题）
+    const scen = (a) => esc(a.scenario_title || a.scenario_id) +
+      (a.scenario_platform && window.LabSwitch ? window.LabSwitch.platformTag(a.scenario_platform) : '');
+    const dur = (a) => {
+      if (!a.started_at || !a.ended_at) return '';
+      const s = Math.round((new Date(a.ended_at) - new Date(a.started_at)) / 1000);
+      return `${Math.floor(s / 60)}分${s % 60}秒`;
+    };
+    // 总分：评分中 / 失败 / 降级（AI 不可用时只有结果分）分别标注
+    const score = (a) => {
+      if (a.score_status === 'scoring') return '评分中…';
+      if (a.score_status === 'failed') return '评分失败';
+      if (a.score_total == null) return '-';
+      const t = Math.round(a.score_total * 10) / 10;
+      return a.score_status === 'degraded' ? `${t}（仅结果分）` : `${t}`;
+    };
+    table($('recent'), p.recent_attempts.map((a) => ({
+      ...a, scenario_html: scen(a), mode: MODE[a.mode] || a.mode, duration: dur(a),
+      score_total: score(a),
+      passed: a.passed == null ? '进行中' : (a.passed ? '通过' : '未通过') })),
+      [['started_at', '开始'], ['mode', '模式'], ['scenario_html', '场景'], ['duration', '用时'],
+       ['score_total', '得分'], ['hints_used', '提示'], ['commands', '命令数'], ['passed', '结果']]);
+    // 考试记录（里程碑 6）：总分、日期，点进成绩单
+    const exams = p.exams || [];
+    if (!exams.length) $('exams').innerHTML = '<p class="empty">暂无</p>';
+    else {
+      const EXST = { running: '进行中', finished: '已交卷' };
+      const exScore = (x) => {
+        if (x.status === 'running') return '-';
+        if (x.score_status === 'scoring' || x.score_total == null) return '评分中…';
+        const t = Math.round(x.score_total * 10) / 10;
+        return x.score_status === 'degraded' ? `${t}（部分仅结果分）` : `${t}`;
+      };
+      $('exams').innerHTML = '<table><thead><tr><th>开始</th><th>考试</th><th>状态</th><th>总分</th><th>成绩单</th></tr></thead><tbody>' +
+        exams.map((x) => `<tr class="exam-row" data-id="${x.id}"><td>${esc(new Date(x.started_at).toLocaleString())}</td>` +
+          `<td>${esc(x.template_name)}</td><td>${esc(EXST[x.status] || x.status)}</td><td>${esc(exScore(x))}</td>` +
+          `<td>${x.status === 'finished' ? `<a href="exam/report?id=${x.id}">查看</a>` : '交卷后可看'}</td></tr>`).join('') +
+        '</tbody></table>';
+    }
+    table($('wrong'), p.wrong_scenarios.map((w) => ({ ...w, scenario_html: scen(w) })),
+      [['scenario_html', '场景'], ['symptom', '现象'], ['fail_count', '未通过次数'],
+       ['last_attempt_at', '最近一次']]);
+  }
+
+  load();
+</script>
+<script src="static/labswitch.js"></script>
+<script src="static/page.js"></script>
+</body>
+</html>

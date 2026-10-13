@@ -1,0 +1,170 @@
+{
+ "m2_aced4c3": {
+  "desc": "里程碑 2（aced4c3）",
+  "schema": "\nCREATE TABLE IF NOT EXISTS students (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    login          TEXT NOT NULL UNIQUE,\n    name           TEXT NOT NULL,\n    password_plain TEXT NOT NULL,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS knowledge_tags (\n    id       INTEGER PRIMARY KEY AUTOINCREMENT,\n    name     TEXT NOT NULL UNIQUE,\n    category TEXT\n);\nCREATE TABLE IF NOT EXISTS topologies (\n    id        INTEGER PRIMARY KEY AUTOINCREMENT,\n    name      TEXT NOT NULL,\n    ensp_ref  TEXT,\n    note      TEXT\n);\nCREATE TABLE IF NOT EXISTS scenarios (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    topology_id    INTEGER REFERENCES topologies(id),\n    symptom        TEXT,\n    inject_script  TEXT,\n    target_state   TEXT,\n    reference_path TEXT,\n    scoring_points TEXT,\n    tags_json      TEXT,\n    baseline_json  TEXT,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS exam_templates (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    name        TEXT NOT NULL,\n    config_json TEXT\n);\nCREATE TABLE IF NOT EXISTS attempts (\n    id               INTEGER PRIMARY KEY AUTOINCREMENT,\n    student_id       INTEGER NOT NULL REFERENCES students(id),\n    scenario_id      INTEGER REFERENCES scenarios(id),\n    mode             TEXT NOT NULL,\n    exam_template_id INTEGER REFERENCES exam_templates(id),\n    started_at       TEXT NOT NULL,\n    ended_at         TEXT,\n    score_total      REAL,\n    score_result     REAL,\n    score_process    REAL,\n    score_side       REAL,\n    hints_used       INTEGER NOT NULL DEFAULT 0,\n    passed           INTEGER\n);\nCREATE TABLE IF NOT EXISTS attempt_logs (\n    id         INTEGER PRIMARY KEY AUTOINCREMENT,\n    attempt_id INTEGER NOT NULL REFERENCES attempts(id),\n    ts         TEXT NOT NULL,\n    command    TEXT,\n    output     TEXT\n);\nCREATE TABLE IF NOT EXISTS student_mastery (\n    student_id INTEGER NOT NULL REFERENCES students(id),\n    tag_id     INTEGER NOT NULL REFERENCES knowledge_tags(id),\n    level      REAL NOT NULL DEFAULT 0,\n    updated_at TEXT NOT NULL,\n    PRIMARY KEY (student_id, tag_id)\n);\nCREATE TABLE IF NOT EXISTS app_settings (\n    key   TEXT PRIMARY KEY,\n    value TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id, started_at);\nCREATE INDEX IF NOT EXISTS idx_attempt_logs_attempt ON attempt_logs(attempt_id);\n",
+  "migrations": []
+ },
+ "3c91daf": {
+  "desc": "基线 3c91daf（里程碑 3）",
+  "schema": "\nCREATE TABLE IF NOT EXISTS students (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    login          TEXT NOT NULL UNIQUE,\n    name           TEXT NOT NULL,\n    password_plain TEXT NOT NULL,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS knowledge_tags (\n    id       INTEGER PRIMARY KEY AUTOINCREMENT,\n    name     TEXT NOT NULL UNIQUE,\n    category TEXT\n);\nCREATE TABLE IF NOT EXISTS topologies (\n    id        INTEGER PRIMARY KEY AUTOINCREMENT,\n    name      TEXT NOT NULL,\n    ensp_ref  TEXT,\n    note      TEXT\n);\nCREATE TABLE IF NOT EXISTS scenarios (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    topology_id    INTEGER REFERENCES topologies(id),\n    symptom        TEXT,\n    inject_script  TEXT,\n    target_state   TEXT,\n    reference_path TEXT,\n    scoring_points TEXT,\n    tags_json      TEXT,\n    baseline_json  TEXT,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS exam_templates (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    name        TEXT NOT NULL,\n    config_json TEXT\n);\nCREATE TABLE IF NOT EXISTS attempts (\n    id               INTEGER PRIMARY KEY AUTOINCREMENT,\n    student_id       INTEGER NOT NULL REFERENCES students(id),\n    scenario_id      INTEGER REFERENCES scenarios(id),\n    mode             TEXT NOT NULL,\n    exam_template_id INTEGER REFERENCES exam_templates(id),\n    started_at       TEXT NOT NULL,\n    ended_at         TEXT,\n    score_total      REAL,\n    score_result     REAL,\n    score_process    REAL,\n    score_side       REAL,\n    hints_used       INTEGER NOT NULL DEFAULT 0,\n    passed           INTEGER\n);\nCREATE TABLE IF NOT EXISTS attempt_logs (\n    id         INTEGER PRIMARY KEY AUTOINCREMENT,\n    attempt_id INTEGER NOT NULL REFERENCES attempts(id),\n    ts         TEXT NOT NULL,\n    command    TEXT,\n    output     TEXT\n);\nCREATE TABLE IF NOT EXISTS student_mastery (\n    student_id INTEGER NOT NULL REFERENCES students(id),\n    tag_id     INTEGER NOT NULL REFERENCES knowledge_tags(id),\n    level      REAL NOT NULL DEFAULT 0,\n    updated_at TEXT NOT NULL,\n    PRIMARY KEY (student_id, tag_id)\n);\nCREATE TABLE IF NOT EXISTS app_settings (\n    key   TEXT PRIMARY KEY,\n    value TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id, started_at);\nCREATE INDEX IF NOT EXISTS idx_attempt_logs_attempt ON attempt_logs(attempt_id);\n",
+  "migrations": [
+   [
+    "scenarios",
+    "key",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "title",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "level",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "topology_ref",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "required_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "accessible_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "data_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "updated_at",
+    "TEXT"
+   ],
+   [
+    "attempt_logs",
+    "device",
+    "TEXT"
+   ]
+  ]
+ },
+ "m4": {
+  "desc": "m4-reset 分支末端 7f39a80",
+  "schema": "\nCREATE TABLE IF NOT EXISTS students (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    login          TEXT NOT NULL UNIQUE,\n    name           TEXT NOT NULL,\n    password_plain TEXT NOT NULL,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS knowledge_tags (\n    id       INTEGER PRIMARY KEY AUTOINCREMENT,\n    name     TEXT NOT NULL UNIQUE,\n    category TEXT\n);\nCREATE TABLE IF NOT EXISTS topologies (\n    id        INTEGER PRIMARY KEY AUTOINCREMENT,\n    name      TEXT NOT NULL,\n    ensp_ref  TEXT,\n    note      TEXT\n);\nCREATE TABLE IF NOT EXISTS scenarios (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    topology_id    INTEGER REFERENCES topologies(id),\n    symptom        TEXT,\n    inject_script  TEXT,\n    target_state   TEXT,\n    reference_path TEXT,\n    scoring_points TEXT,\n    tags_json      TEXT,\n    baseline_json  TEXT,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS exam_templates (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    name        TEXT NOT NULL,\n    config_json TEXT\n);\nCREATE TABLE IF NOT EXISTS attempts (\n    id               INTEGER PRIMARY KEY AUTOINCREMENT,\n    student_id       INTEGER NOT NULL REFERENCES students(id),\n    scenario_id      INTEGER REFERENCES scenarios(id),\n    mode             TEXT NOT NULL,\n    exam_template_id INTEGER REFERENCES exam_templates(id),\n    started_at       TEXT NOT NULL,\n    ended_at         TEXT,\n    score_total      REAL,\n    score_result     REAL,\n    score_process    REAL,\n    score_side       REAL,\n    hints_used       INTEGER NOT NULL DEFAULT 0,\n    passed           INTEGER\n);\nCREATE TABLE IF NOT EXISTS attempt_logs (\n    id         INTEGER PRIMARY KEY AUTOINCREMENT,\n    attempt_id INTEGER NOT NULL REFERENCES attempts(id),\n    ts         TEXT NOT NULL,\n    command    TEXT,\n    output     TEXT\n);\nCREATE TABLE IF NOT EXISTS student_mastery (\n    student_id INTEGER NOT NULL REFERENCES students(id),\n    tag_id     INTEGER NOT NULL REFERENCES knowledge_tags(id),\n    level      REAL NOT NULL DEFAULT 0,\n    updated_at TEXT NOT NULL,\n    PRIMARY KEY (student_id, tag_id)\n);\nCREATE TABLE IF NOT EXISTS app_settings (\n    key   TEXT PRIMARY KEY,\n    value TEXT\n);\n-- 里程碑 4：练习开始前每台设备的整机配置快照（复位目标，服务重启后仍可复位）\nCREATE TABLE IF NOT EXISTS attempt_configs (\n    attempt_id INTEGER NOT NULL REFERENCES attempts(id),\n    device     TEXT NOT NULL,\n    kind       TEXT NOT NULL DEFAULT 'before',\n    port       INTEGER,\n    config     TEXT NOT NULL,\n    created_at TEXT NOT NULL,\n    PRIMARY KEY (attempt_id, device, kind)\n);\nCREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id, started_at);\nCREATE INDEX IF NOT EXISTS idx_attempt_logs_attempt ON attempt_logs(attempt_id);\n",
+  "migrations": [
+   [
+    "scenarios",
+    "key",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "title",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "level",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "topology_ref",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "required_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "accessible_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "data_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "updated_at",
+    "TEXT"
+   ],
+   [
+    "attempt_logs",
+    "device",
+    "TEXT"
+   ]
+  ]
+ },
+ "m5": {
+  "desc": "m5-ai 分支末端 92cc271",
+  "schema": "\nCREATE TABLE IF NOT EXISTS students (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    login          TEXT NOT NULL UNIQUE,\n    name           TEXT NOT NULL,\n    password_plain TEXT NOT NULL,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS knowledge_tags (\n    id       INTEGER PRIMARY KEY AUTOINCREMENT,\n    name     TEXT NOT NULL UNIQUE,\n    category TEXT\n);\nCREATE TABLE IF NOT EXISTS topologies (\n    id        INTEGER PRIMARY KEY AUTOINCREMENT,\n    name      TEXT NOT NULL,\n    ensp_ref  TEXT,\n    note      TEXT\n);\nCREATE TABLE IF NOT EXISTS scenarios (\n    id             INTEGER PRIMARY KEY AUTOINCREMENT,\n    topology_id    INTEGER REFERENCES topologies(id),\n    symptom        TEXT,\n    inject_script  TEXT,\n    target_state   TEXT,\n    reference_path TEXT,\n    scoring_points TEXT,\n    tags_json      TEXT,\n    baseline_json  TEXT,\n    created_at     TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS exam_templates (\n    id          INTEGER PRIMARY KEY AUTOINCREMENT,\n    name        TEXT NOT NULL,\n    config_json TEXT\n);\nCREATE TABLE IF NOT EXISTS attempts (\n    id               INTEGER PRIMARY KEY AUTOINCREMENT,\n    student_id       INTEGER NOT NULL REFERENCES students(id),\n    scenario_id      INTEGER REFERENCES scenarios(id),\n    mode             TEXT NOT NULL,\n    exam_template_id INTEGER REFERENCES exam_templates(id),\n    started_at       TEXT NOT NULL,\n    ended_at         TEXT,\n    score_total      REAL,\n    score_result     REAL,\n    score_process    REAL,\n    score_side       REAL,\n    hints_used       INTEGER NOT NULL DEFAULT 0,\n    passed           INTEGER\n);\nCREATE TABLE IF NOT EXISTS attempt_logs (\n    id         INTEGER PRIMARY KEY AUTOINCREMENT,\n    attempt_id INTEGER NOT NULL REFERENCES attempts(id),\n    ts         TEXT NOT NULL,\n    command    TEXT,\n    output     TEXT\n);\nCREATE TABLE IF NOT EXISTS student_mastery (\n    student_id INTEGER NOT NULL REFERENCES students(id),\n    tag_id     INTEGER NOT NULL REFERENCES knowledge_tags(id),\n    level      REAL NOT NULL DEFAULT 0,\n    updated_at TEXT NOT NULL,\n    PRIMARY KEY (student_id, tag_id)\n);\nCREATE TABLE IF NOT EXISTS app_settings (\n    key   TEXT PRIMARY KEY,\n    value TEXT\n);\nCREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id, started_at);\nCREATE INDEX IF NOT EXISTS idx_attempt_logs_attempt ON attempt_logs(attempt_id);\n",
+  "migrations": [
+   [
+    "scenarios",
+    "key",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "title",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "level",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "topology_ref",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "required_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "accessible_devices_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "data_json",
+    "TEXT"
+   ],
+   [
+    "scenarios",
+    "updated_at",
+    "TEXT"
+   ],
+   [
+    "attempt_logs",
+    "device",
+    "TEXT"
+   ],
+   [
+    "attempts",
+    "score_status",
+    "TEXT"
+   ],
+   [
+    "attempts",
+    "score_json",
+    "TEXT"
+   ]
+  ]
+ }
+}

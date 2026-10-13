@@ -1,0 +1,111 @@
+{
+  "id": "campus-ar0-ar2-link-ys",
+  "title": "AR0 与 AR2 互联不通",
+  "level": 1,
+  "chapter": "L02",
+  "difficulty": 1,
+  "est_minutes": 10,
+  "summary": "两台路由器之间的直连链路 ping 不通",
+  "tags": [
+    "IP 编址",
+    "直连网段",
+    "ping"
+  ],
+  "knowledge_tags": [
+    "IP 地址规划",
+    "直连网段",
+    "ping 排障",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "AR2"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "AR2"
+  ],
+  "params": {
+    "link": {
+      "type": "int",
+      "min": 11,
+      "max": 99,
+      "default": 12,
+      "exclude": [
+        20
+      ]
+    },
+    "wrong": {
+      "type": "int",
+      "min": 11,
+      "max": 99,
+      "default": 21,
+      "exclude": [
+        "{link}"
+      ]
+    }
+  },
+  "symptom": "工单：AR0 与 AR2 之间有一条直连链路，规划网段为 10.0.{link}.0/24，AR0 一端为 10.0.{link}.1，AR2 一端为 10.0.{link}.2。现在从 AR0 上 ping 10.0.{link}.2 不通。互联接口为 AR0 GE0/0/1 — AR2 GE0/0/0。请登录 AR0、AR2 排查原因并修复，使 AR0 能 ping 通 10.0.{link}.2。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/1",
+      "ip address 10.0.{link}.1 24"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.{link}.2 24"
+    ]
+  },
+  "inject": {
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.{wrong}.2 24"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/1",
+      "undo ip address"
+    ],
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "AR0",
+      "command": "ping -c 2 10.0.{link}.2",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "AR0 能 ping 通 AR2 的互联地址 10.0.{link}.2"
+    }
+  ],
+  "hints": [
+    "直连的两端要能互通，首先得在同一个网段。分别看看两台路由器互联接口上的地址。",
+    "在 AR0 和 AR2 上分别执行 display ip interface brief，对比互联接口的 IP 地址和掩码是否属于 10.0.{link}.0/24。",
+    "AR2 的 GE0/0/0 被配成了 10.0.{wrong}.2/24（与规划网段 10.0.{link}.0/24 不符）。在 AR2 上执行 system-view → interface GE0/0/0 → ip address 10.0.{link}.2 24 即可（YunShan 上立即生效）。"
+  ],
+  "reference_path": "AR0 上 ping 10.0.{link}.2 不通 → display ip interface brief 确认本端 GE0/0/1 为 10.0.{link}.1/24 且 up → 登录 AR2 执行 display ip interface brief，发现互联接口地址为 10.0.{wrong}.2/24，与规划网段不符 → 在接口视图下改为 10.0.{link}.2 24 → 回到 AR0 再 ping 验证。",
+  "solution": {
+    "AR2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.{link}.2 24",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "修改配置前先用 display ip interface brief / display interface 等查看两端互联接口的地址、掩码与状态，确认故障点",
+    "两端对比：本端 AR0 正常后要登录对端 AR2 核对，而不是只在一端反复尝试",
+    "只修改出错的 AR2 互联接口地址，不改动 AR0 等正确的配置，不关闭接口、不删除无关配置",
+    "修复后在 AR0 上 ping 10.0.{link}.2 验证连通"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（AINET_LAB_PROVIDER=enspro）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5（2026-10-06 经接口建好，两端配地址后 ping 通）。YunShan 接口名只认缩写 GE0/0/x（AR）、GE1/0/x（LSW），interface GigabitEthernet0/0/0 报 Wrong parameter；配置立即生效，不需要 commit。 由 campus-ar0-ar2-link（VRP5）改写，参数化方式相同（种子 0 与原题默认值一致）。ping 输出与 VRP5 同格式，判定正则不变。",
+  "platform": "yunshan"
+}

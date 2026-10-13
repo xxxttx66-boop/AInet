@@ -1,0 +1,116 @@
+{
+  "id": "campus-ar0-dhcp-exhausted-ys",
+  "title": "终端拿不到地址（地址池无可用地址）",
+  "level": 3,
+  "chapter": "L07",
+  "difficulty": 3,
+  "est_minutes": 20,
+  "summary": "DHCP 服务正常运行，新终端却分不到地址",
+  "tags": [
+    "DHCP",
+    "地址池",
+    "排除地址"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "DHCP 地址池",
+    "排除地址",
+    "地址池使用情况",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "AR0",
+    "R1",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "AR0",
+    "R1"
+  ],
+  "symptom": "工单：AR0 的 GE0/0/0（10.0.10.1/24）是 10.0.10.0/24 的网关兼 DHCP 服务器（全局地址池 campus，10.0.10.2~10.0.10.9 保留给服务器不分配），经接入交换机 LSW0 的 VLAN 1 与 R1 的 GE0/0/0 处在同一二层网段；R1 在这里扮演一台用 DHCP 自动获取地址的终端。昨天有人按「新增一批服务器保留地址」的要求改过地址池，今天新接入的 R1 一直拿不到地址。AR0 上的 DHCP 服务、接口配置都在。请排查并修复，使 R1 通过 DHCP 获取到 10.0.10.10 及以上的地址、并能 ping 通网关 10.0.10.1；10.0.10.2~10.0.10.9 仍要保留给服务器。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "AR0": [
+      "system-view",
+      "dhcp enable",
+      "ip pool campus",
+      "gateway-list 10.0.10.1",
+      "network 10.0.10.0 mask 255.255.255.0",
+      "excluded-ip-address 10.0.10.2 10.0.10.9",
+      "return",
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.10.1 24",
+      "dhcp select global"
+    ]
+  },
+  "inject": {
+    "AR0": [
+      "system-view",
+      "ip pool campus",
+      "excluded-ip-address 10.0.10.10 10.0.10.254"
+    ],
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address dhcp-alloc"
+    ]
+  },
+  "restore": {
+    "AR0": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo dhcp select global",
+      "undo ip address",
+      "return",
+      "system-view",
+      "undo ip pool campus"
+    ],
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ip address dhcp-alloc"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ip interface brief",
+      "expect": "GE0/0/0\\s+10\\.0\\.10\\.\\d{2,3}/24",
+      "desc": "R1 的 GE0/0/0 通过 DHCP 获取到 10.0.10.10 及以上的地址"
+    },
+    {
+      "device": "R1",
+      "command": "ping -c 2 10.0.10.1",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "R1 能 ping 通网关 10.0.10.1"
+    },
+    {
+      "device": "AR0",
+      "command": "display current-configuration",
+      "expect": "excluded-ip-address 10\\.0\\.10\\.2 10\\.0\\.10\\.9",
+      "desc": "AR0 地址池仍保留 10.0.10.2~10.0.10.9 给服务器"
+    }
+  ],
+  "hints": [
+    "服务在、接口也启用了，那就看地址池本身：现在还有没有可以分配的地址？",
+    "在 AR0 上执行 display ip pool name campus，看 Total / Used / Idle 和排除地址的数量，再看配置里地址池下的排除地址范围。",
+    "地址池 campus 里多了一条 excluded-ip-address 10.0.10.10 10.0.10.254，把可分配的地址全排除了。在 ip pool campus 下执行 undo excluded-ip-address 10.0.10.10 10.0.10.254，保留 10.0.10.2~10.0.10.9 那一条。"
+  ],
+  "reference_path": "R1 拿不到地址 → AR0 上 DHCP 全局开关与接口 dhcp select global 都在 → display ip pool name campus 看到 Idle 为 0、排除地址 253 个 → 配置里多了 excluded-ip-address 10.0.10.10 10.0.10.254 → 删掉这一条、保留服务器保留段 → R1 重新获取地址 → ping 网关验证。",
+  "solution": {
+    "AR0": [
+      "system-view",
+      "ip pool campus",
+      "undo excluded-ip-address 10.0.10.10 10.0.10.254",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "排除了服务开关与接口问题后，查看地址池使用情况（Idle 为 0）",
+    "找出把可分配地址全部排除的那条配置",
+    "只删除错误的排除范围，保留 10.0.10.2~10.0.10.9 的服务器保留段，不扩大或重建地址池",
+    "修复后确认 R1 获取到 10.0.10.10 及以上的地址并能 ping 通网关"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 用路由器 R1 当 DHCP 客户端（spec §6.2 第 2 条；PC-CLIENT 的 DHCP 模式 ainet 还不支持，见规划 §4 L07）。R1 的 ip address dhcp-alloc 放在 inject 里、排在 AR0 之后执行：如果放进 baseline，R1 可能在注入之前就拿到地址，故障不生效。LSW0 不下发配置，只作为 VLAN 1 二层网段、不开放终端。注意：注入后的故障确认在 R1 还来不及拿到地址时就跑，总能通过，证明不了注入有效——真机验证时要等约 1 分钟，确认 R1 仍没有地址。 真机实测：excluded-ip-address 两条范围可以并存，undo excluded-ip-address 写完整范围只撤销那一条（10.0.10.2 10.0.10.9 仍在，判定第 3 条通过）；dhcp enable 是出厂配置（restore 不再 undo dhcp enable）；注入后等 90 秒 R1 的 GE0/0/0 仍是 unassigned（故障真的生效）；修复后 R1 不用重新 dhcp-alloc，约 20 秒自动拿到 10.0.10.10 以上的地址。"
+}

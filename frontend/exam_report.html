@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>考试成绩单</title>
+  <link rel="stylesheet" href="../static/app.css" />
+  <style>
+    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; }
+    body > main { max-width: 980px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+    main a { color: var(--info); }
+    h1 { font-size: 18px; margin: 14px 0 4px; }
+    h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+    button, select { background: #0f1419; color: var(--fg); border: 1px solid var(--line2); border-radius: 3px; font: inherit;
+      padding: 2px 8px; cursor: pointer; }
+    button:hover { border-color: #888; }
+    button:disabled { opacity: .45; cursor: default; }
+    .meta { color: #999; }
+    .total { display: flex; align-items: baseline; gap: 8px; margin: 10px 0; }
+    .big { font-size: 34px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
+    .tag { font-size: 12px; border: 1px solid #ffb74d; color: #ffb74d; border-radius: 3px; padding: 0 4px; }
+    .tag.ok { border-color: #43a047; color: #8bc34a; }
+    .tag.bad { border-color: #8e3b3b; color: #ef9a9a; }
+    .q { border: 1px solid #333; border-radius: 4px; background: var(--panel); padding: 8px 12px; margin: 10px 0; }
+    .qh { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+    .qh .t { color: #fff; font-weight: bold; }
+    .qs { font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .row { margin: 3px 0; }
+    .sym { color: #bbb; white-space: pre-wrap; margin: 4px 0; }
+    .dims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 8px 0; }
+    .dim { background: #262626; border-radius: 4px; padding: 6px 8px; }
+    .dim .h { display: flex; justify-content: space-between; }
+    .dim .r { color: #aaa; font-size: 12px; white-space: pre-wrap; margin-top: 3px; }
+    .bar { height: 5px; background: #333; border-radius: 3px; margin: 3px 0; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: #64b5f6; }
+    .list b { color: #9ecbff; font-weight: normal; }
+    .list.good b { color: #8bc34a; }
+    .list.bad b { color: #ffb74d; }
+    .list ul { margin: 2px 0 6px; padding-left: 20px; }
+    .path { white-space: pre-wrap; color: #ccc; }
+    .warn { color: #ffb74d; white-space: pre-wrap; }
+    /* 命令回放 */
+    #replay-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
+    #replay-pos { color: #999; }
+    #replay-list { max-height: 520px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; background: #161616; }
+    .rp { padding: 4px 10px; border-bottom: 1px solid #262626; cursor: pointer; }
+    .rp.cur { background: #233447; }
+    .rp.future { opacity: .35; }
+    .rp .c { color: #fff; }
+    .rp .c .dev { color: #8bc34a; }
+    .rp .c .off { color: #777; margin-right: 6px; font-variant-numeric: tabular-nums; }
+    .rp pre { margin: 3px 0 0 0; white-space: pre-wrap; color: #aaa; font: inherit; font-size: 12px; max-height: 240px;
+      overflow-y: auto; }
+    .empty { color: #888; }
+    @media (max-width: 700px) { .dims { grid-template-columns: 1fr; } }
+    ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+    ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+    :hover::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .28); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .45); }
+    @supports not selector(::-webkit-scrollbar) {
+      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
+    }
+  </style>
+</head>
+<body class="page" data-root="../">
+<header class="topbar">
+  <a class="logo" href="../courses" title="课程选择">ainet</a>
+  <nav class="mode-nav" aria-label="导航"><a href="../courses">课程</a><a href=".././">操作页</a><a href="../profile">档案</a></nav>
+  <span class="page-title">考试成绩单</span>
+  <span id="user"><span><span id="who-label">学生：</span><span id="who">…</span></span><a href="../login" title="切换学生">切换</a><button id="logout" class="link-btn">登出</button></span>
+</header>
+<main>
+  <h1 id="title">考试成绩单</h1>
+  <div id="meta" class="meta"></div>
+  <div id="summary"></div>
+  <div id="questions"></div>
+  <h2 id="replay-h">命令回放</h2>
+  <div id="replay">
+    <div id="replay-tools">
+      <select id="replay-q"></select>
+      <button id="rp-prev" title="上一条">◀ 上一条</button>
+      <button id="rp-play">▶ 逐条播放</button>
+      <button id="rp-next" title="下一条">下一条 ▶</button>
+      <button id="rp-all" title="显示本题全部命令">全部展开</button>
+      <span id="replay-pos"></span>
+    </div>
+    <div id="replay-list"></div>
+  </div>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmt = (v) => (v == null ? '—' : String(Math.round(v * 10) / 10));
+  const dur = (s) => (s == null ? '—' : `${Math.floor(s / 60)}分${s % 60}秒`);
+  const off = (s) => (s == null ? '--:--' : `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`);
+  const id = Number(new URLSearchParams(location.search).get('id'));
+  const rp = { data: null, q: 0, pos: -1, timer: null, all: true };
+
+  async function api(url) {
+    const r = await fetch(url);
+    if (r.status === 401) { location.href = '../login'; throw new Error('未登录'); }
+    const d = await r.json().catch(() => null);
+    if (!r.ok) throw new Error((d && d.detail) || `HTTP ${r.status}`);
+    return d;
+  }
+
+  const STATUS = { done: '已作答', unanswered: '未作答' };
+  function dimBox(name, x) {
+    x = x || {};
+    const pct = x.score == null || !x.max ? 0 : Math.max(0, Math.min(100, (x.score / x.max) * 100));
+    return `<div class="dim"><div class="h"><span>${name}</span><span>${fmt(x.score)} / ${fmt(x.max)}</span></div>` +
+      `<div class="bar"><i style="width:${pct}%"></i></div>` +
+      (x.reason ? `<div class="r">${esc(x.reason)}</div>` : '') + (x.adjust ? `<div class="r warn">${esc(x.adjust)}</div>` : '') + '</div>';
+  }
+  // 平台标签：题名不带平台后缀，两个平台的同名题靠它区分（labswitch.js 在本脚本之后加载，调用时才取）
+  const ptag = (p) => (p && window.LabSwitch ? window.LabSwitch.platformTag(p) : '');
+  const ptext = (p) => (window.LabSwitch ? window.LabSwitch.platformText(p) : p);
+  const list = (title, items, cls) => (items && items.length
+    ? `<div class="list ${cls}"><b>${title}</b><ul>${items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></div>` : '');
+
+  function render(r) {
+    document.title = `成绩单 — ${r.name}`;
+    $('title').textContent = `考试成绩单 — ${r.name}`;
+    const c = r.config;
+    $('meta').textContent = `开始 ${new Date(r.started_at).toLocaleString()} · 交卷 ${r.ended_at ? new Date(r.ended_at).toLocaleString() : '—'}` +
+      ` · 总时长 ${Math.round(c.duration_s / 6) / 10} 分钟 · 每题可重试 ${c.retries} 次 · ${c.hints.allowed ? `提示每级扣 ${c.hints.penalty} 分` : '禁用提示'}` +
+      (r.paused_s ? ` · 系统操作耗时 ${Math.round(r.paused_s)} 秒（不计入考试时间）` : '');
+    const scoring = r.score_status === 'scoring';
+    $('summary').innerHTML = `<div class="total"><span class="big" id="total">${scoring ? '…' : fmt(r.score_total)}</span><span class="meta">/ 100</span>` +
+      (scoring ? '<span class="tag">AI 评分中，稍后自动刷新</span>' : '') +
+      (r.score_status === 'degraded' ? '<span class="tag">部分题目 AI 点评不可用（只计结果分）</span>' : '') +
+      (r.score_status === 'partial' ? '<span class="tag bad">部分题目评分失败</span>' : '') + '</div>' +
+      `<div class="meta">总分 = 各题得分按题目权重加权平均；未作答记 0 分。</div>`;
+    $('questions').innerHTML = r.questions.map((q) => {
+      const head = `<div class="qh"><span class="t">第 ${q.index + 1} 题 · ${esc(q.title)}${ptag(q.platform)}</span>` +
+        `<span class="qs">${q.score_status === 'scoring' ? '评分中…' : `${fmt(q.score_total)} 分`}</span></div>`;
+      const tags = `<span class="tag ${q.passed ? 'ok' : 'bad'}">${q.answered ? (q.passed ? '通过' : '未通过') : '未作答'}</span>` +
+        (q.timed_out ? ' <span class="tag">超时</span>' : '') + (q.auto_submitted ? ' <span class="tag">系统代为提交</span>' : '') +
+        (q.weight !== 1 ? ` <span class="meta">权重 ${q.weight}</span>` : '');
+      if (!q.answered) return `<div class="q">${head}<div class="row">${tags}</div><div class="sym">${esc(q.symptom)}</div></div>`;
+      const subs = (q.submissions || []).map((s) => `第 ${s.n} 次${s.passed ? '通过' : '未通过'}（${s.passed_items}/${s.total}）`).join('；') || '无';
+      const d = q.scores || {};
+      const cm = q.comment;
+      return `<div class="q">${head}<div class="row">${tags}</div>` +
+        `<div class="row meta">用时 ${dur(q.duration_s)} · 命令 ${q.commands ?? 0} 条 · 提示 ${q.hints_used} 级 · 提交：${esc(subs)}</div>` +
+        `<details><summary class="meta">工单</summary><div class="sym">${esc(q.symptom)}</div></details>` +
+        (q.score_status === 'degraded' && q.reason ? `<div class="warn">${esc(q.reason)}</div>` : '') +
+        (q.score_status === 'failed' ? `<div class="warn">${esc(q.reason || '评分失败')}</div>` : '') +
+        (d.result ? `<div class="dims">${dimBox('结果', d.result)}${dimBox('过程（方法论）', d.process)}${dimBox('规范 / 副作用', d.side)}</div>` : '') +
+        (cm ? (cm.summary ? `<div class="row">${esc(cm.summary)}</div>` : '') + list('做得好的', cm.good, 'good') +
+          list('存在的问题', cm.problems, 'bad') + list('改进建议', cm.suggestions, '') : '') +
+        (q.standard_path ? `<div class="list"><b>参考思路</b><div class="path">${esc(q.standard_path)}</div></div>`
+          : (q.reference_path ? `<div class="list"><b>参考思路</b><div class="path">${esc(q.reference_path)}</div></div>` : '')) +
+        '</div>';
+    }).join('');
+    $('replay-h').hidden = $('replay').hidden = !r.replay_available;
+  }
+
+  // ---------- 命令回放：按时间顺序逐条播放或滚动查看 ----------
+  function rpLogs() { return (rp.data && rp.data.questions[rp.q] && rp.data.questions[rp.q].logs) || []; }
+  function rpRender() {
+    const logs = rpLogs();
+    const box = $('replay-list');
+    if (!logs.length) { box.innerHTML = '<div class="rp empty">本题没有命令记录</div>'; $('replay-pos').textContent = ''; return; }
+    box.innerHTML = logs.map((l, i) => `<div class="rp${i === rp.pos ? ' cur' : ''}${!rp.all && i > rp.pos ? ' future' : ''}" data-i="${i}">` +
+      `<div class="c"><span class="off">+${off(l.offset_s)}</span><span class="dev">${esc(l.device || '?')}&gt;</span> ${esc(l.command)}</div>` +
+      (l.output && (rp.all || i <= rp.pos) ? `<pre>${esc(l.output)}</pre>` : '') + '</div>').join('');
+    for (const el of box.querySelectorAll('.rp')) el.onclick = () => { stop(); rp.pos = Number(el.dataset.i); rp.all = false; rpRender(); };
+    $('replay-pos').textContent = rp.pos >= 0 ? `第 ${rp.pos + 1} / ${logs.length} 条` : `共 ${logs.length} 条`;
+    const cur = box.querySelector('.rp.cur');
+    if (cur) cur.scrollIntoView({ block: 'nearest' });
+  }
+  function stop() { clearInterval(rp.timer); rp.timer = null; $('rp-play').textContent = '▶ 逐条播放'; }
+  function step(d) {
+    const n = rpLogs().length;
+    if (!n) return;
+    rp.all = false;
+    rp.pos = Math.max(0, Math.min(n - 1, rp.pos + d));
+    rpRender();
+  }
+  $('rp-prev').onclick = () => { stop(); step(-1); };
+  $('rp-next').onclick = () => { stop(); step(1); };
+  $('rp-all').onclick = () => { stop(); rp.all = true; rp.pos = -1; rpRender(); };
+  $('rp-play').onclick = () => {
+    if (rp.timer) { stop(); return; }
+    if (rp.pos >= rpLogs().length - 1) rp.pos = -1;
+    rp.all = false;
+    $('rp-play').textContent = '⏸ 暂停';
+    step(1);
+    rp.timer = setInterval(() => { if (rp.pos >= rpLogs().length - 1) stop(); else step(1); }, 1200);
+  };
+  $('replay-q').onchange = (e) => { stop(); rp.q = Number(e.target.value); rp.pos = -1; rp.all = true; rpRender(); };
+
+  async function loadReplay() {
+    try {
+      rp.data = await api(`../api/exam/${id}/replay`);
+      $('replay-q').innerHTML = rp.data.questions.map((q) =>
+        `<option value="${q.index}">第 ${q.index + 1} 题 · ${esc(q.title)}${q.platform ? ` · ${esc(ptext(q.platform))}` : ''}（${q.logs.length} 条）</option>`).join('');
+      rpRender();
+    } catch (e) {
+      $('replay-list').innerHTML = `<div class="rp empty">${esc(e.message)}</div>`;
+    }
+  }
+
+  let replayLoaded = false;
+  async function load() {
+    if (!id) { $('summary').textContent = '缺少考试 id'; return; }
+    let r;
+    try { r = await api(`../api/exam/${id}/report`); }
+    catch (e) { $('summary').innerHTML = `<p class="warn">${esc(e.message)}</p>`; $('replay-h').hidden = $('replay').hidden = true; return; }
+    render(r);
+    if (r.replay_available && !replayLoaded) { replayLoaded = true; loadReplay(); }
+    if (r.score_status === 'scoring' || r.questions.some((q) => q.score_status === 'scoring')) setTimeout(load, 2000);
+  }
+  window.__report = { rp, load, step };
+  load();
+})();
+</script>
+<script src="../static/labswitch.js"></script>
+<script src="../static/page.js"></script>
+</body>
+</html>

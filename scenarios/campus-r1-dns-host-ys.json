@@ -1,0 +1,95 @@
+{
+  "id": "campus-r1-dns-host-ys",
+  "title": "按名字访问文件服务器不通（静态域名）",
+  "level": 1,
+  "chapter": "L08",
+  "difficulty": 1,
+  "est_minutes": 10,
+  "summary": "用 IP 地址能访问文件服务器，用名字访问却不通",
+  "tags": [
+    "DNS",
+    "域名解析",
+    "静态主机表"
+  ],
+  "platform": "yunshan",
+  "knowledge_tags": [
+    "静态域名解析",
+    "ip host",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "R1",
+    "R2",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "R1"
+  ],
+  "symptom": "工单：R1 的 GE0/0/0（10.0.123.1/24）与文件服务器 R2（10.0.123.2/24）经交换机 LSW0 处在同一网段。R1 上用静态主机表把域名 files.ainet.lab 解析到文件服务器 10.0.123.2。现在 R1 上 ping 10.0.123.2 正常，但 ping files.ainet.lab 不通。请排查 R1 并修复，使 R1 能按名字 ping 通 files.ainet.lab。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "baseline": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.1 24",
+      "return",
+      "system-view",
+      "ip host files.ainet.lab 10.0.123.2"
+    ],
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.2 24"
+    ]
+  },
+  "inject": {
+    "R1": [
+      "system-view",
+      "undo ip host files.ainet.lab 10.0.123.2",
+      "ip host files.ainet.lab 10.0.123.20"
+    ]
+  },
+  "restore": {
+    "R1": [
+      "system-view",
+      "undo ip host files.ainet.lab 10.0.123.20",
+      "undo ip host files.ainet.lab 10.0.123.2",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "ping -c 2 files.ainet.lab",
+      "expect": "\\b[12] packet\\(s\\) received",
+      "desc": "R1 能按名字 ping 通 files.ainet.lab"
+    }
+  ],
+  "hints": [
+    "地址通、名字不通，问题出在「名字 → 地址」这一步。ping 的时候名字被解析成了哪个地址？",
+    "在 R1 上 ping files.ainet.lab 时留意输出里显示的目的地址；再执行 display ip host 查看静态主机表。",
+    "静态主机表里 files.ainet.lab 被写成了 10.0.123.20。在 R1 上 undo ip host files.ainet.lab 10.0.123.20，再配 ip host files.ainet.lab 10.0.123.2。"
+  ],
+  "reference_path": "R1 ping 10.0.123.2 通、ping files.ainet.lab 不通 → ping 输出里目的地址不是 10.0.123.2 → display ip host 看到 files.ainet.lab 对应错误地址 → 删除错误表项、配正确映射 → 按名字 ping 验证。",
+  "solution": {
+    "R1": [
+      "system-view",
+      "undo ip host files.ainet.lab 10.0.123.20",
+      "ip host files.ainet.lab 10.0.123.2",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "对比「按地址通、按名字不通」，把问题定位到域名解析",
+    "从 ping 输出或 display ip host 发现名字解析到了错误地址",
+    "只修正静态主机表项，不改接口地址",
+    "修复后按名字 ping 验证"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（id 3）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5。LSW0 缺省配置下各端口都在 VLAN 1。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 只用 R1、R2 与 LSW0 的 VLAN 1（同 ospf-r1-shutdown-ys 的共享网段），R2 不开放终端。动态 DNS（dns resolve + dns server，需要一台 DNS 服务器）见规划 §4 L08，现有沙箱做不了。 真机实测：ip host / undo ip host <名字> <地址> 写法可用；display ip host 列出 Host / Age / Flag(Static) / IP Address；ping -c 2 files.ainet.lab 直接用静态主机名（输出首行 PING files.ainet.lab (10.0.123.20)）；改完主机表后紧接着的那次 ping 仍解析到旧地址，几秒后再 ping 就对了（自动判定 3 秒后通过）。"
+}

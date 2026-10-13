@@ -1,0 +1,140 @@
+{
+  "id": "ospf-r1-shutdown-ys",
+  "title": "OSPF 邻居全部断开（R1）",
+  "level": 2,
+  "chapter": "L05",
+  "difficulty": 2,
+  "est_minutes": 15,
+  "summary": "R1 的 OSPF 邻居全部消失，学不到其他路由器的路由",
+  "tags": [
+    "OSPF 邻居",
+    "路由排障"
+  ],
+  "knowledge_tags": [
+    "OSPF 邻居",
+    "接口状态",
+    "物理层排障",
+    "YunShan OS"
+  ],
+  "topology": "ainet_campus",
+  "required_devices": [
+    "R1",
+    "R2",
+    "R3",
+    "LSW0"
+  ],
+  "accessible_devices": [
+    "R1",
+    "R2",
+    "R3"
+  ],
+  "symptom": "工单：单区域 OSPF 网络（area 0）中，R1、R2、R3 的 GE0/0/0 接在同一个二层网段 10.0.123.0/24（经交换机 LSW0），各自的 LoopBack0（1.1.1.1 / 2.2.2.2 / 3.3.3.3）也发布进 OSPF。R1 突然学不到 R2、R3 的路由，业务中断。网络组反馈 R1 上 OSPF 邻居全部消失。请排查 R1 并恢复，使 R1 与邻居重新建立 Full 状态的 OSPF 邻接。（设备为华为 YunShan OS，配置立即生效；广播网络上邻居恢复到 Full 需要几十秒。）",
+  "baseline": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.1 24",
+      "interface LoopBack0",
+      "ip address 1.1.1.1 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 1.1.1.1",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 1.1.1.1 0.0.0.0"
+    ],
+    "R2": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.2 24",
+      "interface LoopBack0",
+      "ip address 2.2.2.2 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 2.2.2.2",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 2.2.2.2 0.0.0.0"
+    ],
+    "R3": [
+      "system-view",
+      "interface GE0/0/0",
+      "ip address 10.0.123.3 24",
+      "interface LoopBack0",
+      "ip address 3.3.3.3 32",
+      "return",
+      "system-view",
+      "ospf 1 router-id 3.3.3.3",
+      "area 0",
+      "network 10.0.123.0 0.0.0.255",
+      "network 3.3.3.3 0.0.0.0"
+    ]
+  },
+  "inject": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "shutdown"
+    ]
+  },
+  "restore": {
+    "R1": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address",
+      "undo shutdown"
+    ],
+    "R2": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ],
+    "R3": [
+      "system-view",
+      "undo ospf 1",
+      "undo interface LoopBack0",
+      "interface GE0/0/0",
+      "undo ip address"
+    ]
+  },
+  "checks": [
+    {
+      "device": "R1",
+      "command": "display ip interface brief",
+      "expect": "GE0/0/0\\s+\\S+\\s+up\\s+up",
+      "desc": "R1 的 GE0/0/0 物理与协议状态均为 up"
+    },
+    {
+      "device": "R1",
+      "command": "display ospf peer brief",
+      "expect": "\\bFull\\b",
+      "desc": "R1 至少有一个 Full 状态的 OSPF 邻居"
+    }
+  ],
+  "hints": [
+    "邻居全没了，先别急着查 OSPF 配置，从最底层看起：R1 连接其他路由器的接口状态正常吗？",
+    "在 R1 上执行 display interface brief 看各接口的物理 / 协议状态（留意 PHY 列），再用 display ospf peer 查看邻居表。",
+    "R1 的 GE0/0/0 被管理员关闭了（*down）。在接口视图下执行 undo shutdown，稍等邻居重新协商到 Full。"
+  ],
+  "reference_path": "display ospf peer brief 发现无邻居 → display ip interface brief 看到 GE0/0/0 为 *down（administratively down）→ 进入接口执行 undo shutdown → 等待 DR/BDR 选举与 LSDB 同步 → display ospf peer brief 确认邻居 Full。",
+  "solution": {
+    "R1": [
+      "system-view",
+      "interface GE0/0/0",
+      "undo shutdown",
+      "return"
+    ]
+  },
+  "scoring_points": [
+    "邻居全部消失时先查物理层 / 接口状态（display interface brief 等），而不是先改 OSPF 配置",
+    "能从接口状态中识别出 administratively down（*down），并定位到被关闭的接口",
+    "只在故障接口上 undo shutdown，不重启 OSPF 进程、不 reset、不改动 network / area 等无关配置",
+    "修复后等待邻居协商并用 display ospf peer 确认 Full"
+  ],
+  "note": "eNSP Pro 沙箱 ainet_campus（AINET_LAB_PROVIDER=enspro）：AR0 / AR1 / AR2 / R1~R3 为 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），LSW0 为 ENSP-LSW（S6700，V600R025C10SPC500），PC1 为 PC-CLIENT。连线：AR0 GE0/0/0 <-> LSW0 GE1/0/1，AR0 GE0/0/1 <-> AR2 GE0/0/0，AR2 GE0/0/2 <-> AR1 GE0/0/0，PC1 GE1/0/0 <-> LSW0 GE1/0/2，R1/R2/R3 GE0/0/0 <-> LSW0 GE1/0/3~5（2026-10-06 经接口建好，两端配地址后 ping 通）。YunShan 接口名只认缩写 GE0/0/x（AR）、GE1/0/x（LSW），interface GigabitEthernet0/0/0 报 Wrong parameter；配置立即生效，不需要 commit。 由 ospf-2-1-r1-shutdown（VRP5，2-1Single-Area OSPF.topo 里三台路由器经 Cloud 接在同一网段，配置随拓扑文件预置）改写：eNSP Pro 的 EXTERNAL-HUB 在本机启动卡在「分配虚机」，改由 LSW0 的 VLAN 1（GE1/0/3~5，缺省配置）充当共享网段；OSPF 配置改由 baseline 下发、restore 撤销（undo ospf 1 问 [Y/N]，自动回答）。LSW0 只作为二层网段，不开放终端，但列入 required_devices 以便开题前核对基线、结束时整机复位。display ospf peer brief 的 State 列为 Full（实测）。",
+  "platform": "yunshan"
+}

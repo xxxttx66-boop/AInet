@@ -1,0 +1,28 @@
+backend/data/
+backend/.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+!.env.example
+
+# 本地开发产物：Claude 的隔离工作树、测试截图
+.claude/
+screenshots/
+
+# 本机 eNSP Pro 调试运行产物
+backend/_p2/edge-profile/
+backend/_p2/shots/
+backend/_p2/*.db
+backend/_p2/*.log
+backend/_p2/*.txt
+
+# 本机助手状态
+.workbuddy/
+
+# AI 助手产出的非项目文件（评估报告、审查纪要等，可整个删除）
+_ai/
