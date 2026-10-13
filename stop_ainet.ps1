@@ -1,5 +1,7 @@
-# Stop ainet: end the scheduled task and kill uvicorn python processes started from D:\AINET
-schtasks /end /tn ainet 2>$null | Out-Null
-Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'python.exe' -and $_.CommandLine -match 'uvicorn main:app' -and $_.ExecutablePath -like 'D:\AINET\*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-Start-Sleep 2
-"port 8000 listening: " + [bool](Get-NetTCPConnection -State Listen -LocalPort 8000 -ErrorAction SilentlyContinue)
+# Stop only this checkout's AInet Python process.
+$ainetPython = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot 'backend\.venv\Scripts\python.exe'))
+Get-CimInstance Win32_Process | Where-Object {
+    $_.Name -eq 'python.exe' -and $_.ExecutablePath -eq $ainetPython -and
+    $_.CommandLine -match '(?:-m\s+launcher|-m\s+uvicorn\s+main:app|uvicorn\s+main:app)'
+} | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop }
+Write-Output 'AInet process stop completed for this checkout.'

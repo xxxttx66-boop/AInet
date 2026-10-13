@@ -620,6 +620,16 @@ def set_setting(key: str, value: str | None) -> None:
         conn.close()
 
 
+def get_settings_prefix(prefix: str) -> dict[str, str]:
+    """Read scoped runtime settings without treating wildcard characters as SQL patterns."""
+    conn = connect()
+    try:
+        return {r["key"]: r["value"] for r in conn.execute(
+            "SELECT key, value FROM app_settings WHERE substr(key, 1, ?) = ?", (len(prefix), prefix))}
+    finally:
+        conn.close()
+
+
 def delete_settings_prefix(prefix: str) -> int:
     """删除键以 prefix 开头的全部设置（删除用户添加的环境时清理它的干净基线 baseline:<环境>:…）。返回删除的条数。"""
     if not prefix:

@@ -1,6 +1,6 @@
 """eNSP Pro 真机 + 无头浏览器 e2e（不进默认 pytest：文件名不以 test_ 开头）。
 
-前置：本机能访问 eNSP Pro（AINET_ENSPRO_URL，缺省 https://192.168.56.101:8443），沙箱里有 T1、T2（ENSP-AR，YunShan），
+前置：本机能访问 eNSP Pro（AINET_ENSPRO_URL，缺省 https://127.0.0.1:8443），沙箱里有 T1、T2（ENSP-AR，YunShan），
 T1 GE0/0/1 <-> T2 GE0/0/1 已连线，两台已启动；设备 console 密码在 secrets.env 的 ENSPRO_DEVICE_PASSWORD。
 服务以 AINET_LAB_PROVIDER=enspro AINET_ENSPRO_SANDBOX=<沙箱 id> 和临时 AINET_DB_PATH 起好（建议 AINET_AI_SCORING=0）。
 eNSP Pro 同一账号只能有一个会话：跑脚本期间不要在别处登录 eNSP Pro 网页，也不要另开脚本调它的接口。
@@ -29,7 +29,7 @@ import websockets
 
 CHROME = os.environ.get(
     "AINET_CHROME",
-    "/home/xixi/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell")
+    os.path.expanduser("~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell"))
 MODE = sys.argv[1] if len(sys.argv) > 1 else "basic"
 BASE = sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8790"
 SHOTS = sys.argv[3] if len(sys.argv) > 3 else "."

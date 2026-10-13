@@ -370,7 +370,7 @@ def normalize_endpoint(kind: str, raw: str) -> str:
     if len(v) > 300 or any(c.isspace() or ord(c) < 32 for c in v):
         raise ValueError("地址里不能有空白或控制字符（最长 300 个字符）")
     if kind == "url":
-        if "://" not in v:                           # 不写协议（如 47.105.42.104:33000、host:8443）：按 https，缺端口补 8443
+        if "://" not in v:                           # 不写协议（如 203.0.113.10:8443、host:8443）：按 https，缺端口补 8443
             v = _with_https(v)
         try:
             u = urlsplit(v)

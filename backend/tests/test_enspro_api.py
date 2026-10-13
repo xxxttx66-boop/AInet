@@ -202,6 +202,26 @@ def test_enspro_session_lost_and_relogin(env):
     assert c.get("/api/topology/status").json()["state"] == "running"
 
 
+def test_relogin_rebuilds_console_connections_without_clearing_practice_locks(env):
+    c, rest = env["c"], env["rest"]
+    hub = c.app.state.hub
+    with c.websocket_connect("/ws/console/6") as ws:
+        recv_until(ws, "<HUAWEI>")
+        old = hub.channels[6].conn
+        c.portal.call(hub.pin, [6])
+        c.portal.call(hub.freeze, [7])
+        rest.kick()
+        assert c.get("/api/topology/status").json()["state"] == "session_lost"
+        result = c.post("/api/lab/relogin")
+        assert result.status_code == 200 and result.json() == {"ok": True}
+        assert hub.channels[6].conn is None
+        assert 6 in hub.pinned and 7 in hub.frozen
+    with c.websocket_connect("/ws/console/6") as ws:
+        recv_until(ws, "<HUAWEI>")
+        assert hub.channels[6].conn is not old
+    c.portal.call(hub.unfreeze, [7])
+
+
 def test_ensp_provider_rejects_power(client):
     client.post("/api/login", json={"login": "admin", "password": "admin"})
     assert client.get("/api/lab").json()["kind"] == "ensp"

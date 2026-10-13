@@ -165,6 +165,19 @@ def login(c, who="admin", pw="admin"):
     assert r.status_code == 200, r.text
 
 
+def test_capacity_is_checked_again_before_next_exam_question(ex):
+    login(ex)
+    r = ex.post("/api/exam/templates", json={"name": "capacity boundary", "config": {
+        "questions": [{"scenario": sid} for sid in Q3[:2]], "duration_s": 900}})
+    assert r.status_code == 201, r.text
+    assert ex.post("/api/exam/start", json={"template_id": r.json()["id"]}).json()["question"]["status"] == "active"
+    ex.app.state.practice.capacity_guard = lambda s: "设备上限已改变" if s["id"] == Q3[1] else None
+    result = ex.post("/api/exam/next").json()
+    assert result["current"] == 1 and result["question"]["status"] == "pending"
+    assert "设备上限" in result["question"]["error"]
+    assert ex.app.state.practice.active is None
+
+
 def hub(c) -> ExamHub:
     return c.app.state.hub
 

@@ -359,17 +359,17 @@ def test_api_switch_any_logged_in_user(app):
     assert [(s["id"], s["name"], s["devices"], s["running"], s["current"]) for s in sb["sandboxes"]] == \
         [(2, "ainet_test", 2, 2, True), (3, "ainet_campus", 2, 0, False)]
     assert any(p == "/service/ensp/sandbox/getByPage" and b.get("projectId") == 1 for _, p, b in rest.calls if b)
-    # 切沙箱：旧 eNSP Pro 后端登出，拓扑换成新沙箱
+    # 同一环境的沙箱共享 REST 会话；切换选中沙箱不能把后台看门狗登出。
     out_before = rest.logouts
     assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 3}).status_code == 200
-    assert rest.logouts == out_before + 1
+    assert rest.logouts == out_before
     cur = c.get("/api/topology/current").json()
     assert cur["topology"]["name"] == "ainet_campus" and cur["env"]["sandbox"] == 3
     assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 99}).status_code == 404
-    # 切回 eNSP：eNSP Pro 再登出一次
+    # 切回 eNSP：eNSP Pro 的后台环境仍由独立上下文监测，服务关闭时统一登出。
     out_before = rest.logouts
     assert c.post("/api/lab/environment", json={"key": "ensp"}).status_code == 200
-    assert rest.logouts == out_before + 1
+    assert rest.logouts == out_before
     assert db.get_setting("lab:env") == "ensp" and db.get_setting("lab:sandbox:enspro") == "3"
 
 

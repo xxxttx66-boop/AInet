@@ -47,7 +47,7 @@ def no_local_names(monkeypatch):
     ("https://[fd00::5]:8443", "https://[fd00::5]:8443"),
     ("https://host/ensp/", "https://host/ensp"),
     # 不写协议（里程碑 6.20）：按 https；只有主机名时补缺省端口 8443
-    ("47.105.42.104:33000", "https://47.105.42.104:33000"),
+    ("203.0.113.10:8443", "https://203.0.113.10:8443"),
     ("enspro.lan:8443", "https://enspro.lan:8443"),         # urlsplit 会把 enspro.lan 当成协议，不能靠它判断
     ("localhost:8443/", "https://localhost:8443"),
     ("enspro.lan", "https://enspro.lan:8443"),
@@ -72,7 +72,7 @@ def test_normalize_url_rejects(raw, why):
 
 
 def test_normalize_host():
-    assert lab_lib.normalize_endpoint("host", " 192.168.31.72 ") == "192.168.31.72"
+    assert lab_lib.normalize_endpoint("host", " 192.0.2.72 ") == "192.0.2.72"
     assert lab_lib.normalize_endpoint("host", "[::1]") == "::1"
     assert lab_lib.normalize_endpoint("host", "eNSP-Host.lan") == "ensp-host.lan"
     for bad in ("http://10.0.0.1", "10.0.0.1:2000", "a b", "-bad", "x/y", ""):

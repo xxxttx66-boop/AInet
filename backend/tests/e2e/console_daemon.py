@@ -14,7 +14,7 @@
 或练习已结束后使用；本进程发的命令和输出也会出现在服务的学员终端里。
 
 用法：
-  AINET_E2E_HUBSOCK=/path/hub.sock ENSP_HOST=192.168.31.72 python tests/e2e/console_daemon.py serve
+  AINET_E2E_HUBSOCK=/path/hub.sock ENSP_HOST=127.0.0.1 python tests/e2e/console_daemon.py serve
   AINET_E2E_HUBSOCK=/path/hub.sock python tests/e2e/console_daemon.py snapshot 2000 out.txt
   AINET_E2E_HUBSOCK=/path/hub.sock python tests/e2e/console_daemon.py restore 2000 snap.txt
 可选 AINET_E2E_HUBLOG：把设备原始输出追加写到这个文件（排查用）。
@@ -54,7 +54,7 @@ async def serve() -> None:
     from connectors import EnspConnector
     from console_hub import ConsoleHub, MORE, clean, ends_with_more, last_line, prompt_of
 
-    host = os.environ.get("ENSP_HOST", "192.168.31.72")
+    host = os.environ.get("ENSP_HOST", "127.0.0.1")
     hub = ConsoleHub(lambda p: EnspConnector(host, p, 8), idle_close=36000, min_reconnect=3)
     if LOG:
         orig = hub._on_device

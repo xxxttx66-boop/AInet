@@ -1,38 +1,16 @@
-﻿AInet 服务 使用说明
-========================================
+AInet 服务使用说明
 
-【启动服务】
-  双击  启动服务.bat
-  - 会弹出一个黑色窗口，窗口里跑的就是服务；
-  - 约 3 秒后浏览器自动打开  http://localhost:8000/
-  - 这个黑窗口不要关，关掉就等于停止服务。
+启动：双击 启动服务.bat。服务默认只供本机访问，浏览器会打开配置的端口；关闭服务窗口或按 Ctrl+C 可停止。
+后台运行：run_ainet.bat / start_silent.bat，日志在 backend/data/server.log。
+本机配置：复制 backend/local.env.example 为 backend/data/local.env，填写自己的实验接入地址、启动超时和设备上限。
+进程环境变量优先于该文件；课程页的实验接入设置仍按数据库优先规则生效。
 
-【停止服务】
-  双击  停止服务.bat
-  - 会杀掉占用 8000 端口的进程，几秒后提示 “Done”；
-  - 也可以直接在启动服务的黑窗口里按 Ctrl+C 或点右上角 ×。
+默认地址：http://127.0.0.1:8000/courses
+默认不启用免登录。单人本机免登录可显式设置 AINET_AUTO_LOGIN。
+局域网访问需显式设置 AINET_BIND_HOST；局域网免登录另需 AINET_ALLOW_LAN_AUTO_LOGIN=1，任何能访问端口的人都能操作设备。
 
-【重复启动不会出错】
-  如果服务已经在跑，再双击「启动服务.bat」不会报错，
-  它只会帮你打开浏览器页面。
+停止：双击 停止服务.bat。脚本只终止从当前项目虚拟环境启动的 AInet 进程，不终止任意占用端口的进程。
+若端口被其他程序占用，请调整 AINET_BIND_PORT 或先确认占用程序的用途。第二个实例无法绑定已占用的端口。
+开机自启可通过 Windows 任务计划程序添加本项目的 run_ainet.bat，路径由部署者填写。
 
-【打开失败怎么办】
-  1) 先确认「启动服务.bat」的黑窗口还开着；
-  2) 手动在浏览器输入：http://localhost:8000/
-  3) 若提示端口被占用，先双击一次「停止服务.bat」再启动。
-
-【常用地址】
-  首页 / 课程页 : http://localhost:8000/
-  终端页        : http://localhost:8000/?port=2000
-  考试模板管理  : http://localhost:8000/exam/templates
-
-【日志】
-  后台版日志在  backend\data\server.log
-  （双击 启动服务.bat 的方式，日志直接显示在黑窗口里）
-
-【开机自启（可选，需要管理员权限）】
-  在管理员 CMD 里执行：
-    schtasks /create /tn ainet /tr "cmd /c D:\AInet\start_silent.bat" /sc onlogon /rl highest
-  停止并取消自启：
-    schtasks /end /tn ainet
-    schtasks /delete /tn ainet /f
+真实地址、登录标识和私有交接记录请放在 Git 忽略的本机文件中，不上传到公开仓库。

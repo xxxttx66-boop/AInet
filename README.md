@@ -39,6 +39,8 @@
 
 ### 装依赖
 
+使用 Python 3.11 或更高版本；CI 覆盖 Python 3.11 / 3.13。
+
 ```bash
 cd backend
 python -m venv .venv
@@ -51,12 +53,17 @@ pip install -r requirements.txt
 
 ```bash
 cd backend
-# 远程连实测设备（默认）：
-uvicorn main:app --host 0.0.0.0 --port 8000
-# 部署到 eNSP 执行机（Windows 本机）时设 ENSP_HOST=127.0.0.1：
-#   Windows:  set ENSP_HOST=127.0.0.1 && uvicorn main:app --host 0.0.0.0 --port 8000
-#   Linux:    ENSP_HOST=127.0.0.1 uvicorn main:app --host 0.0.0.0 --port 8000
+python -m launcher
 ```
+
+Windows 可双击 `启动服务.bat`，后台运行可用 `run_ainet.bat` / `start_silent.bat`。
+默认只监听 `127.0.0.1:8000`，不主动开启免登录，也不连接某台个人实验环境。
+复制 `backend/local.env.example` 为 `backend/data/local.env` 后填写本机配置；该文件不进 Git，进程环境变量优先。
+课程页保存的实验接入设置仍按原有优先级生效。
+
+需要局域网访问时显式配置 `AINET_BIND_HOST`。局域网免登录还需要 `AINET_ALLOW_LAN_AUTO_LOGIN=1`，
+此时能访问端口的人都能操作设备。默认账号只用于单人本机实验；共享网络使用前应关闭免登录并设置访问限制。
+启动脚本与命令行统一经 `launcher` 检查配置。直接调用 uvicorn 不经过这些启动检查。
 
 ### 打开终端
 
@@ -65,7 +72,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ### 配置
 
-- `ENSP_HOST` 环境变量：eNSP 设备 console 所在主机，缺省 `192.168.31.72`（只是缺省值：课程页「⚙ 接入设置」改过以后以库里的记录为准，见「接入设置」）。
+- `ENSP_HOST` 环境变量：eNSP 设备 console 所在主机，缺省 `127.0.0.1`（只是缺省值：课程页「⚙ 接入设置」改过以后以库里的记录为准，见「接入设置」）。
 - 端口白名单：eNSP 当前拓扑（state=running）中所有非 0 的 `com_port`；没有运行的设备、拓扑未保存或设备分属多个拓扑时不放行任何端口，拒绝时说明原因。
 - `AINET_TOPO_DIRS` 环境变量：`.topo` 搜索目录，多个用系统路径分隔符（Windows `;`、Linux `:`）。
   Windows 缺省为 `C:\Program Files\Huawei\eNSP\examples` 加 `%USERPROFILE%`（递归，跳过隐藏目录与 AppData，最深 6 层）；其他系统缺省为空。
@@ -587,7 +594,7 @@ AINET_LAB_PROVIDER=enspro AINET_ENSPRO_SANDBOX=3 uvicorn main:app --host 127.0.0
 | 环境变量 | 缺省 | 说明 |
 |---|---|---|
 | `AINET_LAB_PROVIDER` | `ensp` | `ensp` = eNSP 经典版，`enspro` = eNSP Pro（只是缺省值：页面上切换后以库里记录为准） |
-| `AINET_ENSPRO_URL` | `https://192.168.56.101:8443` | eNSP Pro 地址（自签证书，不校验）；只是缺省值，课程页「⚙ 接入设置」改过以后以库里的记录为准 |
+| `AINET_ENSPRO_URL` | `https://127.0.0.1:8443` | eNSP Pro 地址（自签证书，不校验）；只是缺省值，课程页「⚙ 接入设置」改过以后以库里的记录为准 |
 | `AINET_ENSPRO_SANDBOX` | 无 | 当前沙箱 id；拓扑 = 这个沙箱（同上，只是缺省值；课程页进入课题时按题目切换沙箱） |
 | `AINET_ENSPRO_AUTO_RELOGIN` | `0` | 会话被别处登录挤掉后是否自动重新登录（会反过来挤掉对方） |
 | `AINET_ENSPRO_RELOGIN_INTERVAL` | `30` | 两次自动重登的最小间隔（秒） |
@@ -693,7 +700,7 @@ L10 STP、L11 防火墙要新建沙箱（ainet_l2、ainet_fw），只做了规�
 
 模拟环境（eNSP / eNSP Pro，以后还会加）和 eNSP Pro 的沙箱都能在页面上切换，**不用重启服务**。详见 spec §5.2。目前按单人使用设计：任何已登录用户都能切换。
 
-- **课程页**（2026-10-07 起，环境切换只在这里进行；操作页顶栏的可操作选择器已撤掉）：环境列显示各环境在线 / 离线（离线的置灰、注明「（离线）」，悬停看原因，如「本机不是 Windows…」「连不上 192.168.56.101:8443…」）；点环境只是浏览题目，点「自由实验 / 开始练习 / 单题考试」时按题目准备环境（切环境、切沙箱、启动设备）。操作页发现切换代数变化时关闭旧终端标签、重画拓扑，Agent 对话里插一条「环境已切换」。练习或考试进行中切换接口 409，课程页提示先回操作页结束。档案、成绩单、模板管理页顶栏只读显示当前环境。
+- **课程页**（2026-10-07 起，环境切换只在这里进行；操作页顶栏的可操作选择器已撤掉）：环境列显示各环境在线 / 离线（离线的置灰、注明「（离线）」，悬停看原因，如「本机不是 Windows…」「连不上 ensp-pro.example:8443…」）；点环境只是浏览题目，点「自由实验 / 开始练习 / 单题考试」时按题目准备环境（切环境、切沙箱、启动设备）。操作页发现切换代数变化时关闭旧终端标签、重画拓扑，Agent 对话里插一条「环境已切换」。练习或考试进行中切换接口 409，课程页提示先回操作页结束。档案、成绩单、模板管理页顶栏只读显示当前环境。
 - **持久化**：当前环境与各环境的沙箱存在 `app_settings`（`lab:env`、`lab:sandbox:enspro`），重启后沿用。`AINET_LAB_PROVIDER` / `AINET_ENSPRO_SANDBOX` 只在库里没有记录时作缺省值——**切换过一次以后改环境变量不再生效**（设 `AINET_LAB_FORCE=1` 以环境变量为准，或换一个 `AINET_DB_PATH`、删这两个键）。启动日志写明当前环境来自哪里。
 - **题目过滤**：练习列表只列当前环境平台的题（vrp5 题只在 eNSP、yunshan 题只在 eNSP Pro）；考试列表只列题目平台都匹配的模板；模板里有不匹配的题时开考被拦下并逐题说明。
 - **前端模块** `frontend/labswitch.js`（`window.LabSwitch`）：`environments / sandboxes / switchTo`、`prepare(root, scenarioId, onProgress, token)` 按题目准备环境、`retryBusy(call, opts)` 开练 / 开考的 busy 重试、`readonly(el, opts)` 只读显示、`stageText / statusText` 显示文字；不依赖 app.js，课程页与操作页共用。
@@ -767,9 +774,9 @@ L10 STP、L11 防火墙要新建沙箱（ainet_l2、ainet_fw），只做了规�
 
 ### 自动识别 https（里程碑 6.20）
 
-eNSP Pro 都是 https（自签证书）。为避免把地址误写成 `http://`（如 `http://47.105.42.104:33000`，该端口只有 HTTPS）而连不上：
+eNSP Pro 都是 https（自签证书）。为避免把地址误写成 `http://`（如 `http://ensp-pro.example:8443`，该端口只有 HTTPS）而连不上：
 
-- **可以不写协议**：`47.105.42.104:33000`、`host:8443` 都行，按 `https://` 处理；只写主机名时补缺省端口 `:8443`。
+- **可以不写协议**：`ensp-pro.example:8443`、`host:8443` 都行，按 `https://` 处理；只写主机名时补缺省端口 `:8443`。
 - **添加、添加前测试连接、改地址、测试连接**时，地址是 `http://` 或没写协议就先试 TLS 握手（不登录）：通 → 存 / 测 `https://…`，并提示「已自动改为 https」（接口返回 `normalized_from` = 原输入、`notice`）；TLS 不通而明文 HTTP 有响应 → 保留 http，给警告；都连不上 → 按输入保存（没写协议按 https）并给出连不上的原因。写了 `https://` 的不探测。保存的始终是规范化后的完整 URL。
 - **页面**：添加对话框与 ⚙ 气泡里，地址框失焦或点「测试连接」后输入框会换成规范化后的 URL，下面一行小字说明。
 - **已存的 http 地址不自动迁移**；⚙ 打开时如果当前地址是 http、该端口其实是 https，会显示「建议改为 https」与「一键改为 https」（接口：`POST …/endpoint/test` 不给 value 时返回 `suggest`）。
@@ -962,3 +969,15 @@ AINET_DB_PATH=<服务的库> python tests/e2e/course_real_e2e.py http://127.0.0.
 - 课程页的拓扑预览只有在当前环境已加载同一拓扑（沙箱）时才画全图；否则只示意本题设备（未加载的沙箱不切换就拿不到拓扑）。
 - 取消「准备环境」只停止页面等待，后台已发出的设备启动会继续完成。
 - 操作页的课题来自 URL（`?s=`）；直接打开 `/` 且没有进行中的练习时是「自由实验」，练习 / 考试按钮不可用（回课程页选题）。
+
+## 2026-10-14 运行可靠性与自动检查
+
+- Windows 启动脚本统一经 `backend/launcher.py`，读取 Git 忽略的 `backend/data/local.env`；默认仅监听本机，免登录需显式配置。停止脚本只匹配本 checkout 的 AInet 进程。
+- eNSP Pro 手动重登清除旧 SSO cookie，验证模拟器服务并重建终端连接；旧请求返回的会话失效不覆盖新登录。console 自动重登期间的输入先缓存，成功后按顺序发送。
+- 各环境 / 沙箱保留独立看门狗、空闲计时与后台 console，停机时刻按环境隔离。同一环境的沙箱共享 REST 客户端，服务退出时统一释放。修改地址或删除环境会关闭该环境所有后台任务。
+- `lab:power:<环境>:<沙箱>` 保存启动状态；启动恢复全部有效上下文，并兼容导入旧的 `lab:power`。原有 `AINET_ENSPRO_STOP_OLD` 停旧沙箱规则保留。
+- 每道题开题时检查设备容量，覆盖考试下一题和重试；eNSP 经典版在建立练习记录、拍快照和注入故障前检查 console 提示符。
+- 准备环境首次遇到 `start_failed` 已有恢复路径，本轮补普通失败重新启动与慢设备已自行上线两个回归用例。
+- `.github/workflows/ci.yml` 使用 Linux / Windows 与 Python 3.11 / 3.13，运行假设备 pytest、场景与 Python 语法校验、前端独立及内嵌脚本语法检查。真实设备 e2e 单独执行。
+
+在根目录运行 `python scripts/check_project.py` 与 `node scripts/check_frontend.mjs`；单元 / 集成测试在 backend 运行 `python -m pytest tests --ignore=tests/e2e --ignore=tests/manual -q`。本轮冻结的是六个直接依赖，平台相关的传递依赖由 pip 安装。

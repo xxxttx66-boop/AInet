@@ -15,14 +15,13 @@ build/
 screenshots/
 
 # 本机 eNSP Pro 调试运行产物
-backend/_p2/edge-profile/
-backend/_p2/shots/
-backend/_p2/*.db
-backend/_p2/*.log
-backend/_p2/*.txt
+backend/_p2/
+backend/_p2_*
+backend/layout_*.png
+backend/test-results.xml
 
 # 本机助手状态
 .workbuddy/
 
-# AI 助手产出的非项目文件（评估报告、审查纪要等，可整个删除）
+# AI 助手状态与本机私有备份（不上传；清理前确认所需资料已另存）
 _ai/

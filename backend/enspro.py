@@ -1,6 +1,6 @@
 """eNSP Pro 实验后端（LabProvider 实现，见 lab.py；spec §5、§10.4）。
 
-eNSP Pro 是浏览器 + 服务端形态的模拟器（本机 KVM 虚机，https://192.168.56.101:8443，自签证书）：
+eNSP Pro 是浏览器 + 服务端形态的模拟器（本机 KVM 虚机，https://ensp-pro.example:8443，自签证书）：
 - REST：统一返回 {code, message, data}，code 0 成功。离线模式免密码登录：GET / → GET /api/login?service=<origin>
   （跟随跳转 ssoCheck?code=offline → userCheck → /），同一个 cookie jar 保存 __Host-SESSION 与 csrfToken；之后的请求带
   请求头 X-CSRF-TOKEN 与 csrfToken（值都取自 csrfToken cookie）。GET /api/getUserInfo 验证登录；
@@ -122,6 +122,10 @@ class EnsproClient:
         return {"X-CSRF-TOKEN": t, "csrfToken": t}
 
     async def _login(self) -> None:
+        # Stale gateway cookies can otherwise reuse the invalidated SSO session.
+        self.logged_in = False
+        self.user = None
+        self._http.cookies.clear()
         self._last_login = self.clock()
         self.logins += 1
         try:
@@ -175,6 +179,7 @@ class EnsproClient:
                    _retry: bool = True) -> Any:
         """调接口，返回 data。code 非 0 抛 EnsproError；会话失效抛 EnsproSessionLost（开了自动重登则重登后重试一次）。"""
         await self.ensure()
+        login_generation = self.logins
         try:
             r = await self._http.request(method, path, json=body, params=params, headers=self._headers())
         except httpx.HTTPError as exc:
@@ -185,6 +190,9 @@ class EnsproClient:
             raise EnsproError(f"eNSP Pro 返回的不是 JSON（HTTP {r.status_code}）", http_status=r.status_code) from None
         code = payload.get("code") if isinstance(payload, dict) else None
         if code in SESSION_LOST_CODES:
+            if _retry and self.logged_in and self.logins != login_generation:
+                # A response from the former session must not invalidate a completed relogin.
+                return await self.call(method, path, body, params=params, _retry=False)
             self._lost(code, payload.get("message", ""))
             if self.auto_relogin and _retry:
                 await self.ensure()
@@ -866,6 +874,8 @@ class EnsproProvider(LabProvider):
     async def relogin(self) -> dict[str, Any]:
         try:
             await self.client.relogin()
+            # Verify the simulator service, in addition to the SSO user endpoint.
+            await self.client.sandboxes()
         except EnsproError as exc:
             raise LabError(502, exc.message) from None
         self.invalidate()

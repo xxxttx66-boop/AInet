@@ -647,8 +647,15 @@
 
   $('btn-relogin').onclick = async () => {
     if (!confirm('重新登录 eNSP Pro？\n同一账号只能有一个会话：如果你正在别处（如浏览器里的 eNSP Pro 网页）使用它，那边会被挤掉。')) return;
-    try { await api('POST', 'api/lab/relogin'); msg('已重新登录 eNSP Pro'); } catch (e) { msg(`重新登录失败：${e.message}`, true); }
-    await refreshStatus(true);
+    try {
+      await api('POST', 'api/lab/relogin');
+      await refreshStatus(true);
+      for (const tab of state.tabs.values()) {
+        const device = tabDevice(tab);
+        if (device && canOpen(device)) connectTab(tab);
+      }
+      msg('已重新登录 eNSP Pro，终端正在重连');
+    } catch (e) { msg(`重新登录失败：${e.message}`, true); }
   };
   $('btn-refresh').onclick = async () => { msg('刷新中…'); await refreshStatus(); if (!$('topo-msg').classList.contains('err')) msg('状态已刷新'); };
 

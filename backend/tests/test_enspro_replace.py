@@ -71,7 +71,7 @@ async def read_until(conn, needle: str, timeout: float = 6) -> str:
 
 def test_connector_relogins_on_please_press_enter_without_student_input():
     """真机登出后停在 `Please Press ENTER.` + 两个空行（最后一行为空）：连接器自己回车、输一次密码，学员什么都不用按；
-    提示出现之后学员敲的字符被吞掉，不会落到 Password: 上。"""
+    提示出现之后学员敲的字符暂存，登录成功后完整转发，不会落到 Password: 上。"""
     async def go():
         dev = FakeYunShan(PW)
         async with Env({6: dev}) as env:
@@ -80,14 +80,16 @@ def test_connector_relogins_on_please_press_enter_without_student_input():
             await read_until(conn, "<HUAWEI>")
             dev.logout()
             out = await read_until(conn, "Please Press ENTER.")
-            await conn.send(b"display version")              # 提示已出现：学员输入被吞掉
+            await conn.send(b"display version")              # 保留半行输入，不提前提交命令
             out += await read_until(conn, "<HUAWEI>", timeout=8)
             for _ in range(50):                               # 提示符已转发，重登任务稍后才收尾
                 if not conn._relogin:
                     break
                 await asyncio.sleep(0.05)
             assert dev.login_attempts == 2 and dev.empty_submits == 0
-            assert "display version" not in dev.received
+            if "display version" not in out:
+                out += await read_until(conn, "display version")
+            assert dev.received.count("display version") == 1
             assert conn.login_log[-3:] == ["enter", "password", "prompt"]
             await conn.close()
     run(go())

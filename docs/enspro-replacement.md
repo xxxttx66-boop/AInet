@@ -1,5 +1,7 @@
 # eNSP Pro 能否替代 eNSP 经典版：验证结论（2026-10-06）
 
+> 此文保留导入前的历史真机验收记录。引用的旧开发 worktree、scratchpad 与证据路径未随当前 GitHub 仓库导入；当前实现和本轮验证范围见 [HANDOFF.md](HANDOFF.md)。
+
 > 结论先行：**在练习 / 考试这条主线上，eNSP Pro 可以替代 eNSP 经典版**。迁移后的 5 道 YunShan 题（4 道 Campus + OSPF）在真机 +
 > 无头浏览器上跑通了练习、额外乱改后的整机复位和一场 3 题考试。需要接受的差异有四点：YunShan 与 VRP5 命令体系不同；
 > PC 只能当观察点；EXTERNAL-HUB 起不来；同一账号只能有一个会话。
@@ -10,7 +12,7 @@
 
 | 项目 | 内容 |
 |---|---|
-| eNSP Pro | 本机（Linux 开发机，32 核 / 124GB）KVM 虚机 `ensppro`：16 vCPU、32GB，`https://192.168.56.101:8443`，离线账号 |
+| eNSP Pro | 本机（Linux 开发机，32 核 / 124GB）KVM 虚机 `ensppro`：16 vCPU、32GB，`https://ensp-pro.example:8443`，离线账号 |
 | 设备系统 | ENSP-AR = AR6700，YunShan OS 1.25.1.1（V600R025C10SPC100）；ENSP-LSW = S6700，V600R025C10SPC500；PC-CLIENT = 容器（受限 bash） |
 | 沙箱 | `ainet_campus`（id 3），经 REST 接口新建，设备由 ainet 的启停接口启动 |
 | ainet | worktree `agent-a11bf22edf55fd7d7`，`AINET_LAB_PROVIDER=enspro AINET_ENSPRO_SANDBOX=3`，AI 评分 / 提示关闭（只看流程） |

@@ -14,11 +14,11 @@
   仍不行就标为 **start_failed**（启动失败），原因写在拓扑的 start_errors 与进度文字里。最后一轮不停设备：之后接口报运行中
   并通过就绪探测的（超时误判的慢设备）恢复为 online。
 - **按环境配置**：start_timeout / retries / early_check / probe_timeout 按模拟环境单独配置（lab.WatchParam，库里
-  lab:watch:<环境> 优先，其次环境变量、内置缺省），LabManager 用 configure() 换成当前环境的值，改了立即生效。
+  lab:watch:<环境> 优先，其次环境变量、内置缺省），各运行上下文用 configure() 装载各自环境的值，改了立即生效。
 - **就绪探测**：接口报运行中（状态 1 / 4）之后，设备状态先是 **initializing**（系统初始化中），经 ConsoleHub 的隐藏事务
   执行只读的探测命令（PROBE_COMMANDS），设备不再报 busy 才算就绪（状态回到 online）。隐藏事务的输出不进学员终端、
   不产生命令记录。probe_timeout 秒内一直没通过，按卡住处理（停止再启动 / 启动失败）。
-- **重启恢复**：跟踪状态存 app_settings（lab:power），服务重启后接着跟踪；中途停在「停止 → 启动」之间的设备补发启动。
+- **重启恢复**：跟踪状态存 app_settings（lab:power:<环境>:<沙箱>），服务重启后接着跟踪；中途停在「停止 → 启动」之间的设备补发启动。
 
 IdleStop：当前沙箱的设备超过 N 分钟（AINET_ENSPRO_IDLE_STOP_MIN，缺省 30，0 = 关闭）没有任何活动（终端输入 / 命令 /
 命令输出、练习、考试、Agent 命令、启停、准备环境），自动停掉当前沙箱里运行着的设备；练习 / 考试进行中不停；
@@ -585,7 +585,8 @@ class PowerWatch:
                 "stopped_at": [[sb, k, at] for (sb, k), at in self.stopped_at.items()
                                if self.clock() - at < self.restart_gap]}
         try:
-            await asyncio.to_thread(db.set_setting, SETTING_POWER, json.dumps(data, ensure_ascii=False))
+            await asyncio.to_thread(db.set_setting, getattr(self.mgr, "power_setting", SETTING_POWER),
+                                    json.dumps(data, ensure_ascii=False))
         except Exception as exc:              # 库不可写不影响看门狗本身
             log.warning("保存启动跟踪状态失败：%s", exc)
 
@@ -594,16 +595,25 @@ class PowerWatch:
         排队中（含卡住后停在「停止 → 启动」之间）的照样排队发出；启动中 / 初始化中的接着计时、接着探测；
         启动失败的照样显示失败（接口变成运行中会再探测一次）。"""
         try:
-            raw = db.get_setting(SETTING_POWER)
+            raw = db.get_setting(getattr(self.mgr, "power_setting", SETTING_POWER))
+            if raw is None:
+                raw = db.get_setting(SETTING_POWER)  # Import the old single-context format, when it matches.
             data = json.loads(raw) if raw else {}
         except Exception:
             data = {}
         p = getattr(self.mgr, "provider", None)
         if not data or p is None or not getattr(p, "power", False):
             return 0
-        for sb, k, at in data.get("stopped_at") or []:
-            self.stopped_at[(sb, int(k))] = float(at)
-        if data.get("env") != getattr(self.mgr, "key", None) or data.get("sandbox") != getattr(p, "sandbox_id", None):
+        if data.get("env") != getattr(self.mgr, "key", None):
+            return 0
+        for row in data.get("stopped_at") or []:
+            try:
+                sb, k, at = row
+                identity = (sb, int(k))
+                self.stopped_at[identity] = max(float(at), self.stopped_at.get(identity, float("-inf")))
+            except (ValueError, TypeError):
+                continue
+        if data.get("sandbox") != getattr(p, "sandbox_id", None):
             return 0
         n = 0
         for row in data.get("tracks") or []:

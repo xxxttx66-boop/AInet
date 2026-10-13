@@ -15,6 +15,37 @@ def run(coro):
     return asyncio.run(asyncio.wait_for(coro, 20))
 
 
+def test_boot_output_is_not_a_ready_console_prompt():
+    class BootConsole:
+        def __init__(self):
+            self.output = asyncio.Queue()
+            self.sent = []
+
+        async def connect(self):
+            self.output.put_nowait(b"#### booting ####")
+
+        async def send(self, data):
+            self.sent.append(data)
+
+        async def read(self):
+            return await self.output.get()
+
+        async def close(self):
+            self.output.put_nowait(b"")
+
+    async def go():
+        device = BootConsole()
+        hub = ConsoleHub(lambda port: device, ready_timeout=0.05, settle=0.01, min_reconnect=0)
+        ready = await hub.check_ready(2000)
+        assert ready.status == "busy" and device.sent == [b"\r"]
+        device.output.put_nowait(b"\r\n<Huawei>")
+        await asyncio.sleep(0.02)
+        assert (await hub.check_ready(2000)).ok
+        assert device.sent == [b"\r"]
+        await hub.close()
+    asyncio.run(go())
+
+
 def make(**kw) -> tuple[FakeVRP, ConsoleHub]:
     dev = FakeVRP()
     hub = ConsoleHub(dev.factory, idle_close=kw.pop("idle_close", 60), min_reconnect=kw.pop("min_reconnect", 0),

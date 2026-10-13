@@ -756,6 +756,18 @@ class ConsoleHub:
 
     # ---- 隐藏事务 ----
 
+    async def check_ready(self, port: int) -> HiddenResult:
+        """Verify a usable console prompt before recording an attempt or changing configuration."""
+        ch = self._channel(port)
+        try:
+            await self._ensure_connected(ch)
+        except HubConnectError as exc:
+            return HiddenResult("error", f"console 未就绪：{exc}")
+        async with ch.lock:
+            await self._wait_ready(ch)
+            result = self._precheck(ch, "check")
+            return result if isinstance(result, HiddenResult) else HiddenResult("ok")
+
     async def _wait_ready(self, ch: _Channel) -> None:
         """新建的连接：等唤醒后的提示符出现（输出静默 settle 秒），最多 ready_timeout 秒。"""
         if not ch.fresh:

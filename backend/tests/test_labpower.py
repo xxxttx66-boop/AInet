@@ -262,26 +262,41 @@ def test_restart_gap_after_stop_and_reboot_is_stop_wait_start(db_path):
     rest = FakeRest()
     rest.status = {6: 4, 7: 4}
     rest.instant_start = True
+    now = [1000.0]
+    observed = []
+    original = rest.handle
+
+    def handle(req):
+        if req.url.path.endswith(("batchStop", "batchStart")):
+            observed.append((now[0], req.url.path))
+        return original(req)
+    rest.handle = handle
 
     async def run():
-        h = harness(rest)
+        h = harness(rest, clock=lambda: now[0])
         h.w.restart_gap = 0.4
         await h.w.stop([6])
-        t_stop = rest.times[-1][0]
+        t_stop = observed[-1][0]
         r = await h.w.start([6])
         assert r["started"] == [] and r["queued"] == [6]
         st, cur = await status_of(h)
         assert st == "starting" and "停机" in cur["progress"]["6"]
+        now[0] += 0.39
+        await asyncio.sleep(0.05)
+        assert not any(p.endswith("batchStart") for _, p in observed)
+        now[0] += 0.02
         assert await until(lambda: any(p.endswith("batchStart") for _, p, _ in rest.times), timeout=3)
-        t_start = next(t for t, p, _ in rest.times if p.endswith("batchStart"))
-        assert t_start - t_stop >= 0.38
+        t_start = next(t for t, p in observed if p.endswith("batchStart"))
+        assert t_start - t_stop >= 0.4
         # 重启
         rest.times.clear()
+        observed.clear()
         res = await h.w.reboot([7])
         assert res["via"] == "stop+start" and res["start_after_s"] == 0.4
+        now[0] += 0.41
         assert await until(lambda: any(p.endswith("batchStart") for _, p, _ in rest.times), timeout=3)
-        (t1, p1, _), (t2, p2, _) = rest.times[:2]
-        assert p1.endswith("batchStop") and p2.endswith("batchStart") and t2 - t1 >= 0.38
+        (t1, p1), (t2, p2) = observed[:2]
+        assert p1.endswith("batchStop") and p2.endswith("batchStart") and t2 - t1 >= 0.4
         assert not any(p.endswith("batchReboot") for _, p, _ in rest.calls)
         await h.w.close()
     asyncio.run(run())
@@ -479,6 +494,7 @@ def app(db_path, monkeypatch):
 
 def test_practice_start_409_while_initializing_and_prepare_probe_stage(app):
     c, rest = app.c, app.rest
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
     mgr = c.app.state.labmgr
     gate = {"ready": False}
 
@@ -510,6 +526,28 @@ def test_practice_start_409_while_initializing_and_prepare_probe_stage(app):
         time.sleep(0.05)
     job = c.get("/api/lab/prepare").json()["job"]
     assert job["ok"] and job["devices"] == {"T1": "online", "T2": "online"} and job["stopped_old"] == []
+
+
+@pytest.mark.parametrize("raw_status, expected_stop", [(6, True), (4, False)])
+def test_prepare_recovers_existing_failed_start(app, raw_status, expected_stop):
+    c, rest = app.c, app.rest
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
+    mgr = c.app.state.labmgr
+    w = mgr.power
+    w.poll, w.stagger, w.restart_gap, w.probe_enabled = 0.02, 0, 0, False
+    mgr.prepare_poll = 0.02
+    rest.status, rest.instant_start = {6: raw_status, 7: 4}, True
+    now = w.clock()
+    w.tracks[6] = labpower.Track(2, 6, "T1", "failed", now, now, reason="previous attempt timed out")
+    assert c.post("/api/lab/prepare", json={"scenario_id": "enspro-t1-t2-link"}).status_code == 202
+    end = time.time() + 5
+    while time.time() < end:
+        job = c.get("/api/lab/prepare").json()["job"]
+        if job["done"]:
+            break
+        time.sleep(0.02)
+    assert job["done"] and job["ok"], job
+    assert any(path.endswith("batchStop") for _, path, _ in rest.calls) is expected_stop
 
 
 def test_switch_sandbox_stops_old_devices(app, monkeypatch):

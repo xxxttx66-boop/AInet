@@ -26,8 +26,8 @@ import websockets
 
 CHROME = os.environ.get(
     "AINET_CHROME",
-    "/home/xixi/.cache/ms-playwright/chromium_headless_shell-1228/"
-    "chrome-headless-shell-linux64/chrome-headless-shell",
+    os.path.expanduser("~/.cache/ms-playwright/chromium_headless_shell-1228/"
+                       "chrome-headless-shell-linux64/chrome-headless-shell"),
 )
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8770"
 SHOT = sys.argv[2] if len(sys.argv) > 2 else "ainet_e2e.png"

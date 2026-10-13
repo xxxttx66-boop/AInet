@@ -171,8 +171,8 @@ async def lifespan(app: FastAPI):
         await exam_mgr.close()
         await practice.shutdown()
         await scorer.close()
-        await hub.close()
         await mgr.close()          # eNSP Pro：退出登录，释放单会话
+        await hub.close()
         LAB = None
         LABMGR = None
 
@@ -766,7 +766,7 @@ async def api_lab_relogin(request: Request) -> dict:
     """eNSP Pro 会话被挤掉（同一账号在别处登录）后，由用户确认重新登录。"""
     require_student_id(request)
     try:
-        return await lab().relogin()
+        return await _mgr(request).relogin()
     except lab_lib.LabError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
 

@@ -1,6 +1,8 @@
 # eNSP Pro 草稿题真机验证进度（2026-10-07）
 
-基线 master 7d01971；本机 KVM eNSP Pro（https://192.168.56.101:8443），本地 ainet 只绑 127.0.0.1、独立临时数据库
+基线 master 7d01971；本机 KVM eNSP Pro（https://ensp-pro.example:8443），本地 ainet 只绑 127.0.0.1、独立临时数据库
+
+> 这是导入前的历史真机记录，旧提交编号不是当前 GitHub 仓库中的可检出提交。本轮未重新执行真机验收，当前实现与验证说明见 [HANDOFF.md](HANDOFF.md)。
 （`AINET_SHOW_DRAFTS=1`、`AINET_LAB_BASELINE_AUTO=0`、`AINET_AI_SCORING=0`），Windows 上的 ainet 已停。
 脚本：`backend/tests/e2e/enspro_campus_e2e.py practice <场景 id>`。
 

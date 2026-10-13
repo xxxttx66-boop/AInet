@@ -93,6 +93,82 @@ def test_client_not_logged_in_code():
     run(go())
 
 
+def test_relogin_does_not_reuse_stale_gateway_cookies():
+    import httpx
+
+    async def go():
+        rest = FakeRest()
+        login_cookies = []
+
+        def handle(req):
+            if req.url.path == "/api/login":
+                login_cookies.append(req.headers.get("cookie", ""))
+                if "__Host-SESSION=" in login_cookies[-1]:
+                    return httpx.Response(200, text="SSO reused the invalid session")
+            return rest.handle(req)
+
+        c = EnsproClient("http://enspro.test", transport=httpx.MockTransport(handle))
+        await c.sandbox(2)
+        rest.session = None
+        with pytest.raises(EnsproSessionLost):
+            await c.sandbox(2)
+        await c.relogin()
+        assert (await c.sandbox(2))["id"] == 2
+        assert login_cookies == ["", ""] and rest.logins == 2
+        await c.aclose()
+    run(go())
+
+
+def test_response_from_old_session_does_not_invalidate_new_login():
+    import httpx
+
+    async def go():
+        rest = FakeRest()
+        entered, release = asyncio.Event(), asyncio.Event()
+        blocked = [False]
+
+        async def handle(req):
+            response = rest.handle(req)
+            if blocked[0] and req.url.path.endswith("getOneSandbox"):
+                blocked[0] = False
+                entered.set()
+                await release.wait()
+            return response
+
+        c = EnsproClient("http://enspro.test", transport=httpx.MockTransport(handle))
+        await c.sandbox(2)
+        rest.kick()
+        blocked[0] = True
+        stale = asyncio.create_task(c.sandbox(2))
+        await entered.wait()
+        await c.relogin()
+        release.set()
+        assert (await stale)["id"] == 2 and c.logged_in and not c.lost_reason
+        await c.aclose()
+    run(go())
+
+
+def test_relogin_reports_simulator_service_failure():
+    import httpx
+    from lab import LabError
+
+    async def go():
+        rest = FakeRest()
+
+        def handle(req):
+            if req.url.path.endswith("getByPage"):
+                return httpx.Response(200, json={"code": 50010005, "message": "simulator session expired"})
+            return rest.handle(req)
+
+        client = EnsproClient("http://enspro.test", transport=httpx.MockTransport(handle))
+        provider = EnsproProvider(client=client, sandbox=2, password=lambda: PW)
+        with pytest.raises(LabError) as error:
+            await provider.relogin()
+        assert error.value.status == 502 and not client.logged_in
+        await provider.close()
+    run(go())
+
+
 # ---- 沙箱 -> 拓扑 ----
 
 def test_sandbox_to_topology_devices_links_status():
@@ -292,12 +368,36 @@ def test_connector_idle_logout_relogin_once():
             dev.logout()                                    # console 空闲超时
             await conn.send(b"\r")                          # 学员按回车：设备问 Password:
             await read_until(conn, "Password:")
-            await conn.send(b"abc")                         # 自动重登期间学员的输入被吞掉
-            out = await read_until(conn, "<HUAWEI>", timeout=6)
-            # 首次连接 1 次 + 自动重登 1 次，都一次成功；学员敲的 abc 没有混进密码
-            assert dev.login_attempts == 2 and dev.empty_submits == 0 and "abc" not in dev.received
+            await conn.send(b"display version\r")           # 登录成功后完整转发，不能混进密码
+            out = await read_until(conn, "display version", timeout=6)
+            assert dev.login_attempts == 2 and dev.empty_submits == 0
+            assert "display version" in dev.received
             assert "Authentication failed" not in out
             await conn.close()
+    run(go())
+
+
+def test_buffer_replay_failure_closes_console_without_leaking_input():
+    async def go():
+        dev = FakeYunShan(PW)
+        async with Env({6: dev}) as env:
+            conn = env.provider.connector(6)
+            await conn.connect()
+            await read_until(conn, "<HUAWEI>")
+            original = conn._type
+
+            async def disconnected(text):
+                if text == "display version\r":
+                    raise RuntimeError("fake disconnection")
+                await original(text)
+            conn._type = disconnected
+            dev.logout()
+            await read_until(conn, "Please Press ENTER.")
+            await conn.send(b"display version\r")
+            await read_until(conn, "console 重登或转发失败")
+            await conn._watch
+            assert conn._closed and not conn._relogin_input and conn._watch.exception() is None
+            assert "display version" not in dev.received
     run(go())
 
 
