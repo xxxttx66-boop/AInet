@@ -77,7 +77,9 @@
     const body = document.body;
     const root = body.dataset.root || '';
     const workbench = body.dataset.uiPage === 'workbench';
-    const page = body.dataset.uiPage || 'courses';
+    const page = new URLSearchParams(location.search).get('view') === 'environments'
+      ? 'environment-settings' : (body.dataset.uiPage || 'courses');
+    body.dataset.uiPage = page;
     body.classList.add('ui-upgraded');
     if (page !== 'login') {
       const sidebar = document.createElement('aside');
@@ -92,13 +94,14 @@
         `<a href="${root}profile" data-nav="profile" data-icon="chart" title="学习记录"><span class="sidebar-label">学习记录</span></a></nav>` +
         '<div class="sidebar-secondary">' +
         `<a href="${root}exam/templates" data-nav="templates" data-icon="clipboard" title="考试模板"><span class="sidebar-label">考试模板</span></a>` +
-        `<a href="${root}courses#environment-settings" data-nav="settings" data-icon="settings" title="环境设置"><span class="sidebar-label">环境设置</span></a>` +
+        `<a href="${root}courses?view=environments" data-nav="settings" data-icon="settings" title="环境设置"><span class="sidebar-label">环境设置</span></a>` +
         '<button id="ui-ai-settings" type="button" data-icon="bot" title="AI 设置"><span class="sidebar-label">AI 设置</span></button></div>' +
         '<div class="sidebar-footer"><span class="sidebar-student sidebar-label" id="ui-student">学员空间</span>' +
         '<button id="ui-theme" type="button" title="切换界面主题"><span class="sidebar-label"></span></button>' +
         '<button id="ui-nav-toggle" type="button" data-icon="panel" aria-controls="app-sidebar" title="展开或收起导航"><span class="sidebar-label">收起导航</span></button></div>';
       body.prepend(sidebar);
-      const current = sidebar.querySelector(`[data-nav="${page === 'report' ? 'profile' : page}"]`);
+      const navPage = page === 'report' ? 'profile' : page === 'environment-settings' ? 'settings' : page;
+      const current = sidebar.querySelector(`[data-nav="${navPage}"]`);
       if (current) current.setAttribute('aria-current', 'page');
       const preference = read('navCollapsed');
       body.classList.toggle('nav-collapsed', preference === '1' || (preference === null && workbench));
@@ -127,7 +130,7 @@
           const link = event.target.closest('a');
           if (!link) return;
           if (body.classList.contains('exam-active')) { event.preventDefault(); return; }
-          if (link.dataset.nav === 'courses' || link.dataset.nav === 'settings' || link.classList.contains('sidebar-brand')) {
+          if (link.dataset.nav === 'courses' || link.classList.contains('sidebar-brand')) {
             event.preventDefault(); exit.click();
           }
         });

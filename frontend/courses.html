@@ -36,14 +36,29 @@
   <main id="c-main" class="c-main">
     <section class="course-intro"><div class="ui-eyebrow">网络实操训练</div><h1>选择课题，开始排障</h1><p>按章节选择课题，在实验中修复故障，并回看你的排障过程。</p></section>
     <nav id="environment-settings" class="c-col c-envs" aria-label="模拟环境">
-      <div class="c-head c-head-row"><span>模拟环境</span><button id="c-env-add" type="button" class="c-env-add" title="添加环境（如另一台 eNSP Pro）" aria-label="添加模拟环境" hidden></button></div>
+      <div class="c-head c-head-row"><span>模拟环境</span><a id="c-env-manage" class="c-env-manage" href="courses?view=environments" data-icon="settings">环境设置</a><button id="c-env-add" type="button" class="c-env-add" title="添加环境（如另一台 eNSP Pro）" aria-label="添加模拟环境" hidden></button></div>
       <div id="c-envs" class="c-list"><div class="muted c-pad">检测中…</div></div>
-      <div class="c-foot">选择环境浏览课程；接入设置可修改地址，进入课题时才准备设备。</div>
+      <div id="c-env-foot" class="c-foot">选择环境浏览课程；设备地址和接入参数可在环境设置页修改。</div>
     </nav>
     <nav class="c-col c-chapters" aria-label="章节">
       <div id="c-chap-head" class="c-head">学习章节</div>
       <div id="c-chapters" class="c-list"></div>
     </nav>
+    <div id="c-actions" class="c-actions" hidden>
+      <div class="c-action-context"><span id="c-action-kind" class="c-action-kind">当前课题</span><strong id="c-action-topic"></strong><div id="c-prep" class="c-prep"></div></div>
+      <fieldset id="c-entry-modes" class="c-entry-modes"><legend>进入方式</legend>
+        <label data-icon="book"><input type="radio" name="entry-mode" value="practice" checked />练习</label>
+        <label data-icon="terminal"><input type="radio" name="entry-mode" value="lab" />自由实验</label>
+        <label data-icon="shield"><input type="radio" name="entry-mode" value="exam" />考试</label>
+      </fieldset>
+      <p id="c-entry-note" class="c-entry-note"></p>
+      <div class="c-btns">
+        <button id="c-lab" class="c-btn" title="不注入故障，在本题的拓扑上自由操作">准备环境并进入实验</button>
+        <button id="c-practice" class="c-btn primary">准备环境并开始练习</button>
+        <button id="c-exam" class="c-btn" title="本题的考试：计时 15 分钟、无 Agent、无提示，交卷后出成绩单">准备环境并开始考试</button>
+        <button id="c-exam-tpl" class="c-btn primary" hidden>开始考试</button>
+      </div>
+    </div>
     <section class="c-col c-topics" aria-label="课题">
       <div id="c-topic-head" class="c-head">课题</div>
       <div id="c-topics" class="c-list cards"></div>
@@ -51,21 +66,6 @@
     </section>
     <section class="c-col c-preview" aria-label="预览">
       <div id="c-preview" class="c-preview-body"><div class="muted">选择左侧的课题查看详情</div></div>
-      <div id="c-actions" class="c-actions" hidden>
-        <div id="c-prep" class="c-prep"></div>
-        <fieldset id="c-entry-modes" class="c-entry-modes"><legend>进入方式</legend>
-          <label data-icon="book"><input type="radio" name="entry-mode" value="practice" checked />练习</label>
-          <label data-icon="terminal"><input type="radio" name="entry-mode" value="lab" />自由实验</label>
-          <label data-icon="shield"><input type="radio" name="entry-mode" value="exam" />考试</label>
-        </fieldset>
-        <p id="c-entry-note" class="c-entry-note"></p>
-        <div class="c-btns">
-          <button id="c-lab" class="c-btn" title="不注入故障，在本题的拓扑上自由操作">准备环境并进入实验</button>
-          <button id="c-practice" class="c-btn primary">准备环境并开始练习</button>
-          <button id="c-exam" class="c-btn" title="本题的考试：计时 15 分钟、无 Agent、无提示，交卷后出成绩单">准备环境并开始考试</button>
-          <button id="c-exam-tpl" class="c-btn primary" hidden>开始考试</button>
-        </div>
-      </div>
     </section>
   </main>
 

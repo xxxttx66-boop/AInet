@@ -7,22 +7,13 @@
   <link rel="stylesheet" href="../static/app.css" />
   <style>
     html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 13px; }
-    body > main { max-width: 980px; margin: 0 auto; padding: 16px; box-sizing: border-box; }
+    body > main { margin: 0 auto; box-sizing: border-box; }
     main a { color: var(--info); }
     h1 { font-size: 18px; }
     h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
-    th { background: var(--panel); color: var(--sub); font-weight: 500; }
-    button, select, input, textarea { background: #0f1419; color: var(--fg); border: 1px solid var(--line2); border-radius: 3px;
-      font: inherit; padding: 2px 6px; }
     button { cursor: pointer; }
-    button:hover { border-color: #888; }
-    button.danger { border-color: #8e3b3b; }
-    .note { color: #999; font-size: 12px; }
-    .warn { color: #ffb74d; }
-    .err { color: #ef5350; white-space: pre-wrap; }
-    .ok { color: #8bc34a; }
+    .note { font-size: 12px; }
+    .err { white-space: pre-wrap; }
     .form { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 6px 12px; align-items: center; margin: 8px 0; }
     .form label { color: #bbb; }
     .form input[type=number] { width: 90px; }
@@ -30,7 +21,6 @@
     .qrow select { min-width: 0; flex: 1 1 260px; max-width: 460px; }
     .qrow input { width: 90px; }
     textarea { width: 100%; box-sizing: border-box; min-height: 260px; }
-    .wrap { overflow-x: auto; }
     .actions { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
     ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
     ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
@@ -57,7 +47,7 @@
   <p class="note warn">目前系统没有管理员角色，任何登录用户都能新建、编辑、删除考试模板（以后在这里加权限）。</p>
 
   <h2>模板列表</h2>
-  <div id="list" class="wrap"></div>
+  <div id="list" class="template-list"></div>
   <div class="actions"><button id="btn-new">新建模板</button></div>
 
   <div id="editor" hidden>
@@ -115,20 +105,36 @@
     scenarios = d.scenarios;
     platforms = d.platforms || {};
     if (!d.templates.length) { $('list').innerHTML = '<p class="note">暂无模板</p>'; return; }
-    $('list').innerHTML = '<table><thead><tr><th>名称</th><th>题目</th><th>时长</th><th>规则</th><th>操作</th></tr></thead><tbody>' +
-      d.templates.map((t) => {
-        const c = t.config;
-        return `<tr data-id="${t.id}"><td>${esc(t.name)}</td>` +
-          `<td>${c.questions.map((q, i) => `${i + 1}. ${esc(scenarios[q.scenario] || q.scenario)}${ptag(q.scenario)}${q.seed != null ? `（种子 ${q.seed}）` : ''}`).join('<br>')}</td>` +
-          `<td>总 ${mins(c.duration_s)}<br>单题 ${mins(c.question_duration_s)}</td>` +
-          `<td>重试 ${c.retries} 次；${c.hints.allowed ? `提示每级扣 ${c.hints.penalty} 分` : '禁用提示'}；${c.show_topology ? '显示拓扑' : '隐藏拓扑'}；` +
-          `${c.auto_judge ? '自动判定' : '提交验收'}；${c.record_replay ? '记录回放' : '不回放'}${c.shuffle ? '；乱序' : ''}</td>` +
-          `<td><button class="ed">编辑</button> <button class="del danger">删除</button></td></tr>`;
-      }).join('') + '</tbody></table>';
-    for (const tr of $('list').querySelectorAll('tr[data-id]')) {
-      const t = d.templates.find((x) => x.id === Number(tr.dataset.id));
-      tr.querySelector('.ed').onclick = () => edit(t);
-      tr.querySelector('.del').onclick = async () => {
+    $('list').innerHTML = d.templates.map((t) => {
+      const c = t.config;
+      const rules = [
+        `重试 ${c.retries} 次`,
+        c.hints.allowed ? `提示每级扣 ${c.hints.penalty} 分` : '禁用提示',
+        c.show_topology ? '显示拓扑' : '隐藏拓扑',
+        c.auto_judge ? '自动判定' : '提交验收',
+        c.record_replay ? '记录回放' : '不回放',
+        ...(c.shuffle ? ['题目乱序'] : []),
+      ];
+      return `<article class="template-card" data-id="${t.id}">` +
+        '<div class="template-card-head"><div>' +
+        `<h3 class="template-card-title">${esc(t.name)}</h3><div class="template-card-summary">多题考试 · ${c.questions.length} 道题</div></div>` +
+        '<div class="template-stats">' +
+        `<div class="template-stat"><span>总时长</span><strong>${mins(c.duration_s)}</strong></div>` +
+        `<div class="template-stat"><span>单题时长</span><strong>${mins(c.question_duration_s)}</strong></div>` +
+        `<div class="template-stat"><span>题目数量</span><strong>${c.questions.length} 道</strong></div></div></div>` +
+        '<div class="template-card-body"><section><h3>考试题目</h3><ol class="template-question-list">' +
+        c.questions.map((q) => `<li>${esc(scenarios[q.scenario] || q.scenario)}${ptag(q.scenario)}` +
+          `${q.seed != null ? ` <span class="template-seed">种子 ${q.seed}</span>` : ''}</li>`).join('') +
+        '</ol></section><section><h3>考试规则</h3><div class="template-rules">' +
+        rules.map((x) => `<span class="template-rule">${esc(x)}</span>`).join('') +
+        '</div></section></div>' +
+        '<div class="template-card-actions"><button class="ed" data-icon="clipboard">编辑</button>' +
+        '<button class="del danger" data-icon="close">删除</button></div></article>';
+    }).join('');
+    for (const card of $('list').querySelectorAll('.template-card[data-id]')) {
+      const t = d.templates.find((x) => x.id === Number(card.dataset.id));
+      card.querySelector('.ed').onclick = () => edit(t);
+      card.querySelector('.del').onclick = async () => {
         if (!confirm(`删除模板「${t.name}」？已有的考试记录不受影响。`)) return;
         try { await api('DELETE', `../api/exam/templates/${t.id}`); load(); } catch (e) { alert(`删除失败：${e.message}`); }
       };

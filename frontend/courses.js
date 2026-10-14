@@ -27,6 +27,7 @@
   const incoming = new URLSearchParams(location.search);
   let requestedTopic = incoming.get('s');
   const requestedPlatform = incoming.get('platform');
+  const envSettingsPage = incoming.get('view') === 'environments';
   const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n || 0))) || '—';
   const store = {
@@ -56,7 +57,7 @@
     cur: null,           // GET api/topology/current（当前环境的拓扑，用于预览）
     busy: false,
     token: null,
-    epOpen: null,        // 打开着「接入设置」气泡的环境 key
+    epOpen: envSettingsPage ? incoming.get('env') : null, // 设置页可通过 ?env= 直接打开对应环境
     epMsg: null,         // 气泡里保存后的结果（重画后仍显示）
     epSuggest: {},       // 已存 http 地址的「建议改为 https」检测结果 {'<key>|<地址>': https 地址 | '' | 'pending'}
     examActive: false,   // 有考试进行中：不显示接入设置
@@ -98,18 +99,20 @@
       pick = (envs.find((e) => e.current && ok(e)) || envs.find(ok) || {}).key || null;
     }
     renderEnvs();
-    if (pick !== st.env || force) await selectEnv(pick, true);
+    if (!envSettingsPage && (pick !== st.env || force)) await selectEnv(pick, true);
   }
   function renderEnvs() {
     const box = $('c-envs');
     box.innerHTML = '';
-    $('c-env-add').hidden = st.examActive || !(st.envs.types || []).length;   // 考试中不显示「+」
-    for (const e of st.envs.environments) {
+    $('c-env-add').hidden = !envSettingsPage || st.examActive || !(st.envs.types || []).length;
+    $('c-env-manage').hidden = envSettingsPage;
+    const displayOrder = (e) => e.key === 'ensp' ? 2 : e.key === 'enspro' ? 1 : 0;
+    for (const e of [...st.envs.environments].sort((a, b) => displayOrder(a) - displayOrder(b))) {
       // 环境按钮与「接入设置」齿轮是兄弟元素（按钮里不能套按钮；离线时环境按钮禁用，齿轮仍可点——离线时最需要改地址）
       const wrap = document.createElement('div');
       wrap.className = 'c-env-wrap' + (st.epOpen === e.key ? ' open' : '');
       const b = document.createElement('button');
-      b.className = 'c-env' + (e.key === st.env ? ' on' : '') + (e.available ? '' : ' off');
+      b.className = 'c-env' + ((envSettingsPage ? e.current : e.key === st.env) ? ' on' : '') + (e.available ? '' : ' off');
       b.dataset.key = e.key;
       b.disabled = !e.available;
       const short = L.reasonText(e.reason_code);
@@ -121,9 +124,18 @@
         : `（离线${short ? ` · ${esc(short)}` : ''}）`;
       b.innerHTML = `<span class="c-env-name"><span class="env-dot ${e.available ? (e.warning ? 'st-error' : 'st-running') : 'st-none'}"></span>${esc(e.label)}</span>` +
         `<span class="c-env-sub">${sub}</span>` + (why ? `<span class="c-env-why">${esc(why)}</span>` : '');
-      b.onclick = () => { if (!st.busy) selectEnv(e.key); };
+      b.onclick = () => {
+        if (st.busy) return;
+        if (!envSettingsPage) { selectEnv(e.key); return; }
+        if (!e.endpoint) return;
+        st.epOpen = st.epOpen === e.key ? null : e.key;
+        st.epMsg = null;
+        renderEnvs();
+        const input = document.getElementById('c-ep-input');
+        if (input) input.focus();
+      };
       wrap.appendChild(b);
-      if (e.endpoint && !st.examActive) {           // 考试中不显示接入设置
+      if (envSettingsPage && e.endpoint && !st.examActive) {
         const g = document.createElement('button');
         g.type = 'button';
         g.className = 'c-env-cfg';
@@ -659,6 +671,7 @@
     const box = $('c-preview');
     const s = topicScenario();
     const tpl = topicTemplate();
+    const canRepeat = !!(s && s.progress === 'passed');
     $('c-actions').hidden = !(s || tpl);
     if (window.AInetUI) window.AInetUI.syncCourseEntry(!!tpl);
     if (!s && !tpl) {
@@ -671,6 +684,8 @@
     if (tpl) {
       const c = tpl.config || {};
       const qs = c.questions || [];
+      $('c-action-kind').textContent = '考试模板';
+      $('c-action-topic').textContent = tpl.name;
       box.innerHTML = `<div class="c-title"><h1>${esc(tpl.name)}</h1><span class="muted">考试 · ${qs.length} 题 · 总时长 ${Math.round((c.duration_s || 0) / 60)} 分钟</span></div>` +
         `<ol class="c-qlist">${qs.map((q) => `<li>${esc((st.templateTitles || {})[q.scenario] || q.scenario)}</li>`).join('')}</ol>` +
         `<p class="c-desc">每题单独计时验收：排查修复后点「提交本题」，${c.retries ? `每题可重试 ${c.retries} 次，` : ''}` +
@@ -679,7 +694,8 @@
       return;
     }
     const chap = (st.data.chapters || []).find((c) => c.id === s.chapter);
-    const canRepeat = s.progress === 'passed';
+    $('c-action-kind').textContent = canRepeat ? '已通过课题' : '当前课题';
+    $('c-action-topic').textContent = s.title;
     $('c-practice').textContent = canRepeat ? '再次练习' : '准备环境并开始练习';
     $('c-practice').title = canRepeat ? '本题已通过，可重复练习；每次会单独记录' : '';
     box.innerHTML = `<div class="c-title"><h1>${esc(s.title)}</h1><span class="muted">${esc(chap ? chap.id : '')}` +
@@ -1230,6 +1246,16 @@
   }
 
   async function init() {
+    if (envSettingsPage) {
+      document.title = '环境设置 · ainet';
+      document.querySelector('.topbar .page-title').textContent = '环境设置';
+      document.querySelector('.course-intro .ui-eyebrow').textContent = '模拟器接入与运行参数';
+      document.querySelector('.course-intro h1').textContent = '管理模拟环境';
+      document.querySelector('.course-intro p').textContent = '集中设置环境地址、设备密码、启动超时和设备容量。';
+      $('c-env-foot').textContent = '离线环境也可以修改接入参数；保存后会重新检测连接状态。';
+    } else {
+      $('c-env-foot').textContent = '选择环境浏览课程；设备地址和接入参数可在环境设置页修改。';
+    }
     const res = await fetch('api/me');
     if (res.status === 401) { location.href = 'login'; return; }
     const me = await res.json();
