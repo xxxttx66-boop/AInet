@@ -679,6 +679,9 @@
       return;
     }
     const chap = (st.data.chapters || []).find((c) => c.id === s.chapter);
+    const canRepeat = s.progress === 'passed';
+    $('c-practice').textContent = canRepeat ? '再次练习' : '准备环境并开始练习';
+    $('c-practice').title = canRepeat ? '本题已通过，可重复练习；每次会单独记录' : '';
     box.innerHTML = `<div class="c-title"><h1>${esc(s.title)}</h1><span class="muted">${esc(chap ? chap.id : '')}` +
       ` · 难度 ${stars(s.difficulty || s.level)}${s.est_minutes ? ` · 约 ${s.est_minutes} 分钟` : ''}</span></div>` +
       `<div class="c-tags">${(s.tags || s.knowledge_tags || []).map((t) => `<span class="c-chip">${esc(t)}</span>`).join('')}</div>` +
@@ -701,7 +704,7 @@
       prep = `ainet 不能远程打开 eNSP 经典版的拓扑：需要在 eNSP 中打开 <b>${esc(s.topology.replace(/\.topo$/i, ''))}</b> ` +
         `拓扑并启动 ${esc(req.join('、'))}，检测到就绪后才进入`;
     }
-    $('c-prep').innerHTML = prep;
+    $('c-prep').innerHTML = prep + (canRepeat ? '<br><b>本题已通过，可再次练习；每次练习都会单独记录。</b>' : '');
   }
 
   function svgEl(tag, attrs, parent) {
