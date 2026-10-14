@@ -25,13 +25,13 @@ jobs:
       AINET_ENSP_DEVICES_DIRS: ''
       AINET_AUTO_LOGIN: ''
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
         with:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: backend/requirements.txt
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7.1.0
         with:
           node-version: '22'
       - run: python -m pip install -r backend/requirements.txt
@@ -40,7 +40,7 @@ jobs:
       - name: Unit and integration tests with fake devices
         working-directory: backend
         run: python -m pytest tests --ignore=tests/e2e --ignore=tests/manual -q --junitxml=test-results.xml
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7.0.2
         if: failure()
         with:
           name: tests-${{ matrix.os }}-${{ matrix.python }}

@@ -38,6 +38,7 @@ def _isolate_runtime(monkeypatch):
 def _local_only(monkeypatch):
     """测试绝不连真实设备：设备主机固定为本机（各测试另把 connector 换成假设备）。
     练习种子固定为 0（参数化场景取默认值，与参数化之前一致）；考试计时器不在后台跑，测试里手动 tick。"""
+    monkeypatch.delenv("ENSP_HOST", raising=False)
     monkeypatch.setattr(config, "ENSP_HOST", "127.0.0.1")
     monkeypatch.setattr(config, "PRACTICE_SEED", 0)
     monkeypatch.setattr(config, "EXAM_TICK", 0)

@@ -629,6 +629,7 @@ def test_prepare_view_reports_restart_count(app, monkeypatch):
             rest.instant_start = True
         return orig(req)
     rest.handle = handle
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
     mgr = c.app.state.labmgr
     mgr.prepare_poll = 0.05
     mgr.power.start_timeout, mgr.power.poll, mgr.power.restart_gap = 0.3, 0.05, 0.5
