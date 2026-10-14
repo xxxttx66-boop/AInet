@@ -215,10 +215,13 @@
       const layout = window.__ainet && window.__ainet.layout;
       if (!layout) return;
       if (!snapshot) {
-        snapshot = { topo: document.body.classList.contains('topo-collapsed'), side: document.body.classList.contains('side-collapsed') };
+        snapshot = { topo: document.body.classList.contains('topo-collapsed'), side: document.body.classList.contains('side-collapsed'),
+          drawer: document.body.classList.contains('drawer-open') };
         layout.setTopoCollapsed(true); layout.setSideCollapsed(true);
       } else {
-        layout.setTopoCollapsed(snapshot.topo); layout.setSideCollapsed(snapshot.side); snapshot = null;
+        layout.setTopoCollapsed(snapshot.topo);
+        layout.setSideCollapsed(layout.isNarrow() ? !snapshot.drawer : snapshot.side);
+        snapshot = null;
       }
       focus.textContent = snapshot ? '恢复面板' : '专注终端'; focus.setAttribute('aria-pressed', String(!!snapshot));
     };
