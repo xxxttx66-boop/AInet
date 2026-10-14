@@ -456,10 +456,10 @@ def test_cancel_after_leak_still_penalized(pclient, monkeypatch):
             await t
         except asyncio.CancelledError:
             pass
-        for _ in range(100):
-            if db.get_attempt(st["attempt_id"])["agent_penalties"]:
-                break
-            await asyncio.sleep(0.02)
+        # 扣分写入发生在回复落库之前，不能把扣分当作整个收尾任务已完成。
+        pending = tuple(svc._bg)
+        if pending:
+            await asyncio.wait_for(asyncio.gather(*pending), timeout=10)
         return got
     got = pclient.portal.call(go)
     assert sum('"delta"' in g for g in got) == 2

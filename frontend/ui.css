@@ -310,6 +310,7 @@ body[data-ui-page="login"] .ok { color:var(--ok-fg); }
   .nav-mobile-open .sidebar-secondary a[data-nav], .nav-mobile-open .sidebar-secondary button { width:auto; justify-content:flex-start; }
   body[data-ui-page="workbench"] { padding-top:64px; }
   .ui-upgraded .topbar, .ui-upgraded.course-page .topbar { min-height:58px; top:64px; padding:10px 14px; gap:8px; flex-wrap:wrap; }
+  .ui-upgraded .op-bar { top:0; }
   .ui-workbench-title { gap:8px; }
   .ui-workbench-identity { flex-basis:100%; }
   .ui-workbench-title .user-wrap { margin-left:auto; }
@@ -321,6 +322,7 @@ body[data-ui-page="login"] .ok { color:var(--ok-fg); }
   #main { padding:8px; }
   #term-area { min-width:0; }
   #topo-panel { max-width:40%; }
+  .topo-tools label { display:none; }
   .pane-head { height:auto; min-height:30px; }
   #panes.split { flex-direction:column; }
   #panes.split .pane { min-width:0; flex-basis:50% !important; flex-grow:1; }
