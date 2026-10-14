@@ -43,7 +43,7 @@
 - `pip check` 无损坏的依赖关系；`git diff --check` 通过。
 - `stop_ainet.ps1` 仅执行 PowerShell 语法解析，未执行停止操作。
 
-GitHub 的矩阵执行需分支推送后触发，Linux / Python 3.11 尚未在本机验证；当前未进行真机或浏览器 UI 验收。
+分支已推送并创建 [草稿 PR #1](https://github.com/xxxttx66-boop/AInet/pull/1)，GitHub 矩阵已触发；最新远端结果以 PR 的 Checks 为准。首次 CI 问题修复后，本机环境 / 沙箱相关测试 **63 passed**。Linux / Python 3.11 由远端 CI 覆盖；当前未进行真机或浏览器 UI 验收。
 
 ## 4. 仓库整理
 
