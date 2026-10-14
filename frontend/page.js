@@ -6,6 +6,7 @@
   const who = document.getElementById('who');
   fetch(`${root}api/me`).then((r) => (r.ok ? r.json() : null)).then((p) => {
     if (p && who) who.textContent = `${p.student.name}（${p.student.login}）`;
+    if (p && window.AInetUI) window.AInetUI.setExamLocked((p.exams || []).some((x) => x.status === 'running'));
     // 自动登录模式（AINET_AUTO_LOGIN）：隐藏「切换」「登出」
     if (p && p.auto_login) {
       const sw = document.querySelector('#user a[href$="login"]');

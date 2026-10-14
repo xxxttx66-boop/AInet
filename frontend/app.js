@@ -1,10 +1,10 @@
-// ainet 操作页（工作台）：单层顶栏 + 拓扑图（SVG）| 多设备终端（标签页 / 左右分屏）| 右侧面板（工单详情 / Agent）。
+// ainet 操作页（工作台）：ui.js / ui.css 提供平台导航与两行控制区；拓扑图 | 大终端 | 工单 / Agent。
 // 只用原生 JS 与本地化的 xterm.js；每个设备一个常驻 xterm 实例和 WebSocket。
 // 课题从课程页带入（?s=场景 id&mode=lab|practice|exam；进行中的练习 / 考试以服务端为准）。模式切换规则（spec §16.1）：
 //   实验 ↔ 练习可以切（练习中切到实验 = 放弃本次练习，确认后结束并复位）；实验 / 练习 → 考试（本题的单题考试）要确认；
 //   考试中不能切到其他模式，只能交卷；操作页内不能换题，换题 / 换环境 / 换拓扑要「退出到课程」（练习中确认后按放弃结束）。
 // 布局状态（docs/design/ui-layout.html）都落在 body 的类上：mode-lab|practice|exam（顶栏模式）、practice-active /
-// exam-active（进行中）、topo-collapsed / side-collapsed（48px 图标栏）、narrow（< 1100px，右侧面板改抽屉）、
+// exam-active（进行中）、topo-collapsed / side-collapsed（48px 图标栏）、narrow（实际工作区 < 1050px 时右侧改抽屉）、
 // drawer-open。面板宽度与折叠状态存 localStorage（读写都 try/catch）。
 (() => {
   'use strict';
@@ -701,7 +701,8 @@
     host.className = 'term-host';
     const tab = {
       port, name: dev.name, devId: dev.id || null, host,
-      term: new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 5000, theme: { background: '#0b0e12' } }),
+      term: new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 5000,
+        theme: { background: '#101923', foreground: '#d7e1ec', cursor: '#d7e1ec' } }),
       fit: new FitAddon.FitAddon(), ws: null, status: 'closed', opened: false, el: null,
     };
     tab.term.loadAddon(tab.fit);
@@ -911,7 +912,7 @@
     },
   };
   const MIN_TERM = 260, RAIL = 48;
-  const PANEL = { topo: { def: 300, min: 200, max: 720 }, side: { def: 380, min: 300, max: 760 } };
+  const PANEL = { topo: { def: 220, min: 180, max: 720 }, side: { def: 300, min: 280, max: 760 } };
   const widths = {};
   for (const k of Object.keys(PANEL)) {
     const v = parseFloat(store.get(`${k}W`));
@@ -929,7 +930,7 @@
   // 按主区宽度收紧两侧面板，保证终端区至少 MIN_TERM（分屏时两倍）：先收右侧，再收拓扑
   function effWidths() {
     const mainW = $('main').clientWidth || window.innerWidth;
-    const need = state.split ? 2 * MIN_TERM : MIN_TERM;
+    const need = state.split && window.innerWidth > 700 ? 2 * MIN_TERM : MIN_TERM;
     let topo = topoOpen() ? widths.topo : 0;
     let side = sideInline() ? widths.side : 0;
     const rails = (topoOpen() ? 0 : RAIL) + (sideRail() ? RAIL : 0);
@@ -1066,21 +1067,22 @@
     if (e.key === 'Escape' && body.classList.contains('drawer-open')) setSideCollapsed(true);
   });
 
-  // 窄屏（< 1100px）：右侧面板改成抽屉
-  const narrowMq = window.matchMedia('(max-width: 1099px)');
+  // 按实际工作区宽度决定抽屉模式，导航展开或收起时也重新计算。
+  const narrowMain = () => $('main').clientWidth < 1050;
   function applyNarrow() {
-    body.classList.toggle('narrow', narrowMq.matches);
-    if (!narrowMq.matches) body.classList.remove('drawer-open');
+    const narrow = narrowMain();
+    body.classList.toggle('narrow', narrow);
+    if (!narrow) body.classList.remove('drawer-open');
     applyWidths();
   }
-  if (narrowMq.addEventListener) narrowMq.addEventListener('change', applyNarrow);
-  else if (narrowMq.addListener) narrowMq.addListener(applyNarrow);
+  new ResizeObserver(applyNarrow).observe($('main'));
 
   // 初始折叠状态
   body.classList.toggle('topo-collapsed', store.get('topoCollapsed') === '1');
   body.classList.toggle('side-collapsed', store.get('sideCollapsed') === '1');
-  body.classList.toggle('narrow', narrowMq.matches);
-  window.addEventListener('resize', () => applyWidths());
+  body.classList.toggle('narrow', narrowMain());
+  if (window.innerWidth < 700 && store.get('topoCollapsed') === null) body.classList.add('topo-collapsed');
+  window.addEventListener('resize', applyNarrow);
   new ResizeObserver(() => { gridKey = ''; drawGrid(); }).observe($('topo-panel'));
 
   // 隐藏式滚动条：滚动中的容器短暂加 .scrolling，让滚动条在非悬停时也显示

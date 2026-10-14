@@ -29,10 +29,14 @@
       *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
     }
   </style>
+  <link rel="stylesheet" href="static/app.css" />
+  <link rel="stylesheet" href="static/ui.css" />
+  <script src="static/ui.js"></script>
 </head>
-<body>
+<body data-ui-page="login">
 <main>
-  <h1>ainet 局域网运维实操练习</h1>
+  <h1>登录网络实操训练平台</h1>
+  <p class="muted">选择学员，继续课程、实验与排障练习。</p>
 
   <form id="loginForm">
     <label for="pick">快速切换学生</label>
@@ -53,7 +57,7 @@
       <label for="nName">姓名</label>
       <input id="nName" required />
       <label for="nPassword">密码</label>
-      <input id="nPassword" required />
+      <input id="nPassword" type="password" autocomplete="new-password" required />
       <button type="submit">创建</button>
       <div id="newMsg" class="msg"></div>
     </form>

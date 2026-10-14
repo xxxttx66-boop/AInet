@@ -1,4 +1,5 @@
-/* ainet 样式。布局以 docs/design/ui-layout.html 为准：操作页 = 单层顶栏 56px（⑥）→ 通知条 →
+/* ainet 基础组件与历史布局样式。当前视觉与布局由 ui.css 覆盖，见 docs/design/ui-upgrade.md。
+   历史布局：操作页 = 单层顶栏 56px（⑥）→ 通知条 →
    拓扑 | 终端 | 右侧面板（工单 / Agent），面板可收起成 48px 图标栏；课程选择页（⑤）= 环境 → 章节 → 课题 → 预览四列。
    配色用 :root 变量统一管理。profile / exam_report / exam_admin 页面复用这里的 .topbar 等通用样式（同一套顶栏风格）。 */
 :root {

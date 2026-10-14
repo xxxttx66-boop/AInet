@@ -6,14 +6,18 @@
   <title>ainet 工作台</title>
   <link rel="stylesheet" href="vendor/xterm.css" />
   <link rel="stylesheet" href="static/app.css" />
+  <link rel="stylesheet" href="static/ui.css" />
+  <script src="static/ui.js"></script>
 </head>
-<!-- 布局（docs/design/ui-layout.html ⑥）：单层顶栏 → 通知条 → 拓扑 | 终端 | 右侧面板（工单 / Agent）。
+<!-- 当前布局以 docs/design/ui-upgrade.md 为准：平台导航 + 题名行 / 操作行 + 大终端工作区。
+     以下保留历史布局的 DOM 绑定说明；ui.js 挪动现有节点，ID 与操作规则保留。
+     历史布局（docs/design/ui-layout.html ⑥）：单层顶栏 → 通知条 → 拓扑 | 终端 | 右侧面板（工单 / Agent）。
      顶栏：ainet、模式（实验 / 练习 / 考试）、「模式标签 + 题名 ▾」（点开气泡：环境 / 拓扑 / 本题设备 / 章节 / 工单）、
      计时 / 判定 / 操作按钮、学员名 ▾（我的档案 / 切换学员 / 登出）、「退出到课程」。课题从课程页带入（?s=场景 id）；
      换题、换环境、换拓扑都要「退出到课程」。
      body 上的状态类：mode-lab|mode-practice|mode-exam、practice-active、exam-active、topo-collapsed、
      side-collapsed、narrow（< 1100px，右侧面板改抽屉）、drawer-open、resizing。 -->
-<body class="mode-lab">
+<body class="mode-lab" data-ui-page="workbench">
   <header id="bar" class="topbar op-bar">
     <a class="logo" href="courses" title="回到课程选择">ainet</a>
     <nav id="mode-nav" class="mode-nav" aria-label="模式">

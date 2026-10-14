@@ -280,7 +280,7 @@ async def index(request: Request) -> FileResponse | RedirectResponse:
 
 
 # 工作台页面拆出的脚本 / 样式（只放行这几个文件）
-_STATIC_FILES = {"app.js", "app.css", "exam.js", "agent.js", "page.js", "labswitch.js", "courses.js", "aiset.js"}
+_STATIC_FILES = {"app.js", "app.css", "ui.js", "ui.css", "exam.js", "agent.js", "page.js", "labswitch.js", "courses.js", "aiset.js"}
 
 
 @app.get("/static/{name}")

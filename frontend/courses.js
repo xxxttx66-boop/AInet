@@ -24,6 +24,9 @@
   const L = window.LabSwitch;
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const EXAM_CH = '__exam__';
+  const incoming = new URLSearchParams(location.search);
+  let requestedTopic = incoming.get('s');
+  const requestedPlatform = incoming.get('platform');
   const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n || 0))) || '—';
   const store = {
@@ -90,6 +93,7 @@
     const envs = st.envs.environments;
     const ok = (e) => !!e.available;
     let pick = st.env || store.get('env');
+    if (!st.env && requestedPlatform) pick = (envs.find((e) => ok(e) && e.platform === requestedPlatform) || {}).key || pick;
     if (!envs.some((e) => e.key === pick && ok(e))) {
       pick = (envs.find((e) => e.current && ok(e)) || envs.find(ok) || {}).key || null;
     }
@@ -123,7 +127,7 @@
         const g = document.createElement('button');
         g.type = 'button';
         g.className = 'c-env-cfg';
-        g.textContent = '⚙';
+        g.dataset.icon = 'settings';
         g.title = '接入设置（地址、凭据状态、测试连接）';
         g.setAttribute('aria-label', `${e.label} 接入设置`);
         g.setAttribute('aria-expanded', String(st.epOpen === e.key));
@@ -510,6 +514,8 @@
     const env = envInfo();
     $('c-chap-head').textContent = `${env.label} · 学习章节`;
     let ch = keepTopic ? (st.chapter || store.get('chapter')) : null;
+    const target = requestedTopic && st.data.scenarios.find((s) => s.id === requestedTopic);
+    if (target) { ch = target.chapter; st.topic = target.id; keepTopic = true; requestedTopic = null; }
     const counts = chapterCounts();
     if (ch !== EXAM_CH && !counts[ch]) ch = (st.data.chapters.find((c) => counts[c.id]) || {}).id || null;
     renderChapters();
@@ -617,12 +623,14 @@
         const card = document.createElement('button');
         card.className = 'c-card';
         card.dataset.id = s.id;
-        card.innerHTML = `<span class="c-card-top"><strong>${esc(s.title)}</strong><span class="c-prog ${pcls}">${ptxt}</span></span>` +
+        card.innerHTML = `<span class="c-topic-label" data-icon="network">${esc(chap ? chap.title : '实操课题')}</span>` +
+          `<span class="c-card-top"><strong>${esc(s.title)}</strong><span class="c-prog ${pcls}">${ptxt}</span></span>` +
           `<span class="c-card-sum">${esc(s.summary || '')}</span>` +
           `<span class="c-card-tags"><span class="c-diff">难度 ${stars(s.difficulty || s.level)}</span>` +
           `${s.est_minutes ? `<span class="c-mins">约 ${s.est_minutes} 分钟</span>` : ''}` +
           // 草稿题（未真机验证）只在服务端开了 AINET_SHOW_DRAFTS 时才会列出
-          `${s.draft ? '<span class="c-mins" title="未在真机上验证（AINET_SHOW_DRAFTS=1 时才列出）">草稿 · 未验证</span>' : ''}</span>`;
+          `${s.draft ? '<span class="c-mins" title="未在真机上验证（AINET_SHOW_DRAFTS=1 时才列出）">草稿 · 未验证</span>' : ''}</span>` +
+          '<span class="c-topic-link">查看工单与拓扑<span aria-hidden="true">→</span></span>';
         card.onclick = () => { if (!st.busy) selectTopic(s.id); };
         box.appendChild(card);
       }
@@ -652,6 +660,7 @@
     const s = topicScenario();
     const tpl = topicTemplate();
     $('c-actions').hidden = !(s || tpl);
+    if (window.AInetUI) window.AInetUI.syncCourseEntry(!!tpl);
     if (!s && !tpl) {
       box.innerHTML = '<div class="muted">选择左侧的课题查看详情</div>';
       return;
@@ -672,10 +681,10 @@
     const chap = (st.data.chapters || []).find((c) => c.id === s.chapter);
     box.innerHTML = `<div class="c-title"><h1>${esc(s.title)}</h1><span class="muted">${esc(chap ? chap.id : '')}` +
       ` · 难度 ${stars(s.difficulty || s.level)}${s.est_minutes ? ` · 约 ${s.est_minutes} 分钟` : ''}</span></div>` +
-      `<p class="c-desc">${esc(s.symptom)}</p>` +
       `<div class="c-tags">${(s.tags || s.knowledge_tags || []).map((t) => `<span class="c-chip">${esc(t)}</span>`).join('')}</div>` +
       '<div class="c-topo"><div class="c-topo-cap" id="c-topo-cap"></div><svg id="c-topo-svg" xmlns="http://www.w3.org/2000/svg"></svg>' +
-      '<div class="c-topo-legend">橙框 = 本题涉及 · 虚线 = 未启动</div></div>';
+      '<div class="c-topo-legend">橙框 = 本题涉及 · 虚线 = 未启动</div></div>' +
+      `<section class="c-ticket"><h2>工单与验收目标</h2><p class="c-desc">${esc(s.symptom)}</p></section>`;
     drawTopo(s);
     // 将要准备的环境
     const req = s.required_devices || [];
@@ -1030,6 +1039,7 @@
   }
   function setBusy(on) {
     st.busy = on;
+    $('c-entry-modes').disabled = on;
     for (const id of ['c-lab', 'c-practice', 'c-exam', 'c-exam-tpl', 'c-recheck']) $(id).disabled = on || $(id).dataset.locked === '1';
     document.body.classList.toggle('c-busy', on);
   }
@@ -1167,6 +1177,7 @@
     try {
       const ex = await api('GET', 'api/exam/current');
       st.examActive = !!ex.active;
+      if (window.AInetUI) window.AInetUI.setExamLocked(st.examActive);
       $('um-ai').hidden = st.examActive || !window.AiSettings;
       if (ex.active) {
         text = `考试「${ex.name}」进行中（第 ${ex.current + 1} / ${ex.total} 题）`; href = './?mode=exam';
