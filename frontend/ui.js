@@ -77,8 +77,11 @@
     const body = document.body;
     const root = body.dataset.root || '';
     const workbench = body.dataset.uiPage === 'workbench';
-    const page = new URLSearchParams(location.search).get('view') === 'environments'
-      ? 'environment-settings' : (body.dataset.uiPage || 'courses');
+    const routeView = new URLSearchParams(location.search).get('view');
+    const page = routeView === 'environments' ? 'environment-settings'
+      : body.dataset.uiPage === 'courses'
+        ? ({ catalog: 'catalog', exams: 'exams' }[routeView] || 'home')
+        : (body.dataset.uiPage || 'home');
     body.dataset.uiPage = page;
     body.classList.add('ui-upgraded');
     if (page !== 'login') {
@@ -86,10 +89,13 @@
       sidebar.id = 'app-sidebar';
       sidebar.className = 'app-sidebar';
       sidebar.setAttribute('aria-label', '应用导航');
-      sidebar.innerHTML = `<a class="sidebar-brand" href="${root}courses" aria-label="ainet 课程中心"><span class="brand-mark">a</span><span class="sidebar-label">ainet</span></a>` +
+      sidebar.innerHTML = `<a class="sidebar-brand" href="${root}courses" aria-label="ainet 学习首页"><span class="brand-mark">a</span><span class="sidebar-label">ainet</span></a>` +
         '<p class="sidebar-tagline sidebar-label">网络实操训练</p>' +
         '<nav class="sidebar-nav" aria-label="主要页面">' +
-        `<a href="${root}courses" data-nav="courses" data-icon="book" title="课程中心"><span class="sidebar-label">课程中心</span></a>` +
+        `<a href="${root}courses" data-nav="home" data-icon="chart" title="学习首页"><span class="sidebar-label">学习首页</span></a>` +
+        `<a href="${root}courses?view=catalog" data-nav="catalog" data-icon="book" title="课程训练"><span class="sidebar-label">课程训练</span></a>` +
+        `<a href="${root}custom-labs" data-nav="custom-labs" data-icon="network" title="自定义实验"><span class="sidebar-label">自定义实验</span></a>` +
+        `<a href="${root}courses?view=exams" data-nav="exams" data-icon="shield" title="考试中心"><span class="sidebar-label">考试中心</span></a>` +
         `<a href="${root}./" data-nav="workbench" data-icon="terminal" title="实验工作台"><span class="sidebar-label">实验工作台</span></a>` +
         `<a href="${root}profile" data-nav="profile" data-icon="chart" title="学习记录"><span class="sidebar-label">学习记录</span></a></nav>` +
         '<div class="sidebar-secondary">' +
@@ -126,20 +132,25 @@
       else document.getElementById('ui-ai-settings').hidden = true;
       if (workbench) {
         const exit = document.getElementById('btn-exit');
+        document.addEventListener('click', (event) => {
+          const link = event.target.closest('a[href]');
+          if (!link || !body.classList.contains('exam-active')) return;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          exit.dataset.uiExitHref = link.href;
+          exit.click();
+        }, true);
         sidebar.addEventListener('click', (event) => {
           const link = event.target.closest('a');
           if (!link) return;
-          if (body.classList.contains('exam-active')) { event.preventDefault(); return; }
-          if (link.dataset.nav === 'courses' || link.classList.contains('sidebar-brand')) {
-            event.preventDefault(); exit.click();
+          if (['home', 'catalog', 'custom-labs', 'exams'].includes(link.dataset.nav) || link.classList.contains('sidebar-brand')) {
+            event.preventDefault();
+            exit.dataset.uiExitHref = link.href;
+            exit.click();
           }
         });
         const syncLocks = () => {
           const exam = body.classList.contains('exam-active');
-          for (const link of sidebar.querySelectorAll('a')) {
-            if (exam) { if (link.hasAttribute('href')) link.dataset.uiHref = link.getAttribute('href'); link.removeAttribute('href'); link.setAttribute('aria-disabled', 'true'); }
-            else { if (link.dataset.uiHref) link.setAttribute('href', link.dataset.uiHref); link.removeAttribute('aria-disabled'); }
-          }
           document.getElementById('ui-ai-settings').hidden = exam || !window.AiSettings;
         };
         new MutationObserver(syncLocks).observe(body, { attributes: true, attributeFilter: ['class'] });

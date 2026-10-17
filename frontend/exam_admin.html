@@ -32,8 +32,8 @@
       *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
     }
   </style>
-  <link rel="stylesheet" href="../static/ui.css" />
-  <script src="../static/ui.js"></script>
+  <link rel="stylesheet" href="../static/ui.css?v=ui-20261015-1" />
+  <script src="../static/ui.js?v=exam-nav-20261017-1"></script>
 </head>
 <body class="page" data-root="../" data-ui-page="templates">
 <header class="topbar">
@@ -44,7 +44,7 @@
 </header>
 <main>
   <h1>考试模板管理</h1>
-  <p class="note warn">目前系统没有管理员角色，任何登录用户都能新建、编辑、删除考试模板（以后在这里加权限）。</p>
+  <p class="note">在这里创建和整理个人考试模板；模板只组合已有课题，不会修改课程题目。</p>
 
   <h2>模板列表</h2>
   <div id="list" class="template-list"></div>
@@ -54,6 +54,7 @@
     <h2 id="ed-title">新建模板</h2>
     <div class="form">
       <label for="f-name">名称</label><input id="f-name" maxlength="100" />
+      <label for="f-platform">适用设备平台</label><select id="f-platform"></select>
       <label for="f-duration">总时长（分钟）</label><input id="f-duration" type="number" min="0.01" step="0.01" />
       <label for="f-qduration">单题时长（分钟，空 = 不限）</label><input id="f-qduration" type="number" min="0.01" step="0.01" />
       <label for="f-retries">每题允许重试次数</label><input id="f-retries" type="number" min="0" max="20" step="1" />
@@ -69,8 +70,9 @@
       <label for="f-replay">记录命令回放</label><input id="f-replay" type="checkbox" />
       <label for="f-shuffle">题目乱序</label><input id="f-shuffle" type="checkbox" />
     </div>
-    <div><b>题目</b> <span class="note">种子留空 = 每次开考随机（参数化题每次注入值不同）；填整数可复现；0 = 题目默认值</span></div>
+    <div><b>题目</b> <span class="note">所有题目必须与适用平台一致。种子留空 = 每次开考随机（参数化题每次注入值不同）；填整数可复现；0 = 题目默认值</span></div>
     <div id="f-questions"></div>
+    <p id="f-platform-warning" class="note warn" hidden></p>
     <div class="actions"><button id="btn-addq">添加题目</button></div>
     <details id="json-box"><summary>高级：直接编辑 JSON（保存时以 JSON 为准）</summary>
       <textarea id="f-json" spellcheck="false"></textarea>
@@ -85,10 +87,32 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  let scenarios = {}, platforms = {}, editing = null, jsonDirty = false;
+  let scenarios = {}, platforms = {}, activePlatform = 'vrp5', editing = null, jsonDirty = false;
   // 题名不带平台后缀：两个平台可能有同名题，列表与下拉框都带上平台
   const ptag = (k) => (platforms[k] && window.LabSwitch ? window.LabSwitch.platformTag(platforms[k]) : '');
   const ptext = (k) => (platforms[k] && window.LabSwitch ? ` · ${window.LabSwitch.platformText(platforms[k])}` : '');
+  const platformOf = (id) => platforms[id] || 'vrp5';
+  const platformName = (p) => p === 'yunshan' ? 'YunShan OS（eNSP Pro）' : p === 'vrp5' ? 'VRP5（eNSP 经典版）' : p;
+
+  function setPlatformChoices(current) {
+    const select = $('f-platform');
+    const choices = [...new Set(Object.values(platforms))];
+    if (!choices.length) choices.push('vrp5');
+    select.replaceChildren(...choices.map((p) => new Option(platformName(p), p)));
+    select.value = choices.includes(current) ? current : choices[0];
+  }
+
+  function updatePlatformValidation() {
+    const target = $('f-platform').value;
+    const rows = [...$('f-questions').querySelectorAll('.qrow')];
+    const mismatch = rows.filter((row) => platformOf(row.querySelector('.q-sc').value) !== target);
+    const warning = $('f-platform-warning');
+    warning.hidden = !mismatch.length;
+    warning.textContent = mismatch.length
+      ? `有 ${mismatch.length} 道题与 ${platformName(target)} 不匹配，请替换这些题后再保存。`
+      : '';
+    $('btn-save').disabled = !jsonDirty && mismatch.length > 0;
+  }
 
   async function api(method, url, body) {
     const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {},
@@ -104,6 +128,8 @@
     const d = await api('GET', '../api/exam/templates');
     scenarios = d.scenarios;
     platforms = d.platforms || {};
+    activePlatform = d.platform || activePlatform;
+    setPlatformChoices(activePlatform);
     if (!d.templates.length) { $('list').innerHTML = '<p class="note">暂无模板</p>'; return; }
     $('list').innerHTML = d.templates.map((t) => {
       const c = t.config;
@@ -144,18 +170,30 @@
   function qRow(q) {
     const row = document.createElement('div');
     row.className = 'qrow';
-    row.innerHTML = `<select class="q-sc">${Object.entries(scenarios).map(([k, v]) =>
-      `<option value="${esc(k)}"${k === q.scenario ? ' selected' : ''}>${esc(v)}${esc(ptext(k))}（${esc(k)}）</option>`).join('')}</select>` +
+    const targetPlatform = $('f-platform').value || activePlatform;
+    const compatible = Object.entries(scenarios).filter(([k]) => platformOf(k) === targetPlatform);
+    const choices = compatible.some(([k]) => k === q.scenario) || !q.scenario
+      ? compatible
+      : [[q.scenario, scenarios[q.scenario] || q.scenario], ...compatible];
+    row.innerHTML = `<select class="q-sc">${choices.map(([k, v]) =>
+      `<option value="${esc(k)}"${k === q.scenario ? ' selected' : ''}>${esc(v)}${esc(ptext(k))}（${esc(k)}）${platformOf(k) !== targetPlatform ? ' · 平台不匹配，需替换' : ''}</option>`).join('')}</select>` +
       `种子 <input class="q-seed" type="number" min="0" step="1" placeholder="随机" value="${q.seed ?? ''}" />` +
       `权重 <input class="q-w" type="number" min="0" step="0.5" value="${q.weight ?? 1}" />` +
       '<button class="q-up" title="上移">↑</button><button class="q-del danger" title="删除">×</button>';
-    row.querySelector('.q-del').onclick = () => row.remove();
-    row.querySelector('.q-up').onclick = () => { if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling); };
+    row.querySelector('.q-sc').onchange = updatePlatformValidation;
+    row.querySelector('.q-del').onclick = () => { row.remove(); updatePlatformValidation(); };
+    row.querySelector('.q-up').onclick = () => {
+      if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+      updatePlatformValidation();
+    };
     $('f-questions').appendChild(row);
+    updatePlatformValidation();
   }
 
   function fill(name, c) {
     $('f-name').value = name;
+    const firstScenario = (c.questions || []).find((q) => q && q.scenario)?.scenario;
+    setPlatformChoices(firstScenario ? platformOf(firstScenario) : activePlatform);
     $('f-duration').value = Math.round(c.duration_s / 0.6) / 100;
     $('f-qduration').value = c.question_duration_s ? Math.round(c.question_duration_s / 0.6) / 100 : '';
     $('f-retries').value = c.retries;
@@ -170,6 +208,7 @@
     $('f-shuffle').checked = !!c.shuffle;
     $('f-questions').innerHTML = '';
     for (const q of c.questions) qRow(q);
+    updatePlatformValidation();
   }
 
   function formConfig() {
@@ -194,28 +233,60 @@
     record_replay: true, shuffle: false };
 
   function edit(t) {
-    editing = t ? t.id : null;
+    editing = t?.id || null;
+    const targetPlatform = $('f-platform').value || activePlatform;
+    const initialQuestions = Object.keys(scenarios).filter((id) => platformOf(id) === targetPlatform).slice(0, 2)
+      .map((scenario) => ({ scenario, seed: null, weight: 1 }));
+    const cfg = t ? t.config : { ...DEFAULT, questions: initialQuestions };
+    jsonDirty = false;
     $('editor').hidden = false;
     $('ed-title').textContent = t ? `编辑模板：${t.name}` : '新建模板';
-    fill(t ? t.name : '', t ? t.config : { ...DEFAULT, questions: Object.keys(scenarios).slice(0, 2).map((s) => ({ scenario: s, seed: null, weight: 1 })) });
-    $('f-json').value = JSON.stringify(t ? t.config : formConfig(), null, 2);
-    jsonDirty = false;
+    fill(t ? t.name : '', cfg);
+    $('f-json').value = JSON.stringify(cfg, null, 2);
     $('ed-msg').textContent = '';
     $('editor').scrollIntoView({ block: 'start' });
   }
   $('btn-new').onclick = () => edit(null);
-  $('btn-addq').onclick = () => qRow({ scenario: Object.keys(scenarios)[0], seed: null, weight: 1 });
+  $('f-platform').onchange = () => {
+    for (const row of $('f-questions').querySelectorAll('.qrow')) {
+      const select = row.querySelector('.q-sc');
+      const selected = select.value;
+      const compatible = Object.entries(scenarios).filter(([k]) => platformOf(k) === $('f-platform').value);
+      const choices = compatible.some(([k]) => k === selected)
+        ? compatible
+        : [[selected, scenarios[selected] || selected], ...compatible];
+      select.replaceChildren(...choices.map(([k, v]) => {
+        const option = new Option(`${v}${ptext(k)}（${k}）${platformOf(k) !== $('f-platform').value ? ' · 平台不匹配，需替换' : ''}`, k);
+        option.selected = k === selected;
+        return option;
+      }));
+    }
+    updatePlatformValidation();
+  };
+  $('btn-addq').onclick = () => {
+    const first = Object.keys(scenarios).find((id) => platformOf(id) === $('f-platform').value);
+    if (!first) { $('ed-msg').textContent = `当前没有 ${platformName($('f-platform').value)} 的题目。`; return; }
+    qRow({ scenario: first, seed: null, weight: 1 });
+  };
   $('btn-cancel').onclick = () => { $('editor').hidden = true; };
-  $('f-json').oninput = () => { jsonDirty = true; };
-  $('btn-json-load').onclick = () => { $('f-json').value = JSON.stringify(formConfig(), null, 2); jsonDirty = false; };
+  $('f-json').oninput = () => { jsonDirty = true; $('btn-save').disabled = false; };
+  $('btn-json-load').onclick = () => { $('f-json').value = JSON.stringify(formConfig(), null, 2); jsonDirty = false; updatePlatformValidation(); };
   $('btn-json-apply').onclick = () => {
-    try { fill($('f-name').value, { ...DEFAULT, ...JSON.parse($('f-json').value) }); jsonDirty = false; $('ed-msg').innerHTML = ''; }
+    try { fill($('f-name').value, { ...DEFAULT, ...JSON.parse($('f-json').value) }); jsonDirty = false; updatePlatformValidation(); $('ed-msg').innerHTML = ''; }
     catch (e) { $('ed-msg').innerHTML = `<p class="err">JSON 无效：${esc(e.message)}</p>`; }
   };
   $('btn-save').onclick = async () => {
     let config;
     try { config = jsonDirty && $('json-box').open ? JSON.parse($('f-json').value) : formConfig(); }
     catch (e) { $('ed-msg').innerHTML = `<p class="err">JSON 无效：${esc(e.message)}</p>`; return; }
+    const questionPlatforms = [...new Set((config.questions || []).map((q) =>
+      platformOf(typeof q === 'string' ? q : q && q.scenario)))];
+    if (questionPlatforms.length > 1 || (questionPlatforms.length === 1 && questionPlatforms[0] !== $('f-platform').value)) {
+      $('ed-msg').textContent = questionPlatforms.length > 1
+        ? '保存失败：一份考试模板只能包含同一设备平台的题目，请拆分为 VRP5 或 YunShan 模板。'
+        : `保存失败：题目属于 ${platformName(questionPlatforms[0])}，请同步修改“适用设备平台”。`;
+      return;
+    }
     const body = { name: $('f-name').value.trim(), config };
     try {
       await api(editing ? 'PUT' : 'POST', editing ? `../api/exam/templates/${editing}` : '../api/exam/templates', body);

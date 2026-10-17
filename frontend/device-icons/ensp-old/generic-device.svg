@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 54 54" fill="none">
+  <defs>
+    <linearGradient id="top" x1="8" y1="9" x2="45" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9F0FF"/><stop offset="1" stop-color="#83BCEB"/>
+    </linearGradient>
+    <linearGradient id="front" x1="9" y1="22" x2="29" y2="48" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6AB3E8"/><stop offset="1" stop-color="#397FC3"/>
+    </linearGradient>
+    <linearGradient id="side" x1="29" y1="23" x2="46" y2="43" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4F9BD7"/><stop offset="1" stop-color="#2869A8"/>
+    </linearGradient>
+  </defs>
+  <path d="M8 17.5 27 8l19 9.5L27 27 8 17.5Z" fill="url(#top)" stroke="#5B8EBB" stroke-width="1.2"/>
+  <path d="M8 17.5 27 27v19L8 36.5v-19Z" fill="url(#front)" stroke="#4E83B4" stroke-width="1.2"/>
+  <path d="M27 27 46 17.5v19L27 46V27Z" fill="url(#side)" stroke="#396F9F" stroke-width="1.2"/>
+  <path d="m14 17.5 13-6.4 13 6.4-13 6.4-13-6.4Z" stroke="#F6FCFF" stroke-width="1.2" opacity=".9"/>
+  <path d="M14 30v3m5-1v3m5-1v3m8-10v3m5-5v3" stroke="#EAF7FF" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

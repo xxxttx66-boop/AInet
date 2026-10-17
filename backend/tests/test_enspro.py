@@ -177,7 +177,8 @@ def test_sandbox_to_topology_devices_links_status():
     t = sandbox_to_topology(sb)
     assert t["name"] == "ainet_test"
     t1, t2 = t["devices"]
-    assert (t1["id"], t1["name"], t1["console"], t1["kind"], t1["model"]) == ("6", "T1", 6, "router", "ENSP-AR")
+    assert (t1["id"], t1["name"], t1["console"], t1["kind"], t1["model"]) == ("6", "AR1", 6, "router", "ENSP-AR")
+    assert t1["native_name"] == "T1" and t2["name"] == "AR2" and t2["native_name"] == "T2"
     assert t1["interfaces"][:3] == ["MEth0/0/0", "GE0/0/0", "GE0/0/1"] and len(t1["interfaces"]) == 11
     assert (t1["x"], t1["y"], t1["anchor"]) == (-750.0, -500.0, "center")
     assert t["links"] == [{"id": 1, "src_id": "6", "src_if": 2, "src_label": "GE0/0/1",
@@ -190,8 +191,17 @@ def test_sandbox_to_topology_devices_links_status():
     assert topo_signature(t) == topo_signature(t_stopped)
     assert topo_signature(t) != topo_signature(sandbox_to_topology(sandbox_json(2)))
     rev = dict(sb, devices=list(reversed(sb["devices"])))       # 接口返回顺序变了：结果与指纹不变
-    assert sandbox_to_topology(rev)["devices"][0]["name"] == "T1"
+    assert sandbox_to_topology(rev)["devices"][0]["name"] == "AR1"
     assert topo_signature(sandbox_to_topology(rev)) == topo_signature(t)
+
+
+def test_device_aliases_are_limited_to_ainet_test_without_name_collisions():
+    campus = sandbox_json(2)
+    campus["name"] = "ainet_campus"
+    assert [d["name"] for d in sandbox_to_topology(campus)["devices"]] == ["T1", "T2"]
+
+    collision = sandbox_json(2, more=((8, "AR1"),))
+    assert [d["name"] for d in sandbox_to_topology(collision)["devices"]] == ["T1", "T2", "AR1"]
 
 
 def provider_with(rest: FakeRest, port: int = 1, **kw) -> EnsproProvider:
@@ -209,7 +219,7 @@ def test_provider_resolve_power_and_session_lost():
         assert cur["devices"] == {"6": "online", "7": "stopped"} and (cur["running"], cur["total"]) == (1, 2)
         assert cur["path"] == "enspro://sandbox/2" and isinstance(cur["mtime"], int)
         assert p.allowed(cur) == {6}                       # 只有运行中的设备能开终端
-        assert "T2" in p.deny_reason(cur, 7)
+        assert "AR2" in p.deny_reason(cur, 7)
         r = await p.power_action("start", [7])
         assert r["ok"] and rest.calls[-1] == ("POST", "/service/ensp/device/batchStart", {"deviceIds": [7], "sandboxId": 2})
         cur = await p.resolve()
@@ -227,7 +237,7 @@ def test_provider_resolve_power_and_session_lost():
         rest.kick()
         cur = await p.resolve()
         assert cur["state"] == "session_lost" and cur["relogin"] and "重新登录" in cur["message"]
-        assert cur["topology"]["devices"][0]["name"] == "T1"   # 仍画出上次的拓扑
+        assert cur["topology"]["devices"][0]["name"] == "AR1"   # 仍画出上次的拓扑
         assert p.allowed(cur) == set()
         await p.relogin()
         assert (await p.resolve())["state"] == "running"
@@ -314,7 +324,7 @@ def test_connector_wrong_password_tries_once_and_blocks():
             assert "不再自动尝试" in str(ei.value) and env.server.connect_frames == frames
             assert dev.login_attempts == 1
             cur = await env.provider.resolve()
-            assert "console 登录失败：T1" in cur["message"] and "6" in cur["console_errors"]
+            assert "console 登录失败：AR1" in cur["message"] and "6" in cur["console_errors"]
             await env.provider.power_action("reboot", [6])                 # 由 ainet 重启设备后允许再试
             assert not env.provider.blocked(6)
     run(go())

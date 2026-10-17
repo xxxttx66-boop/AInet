@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ainet 工作台</title>
   <link rel="stylesheet" href="vendor/xterm.css" />
-  <link rel="stylesheet" href="static/app.css" />
-  <link rel="stylesheet" href="static/ui.css" />
-  <script src="static/ui.js"></script>
+  <link rel="stylesheet" href="static/app.css?v=exam-leave-20261017-1" />
+  <link rel="stylesheet" href="static/ui.css?v=workbench-ticket-tabs-20261016-1" />
+  <script src="static/ui.js?v=exam-nav-20261017-1"></script>
 </head>
 <!-- 当前布局以 docs/design/ui-upgrade.md 为准：平台导航 + 题名行 / 操作行 + 大终端工作区。
      以下保留历史布局的 DOM 绑定说明；ui.js 挪动现有节点，ID 与操作规则保留。
      历史布局（docs/design/ui-layout.html ⑥）：单层顶栏 → 通知条 → 拓扑 | 终端 | 右侧面板（工单 / Agent）。
-     顶栏：ainet、模式（实验 / 练习 / 考试）、「模式标签 + 题名 ▾」（点开气泡：环境 / 拓扑 / 本题设备 / 章节 / 工单）、
+     顶栏：ainet、模式（实验 / 练习 / 考试）、「模式标签 + 题名 ▾」（点开气泡：环境 / 拓扑 / 本题设备 / 章节；按钮打开右侧工单页）、
      计时 / 判定 / 操作按钮、学员名 ▾（我的档案 / 切换学员 / 登出）、「退出到课程」。课题从课程页带入（?s=场景 id）；
      换题、换环境、换拓扑都要「退出到课程」。
      body 上的状态类：mode-lab|mode-practice|mode-exam、practice-active、exam-active、topo-collapsed、
@@ -40,7 +40,7 @@
           <span class="k tp-info">本题设备</span><span id="tp-devs" class="mono tp-info"></span>
           <span class="k tp-info">章节</span><span id="tp-chapter" class="tp-info"></span>
         </div>
-        <div id="tp-ticket" class="tp-ticket"></div>
+        <div id="tp-ticket" class="tp-ticket" hidden></div>
         <!-- 考试作答中：气泡只放工单（题号、工单、可访问设备、提交记录、已用提示） -->
         <div id="ex-ticket" class="tp-exam" hidden>
           <div id="ex-qno" class="dd-title"></div>
@@ -51,7 +51,7 @@
         </div>
         <div class="tp-actions">
           <button id="btn-refresh" class="sm" title="立即重新检测运行中的设备">↻ 刷新设备状态</button>
-          <button id="tp-full" class="sm">查看完整工单</button>
+          <button id="tp-full" class="sm">打开右侧工单</button>
         </div>
       </div>
     </div>
@@ -102,6 +102,11 @@
     <div id="ex-msg"></div>
   </div>
 
+  <section id="exam-question" class="exam-question" aria-label="当前考题" hidden>
+    <div class="exam-question-heading"><span class="exam-question-label">当前题目</span><strong id="exam-question-title"></strong></div>
+    <div id="exam-question-text"></div>
+  </section>
+
   <div id="main">
     <!-- 左：拓扑（可折叠成 48px 图标栏，可拖宽） -->
     <nav id="topo-rail" class="rail left" aria-label="左侧图标栏">
@@ -115,7 +120,10 @@
         <strong id="topo-title">拓扑</strong>
         <span class="topo-tools">
           <label title="显示连线两端接口名"><input type="checkbox" id="chk-if" checked /> 接口</label>
-          <button id="btn-fit" class="sm" title="复位缩放">适配</button>
+          <button id="btn-zoom-out" class="zoom-btn" title="缩小拓扑" aria-label="缩小拓扑" disabled>−</button>
+          <output id="topo-zoom-level" class="zoom-level" aria-live="polite">—</output>
+          <button id="btn-zoom-in" class="zoom-btn" title="放大拓扑" aria-label="放大拓扑" disabled>+</button>
+          <button id="btn-fit" class="sm" title="适配画布（100%）">适配</button>
         </span>
         <button id="btn-collapse" class="icon-btn" title="收起拓扑" aria-label="收起拓扑">‹</button>
       </div>
@@ -166,13 +174,13 @@
       </div>
     </div>
 
-    <!-- 右：工单详情 / Agent（可收起成 48px 图标栏，可拖宽；窄屏为抽屉；考试作答中整个不出现） -->
+    <!-- 右：Agent / 工单页签（可收起成 48px 图标栏，可拖宽；窄屏为抽屉；考试作答中整个不出现） -->
     <div id="split-side" class="splitter" title="拖动调整宽度，双击恢复默认"></div>
     <aside id="side" aria-label="右侧面板">
       <div id="side-head" class="panel-head">
-        <div id="side-tabs" role="tablist">
-          <button id="st-task" role="tab" data-tab="task" aria-selected="false">工单详情</button>
+        <div id="side-tabs" role="tablist" aria-label="右侧内容">
           <button id="st-agent" role="tab" data-tab="agent" aria-selected="true">Agent</button>
+          <button id="st-task" role="tab" data-tab="task" aria-selected="false">工单</button>
         </div>
         <span class="spacer"></span>
         <span id="agent-badge" class="pill">自由问答</span>
@@ -180,9 +188,22 @@
       </div>
 
       <div id="side-task" class="side-pane" role="tabpanel" hidden>
+        <div id="lab-ticket-body" class="lab-ticket" hidden>
+          <div class="pr-head"><span class="pr-h">当前工单</span></div>
+          <div class="ticket-preview">
+            <strong id="lab-ticket-title"></strong>
+            <div id="lab-ticket-symptom" class="ticket-preview-text"></div>
+            <div id="lab-ticket-empty" class="muted" hidden>当前是自由实验，没有关联课程工单。</div>
+            <div id="lab-ticket-devices-wrap" class="ticket-devices" hidden><span class="pr-label">本题设备</span><span id="lab-ticket-devices"></span></div>
+          </div>
+        </div>
         <div id="practice-body">
           <div id="pr-list-view">
             <div class="pr-head"><span class="pr-h">本题练习</span><button id="pr-refresh" class="sm" title="重新检测就绪状态">刷新</button></div>
+            <div id="pr-topic-ticket" class="ticket-preview" hidden>
+              <strong id="pr-topic-title"></strong>
+              <div id="pr-topic-symptom" class="ticket-preview-text"></div>
+            </div>
             <div id="pr-list"></div>
             <div id="pr-errors"></div>
           </div>
@@ -204,6 +225,10 @@
             <div class="pr-head"><span class="pr-h">考试</span>
               <a class="ex-link" href="exam/templates" title="新建 / 编辑考试模板">管理模板</a>
               <button id="ex-refresh" class="sm" title="刷新">刷新</button></div>
+            <div id="ex-topic-ticket" class="ticket-preview" hidden>
+              <strong id="ex-topic-title"></strong>
+              <div id="ex-topic-symptom" class="ticket-preview-text"></div>
+            </div>
             <div id="ex-list"></div>
             <div id="ex-last"></div>
           </div>
@@ -217,6 +242,7 @@
 
       <div id="side-agent" class="side-pane" role="tabpanel">
         <div id="agent-note" hidden>导师模式：只引导思路，不直接给答案；对话会作为评分参考，回复若含答案级内容按第 3 级提示扣分</div>
+        <div id="agent-context-note" hidden>提问时会附带当前沙箱最近的命令与输出；AI 不会主动执行命令。</div>
         <div id="agent-log" aria-live="polite">
           <div class="ag-empty" id="agent-empty">问问当前环境：拓扑、设备状态、命令输出的含义……<br>Agent 可以在设备上执行只读命令（display / ping），你的终端里看不到这些命令。</div>
         </div>
@@ -258,8 +284,9 @@
   <script src="vendor/xterm-addon-fit.js"></script>
   <script src="static/labswitch.js"></script>
   <script src="static/aiset.js"></script>
-  <script src="static/app.js"></script>
-  <script src="static/exam.js"></script>
-  <script src="static/agent.js"></script>
+  <script src="static/device_icons.js?v=ensp-icons-20261016-3"></script>
+  <script src="static/app.js?v=exam-leave-20261017-1"></script>
+  <script src="static/exam.js?v=exam-question-20261017-1"></script>
+  <script src="static/agent.js?v=custom-20261015-2"></script>
 </body>
 </html>

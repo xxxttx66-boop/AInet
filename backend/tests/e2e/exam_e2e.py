@@ -35,7 +35,7 @@ import websockets
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.dirname(os.path.dirname(HERE)))          # backend/
-from browser_e2e import CDP, CHROME, step  # noqa: E402
+from browser_e2e import CDP, CHROME, step, stop_browser  # noqa: E402
 
 AR0, LSW0, AR2 = 2000, 2001, 2003
 QUESTIONS = [("campus-ar0-ar2-link", 777), ("campus-ar2-return-route", 4242), ("campus-lsw0-access-vlan", 9)]
@@ -143,8 +143,11 @@ async def run(base: str, shot_dir: str, debug_port: int = 9341, qtime: int | Non
     qtime = qtime or int(os.environ.get("AINET_E2E_QTIME", "120"))
     os.makedirs(shot_dir, exist_ok=True)
     results: list[bool] = []
-    chrome = subprocess.Popen([CHROME, f"--remote-debugging-port={debug_port}", "--no-sandbox", "about:blank"],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    browser_args = [CHROME]
+    if os.name == "nt":
+        browser_args += ["--headless=new", f"--user-data-dir={os.path.join(shot_dir, 'browser-profile')}"]
+    browser_args += [f"--remote-debugging-port={debug_port}", "--no-sandbox", "about:blank"]
+    chrome = subprocess.Popen(browser_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         tabs = None
         for _ in range(50):
@@ -263,6 +266,7 @@ async def run(base: str, shot_dir: str, debug_port: int = 9341, qtime: int | Non
             await c.cmd("Page.navigate", url=f"{base}/exam/report?id={eid}")
             await c.wait_for("document.querySelectorAll('.q').length === 3", 15)
             await c.wait_for("!document.getElementById('summary').textContent.includes('评分中')", 240)
+            await c.wait_for("document.querySelector('#questions .report-rescore')", 15)
             await asyncio.sleep(1)
             rep = await c.ev(f"fetch('../api/exam/{eid}/report').then(r => r.json())")
             qs = rep["questions"]
@@ -270,12 +274,22 @@ async def run(base: str, shot_dir: str, debug_port: int = 9341, qtime: int | Non
                         q.get("score_total"), q.get("reset_ok")) for q in qs]
             print(f"  成绩单：总分 {rep['score_total']}（{rep['score_status']}）；各题（状态, 通过, 提交次数, 超时, 代提交, 得分, 复位）={summary}")
             await shot(c, shot_dir, "07_report.png", full=True)
+            replay_style = await c.ev("(() => { const b=document.getElementById('rp-play'),s=getComputedStyle(b); "
+                                      "return {background:s.backgroundColor,color:s.color,disabled:b.disabled}; })()")
+            rescore_before = await c.ev("!!document.querySelector('#questions .report-rescore')")
+            await c.ev("document.querySelector('#questions .report-rescore').click(), 0")
+            rescore_after = await c.wait_for("document.querySelector('#questions .report-rescore') && "
+                                              "!document.querySelector('#questions .report-rescore').disabled", 25)
             leak_keys = [k for k in ("checks", "solution", "inject", "scoring_points") if f'"{k}"' in json.dumps(rep)]
             results.append(step(5, "成绩单：第 1、2 题通过（1 次 / 2 次提交），第 3 题超时代提交未通过；各题复位成功；无 checks / solution 原文",
                                 [s[:5] for s in summary] == [("done", True, 1, False, False), ("done", True, 2, False, False),
                                                               ("done", False, 1, True, True)]
                                 and all(q.get("reset_ok") for q in qs) and not leak_keys
                                 and rep["score_status"] != "scoring"))
+
+            results.append(step(5.1, "AI 点评不可用时成绩单提供重新评分；命令回放控件使用主题色且文字可读",
+                                rescore_before and rescore_after and replay_style["background"] != "rgb(15, 20, 25)"
+                                and replay_style["color"] != "rgb(15, 20, 25)"))
 
             # ---- 6：命令回放 ----
             await c.ev("document.getElementById('replay-q').value = '0'; document.getElementById('replay-q').dispatchEvent(new Event('change'))")
@@ -344,7 +358,7 @@ async def run(base: str, shot_dir: str, debug_port: int = 9341, qtime: int | Non
             results.append(step(8, "全程无 JS 异常", not errs))
             reader.cancel()
     finally:
-        chrome.terminate()
+        stop_browser(chrome, os.path.join(shot_dir, "browser-profile"))
     print(f"\n{sum(results)} pass / {len(results) - sum(results)} fail")
     return 0 if all(results) else 1
 

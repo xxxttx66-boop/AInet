@@ -76,6 +76,17 @@ BUILTIN_CONFIG: dict[str, Any] = {
     "weights": {"result": 50, "process": 35, "side": 15},
     "retries": 1, "show_topology": True, "auto_judge": False, "record_replay": True, "shuffle": False,
 }
+BUILTIN_YUNSHAN_SETTING = "exam_builtin_yunshan_seeded"
+BUILTIN_YUNSHAN_NAME = "Campus 基础排障测验（YunShan）"
+BUILTIN_YUNSHAN_CONFIG: dict[str, Any] = {
+    "questions": [{"scenario": "campus-ar0-ar2-link-ys", "seed": None},
+                  {"scenario": "campus-lsw0-access-vlan-ys", "seed": None},
+                  {"scenario": "campus-ar2-return-route-ys", "seed": None}],
+    "duration_s": 2700, "question_duration_s": 900,
+    "hints": {"allowed": True, "penalty": 5, "max_level": 2},
+    "weights": {"result": 50, "process": 35, "side": 15},
+    "retries": 1, "show_topology": True, "auto_judge": False, "record_replay": True, "shuffle": False,
+}
 
 
 class ExamError(Exception):
@@ -221,15 +232,20 @@ class ExamManager:
         return set(self.pm.scenarios)
 
     def ensure_builtin(self) -> None:
-        """首次启动时内置示例模板（删掉后不会再自动建回来）。"""
-        if db.get_setting(BUILTIN_SETTING):
-            return
+        """首次启动时内置两种设备平台的示例模板（删除后不会自动重建）。"""
         ids = self.scenario_ids()
-        qs = [q for q in BUILTIN_CONFIG["questions"] if q["scenario"] in ids]
-        if qs:
-            cfg = normalize_config({**BUILTIN_CONFIG, "questions": qs}, ids)
-            db.create_template(BUILTIN_NAME, json.dumps(cfg, ensure_ascii=False))
-        db.set_setting(BUILTIN_SETTING, "1")
+        existing_names = {t["name"] for t in db.list_templates()}
+        for setting, name, source in (
+            (BUILTIN_SETTING, BUILTIN_NAME, BUILTIN_CONFIG),
+            (BUILTIN_YUNSHAN_SETTING, BUILTIN_YUNSHAN_NAME, BUILTIN_YUNSHAN_CONFIG),
+        ):
+            if db.get_setting(setting):
+                continue
+            qs = [q for q in source["questions"] if q["scenario"] in ids]
+            if qs and name not in existing_names:
+                cfg = normalize_config({**source, "questions": qs}, ids)
+                db.create_template(name, json.dumps(cfg, ensure_ascii=False))
+            db.set_setting(setting, "1")
 
     def recover(self) -> None:
         """服务启动：恢复进行中的考试（practice.recover 已恢复当前题的 active）。"""
@@ -343,7 +359,9 @@ class ExamManager:
             # 自动判定开启时（auto_judge）也可能在没有提交的情况下通过
             passed = any(x.get("passed") for x in subs) or (on_dev and a.passed_at is not None) or bool(q.get("passed"))
             qv = {
-                "index": st["current"], "status": q["status"], "title": q.get("title"),
+                "index": st["current"], "status": q["status"],
+                "scenario_id": cfg["questions"][st["current"]]["scenario"],
+                "title": q.get("title"),
                 "symptom": q.get("symptom"),
                 "devices": ([{"name": d, "port": a.ports[d]} for d in a.scenario["accessible_devices"]]
                             if on_dev else []),

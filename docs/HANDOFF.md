@@ -26,6 +26,7 @@ AInet 是单人使用的网络运维实操练习 / 考试系统：FastAPI + SQLi
 - `backend/practice.py`、`exam.py`、`config_reset.py`：练习、考试、快照与还原。
 - `backend/scenarios.py`、`params.py`：题库校验与参数化。
 - `backend/ai.py`、`agent.py`、`grading.py`、`hints.py`：AI、评分与提示。
+- `backend/custom_labs.py`、`frontend/custom_lab.*`：自建沙箱与拓扑编辑，设计与检查记录见 `docs/design/custom-labs.md`。
 - `frontend/`：课程页、操作页、成绩单及设置。
 - `frontend/ui.js` / `ui.css`：共享导航、明暗主题、本地 SVG 图标和新版布局。当前界面约定见 `docs/design/ui-upgrade.md`；`ui-layout.html` 为历史参考。
 - `scenarios/`：28 道题与章节目录；历史真机验收记录见 `docs/question-bank-verify.md`。

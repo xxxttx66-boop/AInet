@@ -1,11 +1,11 @@
 {
   "id": "enspro-t2-ip-wrong-port",
-  "title": "新接入的 T2 不通（地址配错接口）",
+  "title": "新接入的 AR2 不通（地址配错接口）",
   "level": 2,
   "chapter": "L01",
   "difficulty": 2,
   "est_minutes": 12,
-  "summary": "现场工程师说 T2 的互联地址已经配好，T1 却 ping 不通它",
+  "summary": "现场工程师说 AR2 的互联地址已经配好，AR1 却 ping 不通它",
   "tags": [
     "接口与连线",
     "接口状态",
@@ -19,28 +19,28 @@
   ],
   "topology": "ainet_test",
   "required_devices": [
-    "T1",
-    "T2"
+    "AR1",
+    "AR2"
   ],
   "accessible_devices": [
-    "T1",
-    "T2"
+    "AR1",
+    "AR2"
   ],
-  "symptom": "工单：T2 是刚接入的路由器，按规划用 GE0/0/1 接 T1 的 GE0/0/1，互联网段 10.0.12.0/24（T1 10.0.12.1，T2 10.0.12.2）。现场工程师反馈「T2 的互联地址 10.0.12.2/24 已经配好、接口也 up 了」，但从 T1 ping 10.0.12.2 不通。请登录 T1、T2 排查并修复，使 T1 能 ping 通 10.0.12.2。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "symptom": "工单：AR2 是刚接入的路由器，按规划用 GE0/0/1 接 AR1 的 GE0/0/1，互联网段 10.0.12.0/24（AR1 10.0.12.1，AR2 10.0.12.2）。现场工程师反馈「AR2 的互联地址 10.0.12.2/24 已经配好、接口也 up 了」，但从 AR1 ping 10.0.12.2 不通。请登录 AR1、AR2 排查并修复，使 AR1 能 ping 通 10.0.12.2。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
   "baseline": {
-    "T1": [
+    "AR1": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.1 24"
     ],
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.2 24"
     ]
   },
   "inject": {
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "undo ip address",
@@ -49,12 +49,12 @@
     ]
   },
   "restore": {
-    "T1": [
+    "AR1": [
       "system-view",
       "interface GE0/0/1",
       "undo ip address"
     ],
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/2",
       "undo ip address",
@@ -64,20 +64,20 @@
   },
   "checks": [
     {
-      "device": "T1",
+      "device": "AR1",
       "command": "ping -c 2 10.0.12.2",
       "expect": "\\b[12] packet\\(s\\) received",
-      "desc": "T1 能 ping 通 T2 的互联地址 10.0.12.2"
+      "desc": "AR1 能 ping 通 AR2 的互联地址 10.0.12.2"
     }
   ],
   "hints": [
-    "「地址配好了」不等于配在了接线的那个口上。核对一下 T2 上哪个接口真正连着 T1。",
-    "在 T2 上执行 display ip interface brief 和 display interface brief，看 10.0.12.2 配在哪个接口、那个接口的物理状态；再对照工单里的连线。",
-    "T2 的地址被配到了没有接线的 GE0/0/2 上，GE0/0/1 没有地址。在 GE0/0/2 下删掉地址，再在 GE0/0/1 下配 ip address 10.0.12.2 24。"
+    "「地址配好了」不等于配在了接线的那个口上。核对一下 AR2 上哪个接口真正连着 AR1。",
+    "在 AR2 上执行 display ip interface brief 和 display interface brief，看 10.0.12.2 配在哪个接口、那个接口的物理状态；再对照工单里的连线。",
+    "AR2 的地址被配到了没有接线的 GE0/0/2 上，GE0/0/1 没有地址。在 GE0/0/2 下删掉地址，再在 GE0/0/1 下配 ip address 10.0.12.2 24。"
   ],
-  "reference_path": "T1 ping 10.0.12.2 不通 → T1 display ip interface brief 本端正常 → 登录 T2，display ip interface brief 看到 10.0.12.2 在 GE0/0/2 上、GE0/0/1 没有地址 → display interface brief 看到 GE0/0/2 物理 down（没接线）→ 把地址从 GE0/0/2 挪到 GE0/0/1 → T1 再 ping 验证。",
+  "reference_path": "AR1 ping 10.0.12.2 不通 → AR1 display ip interface brief 本端正常 → 登录 AR2，display ip interface brief 看到 10.0.12.2 在 GE0/0/2 上、GE0/0/1 没有地址 → display interface brief 看到 GE0/0/2 物理 down（没接线）→ 把地址从 GE0/0/2 挪到 GE0/0/1 → AR1 再 ping 验证。",
   "solution": {
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/2",
       "undo ip address",
@@ -87,10 +87,10 @@
     ]
   },
   "scoring_points": [
-    "不轻信「已经配好」的说法，登录 T2 核对地址到底配在哪个接口上",
+    "不轻信「已经配好」的说法，登录 AR2 核对地址到底配在哪个接口上",
     "结合接口物理状态与工单连线，判断 GE0/0/2 没有接线、GE0/0/1 才是互联口",
     "把地址挪到 GE0/0/1，并删掉 GE0/0/2 上的错误地址（不留同网段的两个地址）",
-    "修复后在 T1 上 ping 10.0.12.2 验证"
+    "修复后在 AR1 上 ping 10.0.12.2 验证"
   ],
-  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 T1 GE0/0/1 <-> T2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：T2 的 GE0/0/2 存在、未接线时显示 down/down，地址配上去也照样 down；GE0/0/1 撤掉地址后显示 unassigned up/down；同网段地址先在 GE0/0/2 上删、再配到 GE0/0/1 不报冲突，修复后 3 秒自动判定通过。"
+  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 AR1 GE0/0/1 <-> AR2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：AR2 的 GE0/0/2 存在、未接线时显示 down/down，地址配上去也照样 down；GE0/0/1 撤掉地址后显示 unassigned up/down；同网段地址先在 GE0/0/2 上删、再配到 GE0/0/1 不报冲突，修复后 3 秒自动判定通过。 AInet 页面将 eNSP Pro 沙箱原始拓扑节点 T1 / T2 分别显示为 AR1 / AR2；对应设备 ID、型号和连接不变。"
 }

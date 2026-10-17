@@ -106,7 +106,7 @@ def test_course_field_validation(patch, msg):
 def test_summary_leak_check_covers_parameter_samples():
     """参数化场景：注入的错误地址（只在故障配置里出现的 IP）写进 summary 也会被抽样校验拦住。"""
     raw = json.loads((ROOT / "enspro-t1-t2-link.json").read_text(encoding="utf-8"))
-    raw["summary"] = "T2 的接口地址被改成了 10.0.21.2"          # 种子 0 下 wrong=21 的注入地址
+    raw["summary"] = "AR2 的接口地址被改成了 10.0.21.2"          # 种子 0 下 wrong=21 的注入地址
     with pytest.raises(sc.ScenarioError, match="泄露答案"):
         sc.validate(raw)
 
@@ -524,9 +524,9 @@ def test_host_snapshot_dns_compat():
 def pro(db_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    net = FakeNet([(("T1", "GE0/0/1"), ("T2", "GE0/0/1"))])
-    t1 = net.add("T1", NetYunShan(BASE, password=PW))
-    t2 = net.add("T2", NetYunShan(BASE, password=PW))
+    net = FakeNet([(("AR1", "GE0/0/1"), ("AR2", "GE0/0/1"))])
+    t1 = net.add("AR1", NetYunShan(BASE, password=PW))
+    t2 = net.add("AR2", NetYunShan(BASE, password=PW))
     rest = FakeRest()
     rest.pc = True
     rest.status[12] = 4

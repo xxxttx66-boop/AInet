@@ -315,7 +315,7 @@ def test_prepare_on_added_instance(app, listener):
     assert r.json()["environment"] == "enspro-2" and r.json()["env_label"] == "机房 B"
     job = _wait_job(c, lambda j: j["done"])
     assert job["ok"], job
-    assert (mgr.key, mgr.sandbox) == ("enspro-2", 2) and job["devices"] == {"T1": "online", "T2": "online"}
+    assert (mgr.key, mgr.sandbox) == ("enspro-2", 2) and job["devices"] == {"AR1": "online", "AR2": "online"}
     assert any(p == "/service/ensp/device/batchStart" for _, p, b in rest.calls if b)
     assert "enspro" not in app.rests                   # 内置 eNSP Pro 的假服务一次都没建
     assert mgr.power.configured_for == "enspro-2"      # 看门狗换成该实例的参数
@@ -326,7 +326,7 @@ def test_prepare_on_added_instance(app, listener):
     # 干净基线按实例区分（内置 enspro 的键不变，见 test_labenv.test_baseline_key_follows_sandbox）
     pm = c.app.state.practice
     cur = c.portal.call(pm.resolve)
-    assert pm._baseline_key(cur, "T1") == "baseline:enspro-2:ainet_test:T1"
+    assert pm._baseline_key(cur, "AR1") == "baseline:enspro-2:ainet_test:AR1"
     assert c.get("/api/scenarios?env=enspro-2").json()["current_env"] == "enspro-2"
     # 环境列表里当前环境是 enspro-2，顶栏只读显示用的 label 是实例名
     d = c.get("/api/lab/environments").json()

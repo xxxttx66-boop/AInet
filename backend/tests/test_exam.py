@@ -178,6 +178,18 @@ def test_capacity_is_checked_again_before_next_exam_question(ex):
     assert ex.app.state.practice.active is None
 
 
+def test_exam_state_exposes_current_scenario_id_for_resume_link(ex):
+    """暂离后返回原课题上下文；考试状态只公开当前题目 ID，不带答案配置。"""
+    login(ex)
+    st = start(ex, make_template(ex, questions=Q3[:2]))
+    assert st["question"]["scenario_id"] == Q3[0]
+    assert ex.get("/api/exam/current").json()["question"]["scenario_id"] == Q3[0]
+    hub(ex).fixed = True
+    ex.post("/api/exam/submit")
+    nxt = ex.post("/api/exam/next").json()
+    assert nxt["question"]["scenario_id"] == Q3[1]
+
+
 def hub(c) -> ExamHub:
     return c.app.state.hub
 
@@ -215,12 +227,15 @@ def start(c, tid) -> dict:
 def test_builtin_template_seeded_once_and_not_recreated(ex):
     login(ex)
     ts = ex.get("/api/exam/templates").json()["templates"]
-    assert [t["name"] for t in ts] == ["Campus 基础排障测验"]
+    assert [t["name"] for t in ts] == ["Campus 基础排障测验", "Campus 基础排障测验（YunShan）"]
     cfg = ts[0]["config"]
     assert [q["scenario"] for q in cfg["questions"]] == Q3 and cfg["auto_judge"] is False
+    ys = ts[1]["config"]
+    assert [q["scenario"] for q in ys["questions"]] == [
+        "campus-ar0-ar2-link-ys", "campus-lsw0-access-vlan-ys", "campus-ar2-return-route-ys"]
     assert ex.delete(f"/api/exam/templates/{ts[0]['id']}").status_code == 200
     ex.app.state.exam.ensure_builtin()
-    assert ex.get("/api/exam/templates").json()["templates"] == []
+    assert [t["name"] for t in ex.get("/api/exam/templates").json()["templates"]] == ["Campus 基础排障测验（YunShan）"]
 
 
 def test_template_crud_and_validation(ex):
@@ -235,10 +250,15 @@ def test_template_crud_and_validation(ex):
     bad = [({"questions": []}, "至少一题"), ({"questions": ["nope"]}, "场景不存在"),
            ({"questions": [Q3[0]], "duration_s": 0}, "duration_s"), ({"questions": [Q3[0]], "retries": -1}, "retries"),
            ({"questions": [Q3[0]], "foo": 1}, "未知的配置项"), ({"questions": [Q3[0]], "weights": {"result": 0}}, "weights"),
-           ({"questions": [{"scenario": Q3[0], "seed": "x"}]}, "seed"), ({"questions": [Q3[0]], "shuffle": "yes"}, "shuffle")]
+           ({"questions": [{"scenario": Q3[0], "seed": "x"}]}, "seed"), ({"questions": [Q3[0]], "shuffle": "yes"}, "shuffle"),
+           ({"questions": [Q3[0], "campus-ar0-ar2-link-ys"]}, "同一设备平台")]
     for cfg, word in bad:
         r = ex.post("/api/exam/templates", json={"name": "x", "config": cfg})
         assert r.status_code == 422 and word in r.json()["detail"], (cfg, r.text)
+    mixed_update = ex.put(f"/api/exam/templates/{tid}", json={"name": "不应保存", "config": {
+        "questions": [Q3[0], "campus-ar0-ar2-link-ys"]}})
+    assert mixed_update.status_code == 422 and "同一设备平台" in mixed_update.json()["detail"]
+    assert ex.get(f"/api/exam/templates/{tid}").json()["name"] == "改名"
     assert ex.delete("/api/exam/templates/99999").status_code == 404
     assert ex.get("/api/exam/templates/99999").status_code == 404
 
@@ -764,6 +784,18 @@ def test_no_answer_fields_leak_during_exam(ex):
         ("PATCH", "/api/lab/environments/{key}"): {"label": "x"},
         ("POST", "/api/lab/environments/{key}"): {"label": "x"},
         ("DELETE", "/api/lab/environments/{key}"): None,
+        # 自定义实验拓扑（单人 eNSP Pro）；考试期间不能切沙箱或修改设备，但读取也必须不泄答案
+        ("GET", "/api/custom-labs"): None,
+        ("POST", "/api/custom-labs"): {"environment": "enspro", "name": "考试中创建"},
+        ("POST", "/api/custom-labs/{lab_id}/activate"): None,
+        ("GET", "/api/custom-labs/{lab_id}"): None,
+        ("GET", "/api/custom-labs/{lab_id}/models"): None,
+        ("POST", "/api/custom-labs/{lab_id}/devices"): {"name": "AR1", "model_id": 1, "x": 0, "y": 0},
+        ("PATCH", "/api/custom-labs/{lab_id}/devices/{device_id}"): {"x": 0, "y": 0},
+        ("DELETE", "/api/custom-labs/{lab_id}/devices/{device_id}"): None,
+        ("POST", "/api/custom-labs/{lab_id}/links"): {"left_if": 1, "right_if": 2},
+        ("DELETE", "/api/custom-labs/{lab_id}/links/{link_id}"): None,
+        ("DELETE", "/api/custom-labs/{lab_id}"): None,
     }
     # 不在遍历范围内的接口（原因）：登录 / 登出 / 建学生与考试无关；next / finish 会改变考试进度，单独测（交卷后才有成绩单）
     excluded = {("POST", "/api/login"), ("POST", "/api/logout"), ("POST", "/api/students"),
@@ -772,7 +804,8 @@ def test_no_answer_fields_leak_during_exam(ex):
               for m in getattr(r, "methods", set()) - {"HEAD"}}
     covered = {(m, p.split("#")[0]) for m, p in calls}
     assert routes - excluded == covered, routes - excluded ^ covered
-    ids = {"attempt_id": aid_prev, "template_id": tid, "exam_id": eid, "action": "stop", "key": 2000}
+    ids = {"attempt_id": aid_prev, "template_id": tid, "exam_id": eid, "action": "stop", "key": 2000,
+           "lab_id": 1, "device_id": 1, "link_id": 1}
     for (m, p), body in calls.items():
         url = p.split("#")[0].format(**ids)
         r = ex.request(m, url, json=body)

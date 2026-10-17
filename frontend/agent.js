@@ -13,11 +13,19 @@
   const HISTORY_TURNS = 12;
 
   const contexts = new Map();            // key -> { key, items: [], loaded }
-  const ag = { ctx: null, busy: false, abort: null };
+  const ag = { ctx: null, busy: false, abort: null, serverKey: null, serverEnv: null };
+  const customParams = new URLSearchParams(location.search);
+  const customId = Number(customParams.get('custom'));
+  const customEnv = customParams.get('environment');
+  const customSandbox = Number(customParams.get('sandbox'));
 
   function ctxKey() {
     const p = state.practice;
-    return p && p.active ? `practice:${p.attempt_id}` : 'lab';
+    if (p && p.active) return `practice:${p.attempt_id}`;
+    const env = state.env;
+    if (ag.serverKey && ag.serverEnv === `${env?.key}:${env?.sandbox}`) return ag.serverKey;
+    if (customId > 0 && (!env || (env.key === customEnv && env.sandbox === customSandbox))) return `custom:${customId}`;
+    return 'lab';
   }
   function getCtx(key) {
     let c = contexts.get(key);
@@ -149,6 +157,8 @@
       e.id = 'agent-empty';
       e.innerHTML = c && c.key.startsWith('practice')
         ? '有思路卡住了就问导师：它会引导你自己找到故障，不直接给答案。<br>需要时可用下方的分级提示（第 3 级会扣分）。'
+        : c && c.key.startsWith('custom:')
+          ? '问问当前拓扑、设备状态或命令输出。每次提问会附带当前沙箱最近的终端命令及输出；AI 只提供指导，不会主动在设备上执行命令。'
         : '问问当前环境：拓扑、设备状态、命令输出的含义……<br>Agent 可以在设备上执行只读命令（display / ping），你的终端里看不到这些命令。';
       log.appendChild(e);
       return;
@@ -183,10 +193,20 @@
   // ---------- 场景（自由问答 / 导师）切换 ----------
   async function loadHistory(c) {
     c.loaded = true;
+    const environment = `${state.env?.key}:${state.env?.sandbox}:${state.env?.gen}`;
+    const hasMessages = (context) => context.items.some((it) => it.role === 'user' || it.role === 'bot');
     try {
       const h = await A.api('GET', 'api/agent/history');
-      const key = h.mode === 'practice' ? `practice:${h.attempt_id}` : 'lab';
-      if (key !== c.key || c.items.length) return;
+      if (environment !== `${state.env?.key}:${state.env?.sandbox}:${state.env?.gen}`) { c.loaded = false; return; }
+      const key = h.context_key || (h.mode === 'practice' ? `practice:${h.attempt_id}` : 'lab');
+      if (key !== c.key && c === ag.ctx && !hasMessages(c)) {
+        ag.serverKey = key;
+        ag.serverEnv = `${state.env?.key}:${state.env?.sandbox}`;
+        c = ag.ctx = getCtx(key);
+        c.loaded = true;
+        syncContext();
+      }
+      if (key !== c.key || hasMessages(c)) return;
       for (const m of h.messages) {
         if (m.role === 'user') c.items.push({ role: 'user', content: m.content });
         else {
@@ -201,10 +221,12 @@
   function syncContext(initial) {
     const key = ctxKey();
     const practice = key.startsWith('practice');
+    const custom = key.startsWith('custom:');
     $('agent-note').hidden = !practice;
-    $('agent-badge').textContent = practice ? '导师模式' : '自由问答';
+    $('agent-badge').textContent = practice ? '导师模式' : custom ? 'AI 指导' : '自由问答';
     $('agent-badge').hidden = practice;
-    $('agent-input').placeholder = practice ? '向导师提问…' : '问问当前环境…';
+    $('agent-input').placeholder = practice ? '向导师提问…' : custom ? '结合我执行的命令提问…' : '问问当前环境…';
+    $('agent-context-note').hidden = !custom;
     if (!ag.ctx || ag.ctx.key !== key) {
       ag.ctx = getCtx(key);
       renderAll();
@@ -214,6 +236,8 @@
   }
   A.viewHooks.change.push((what) => {
     if (what && what.env) {                    // 模拟环境切换：在当前对话里注明，之前的回答基于旧环境
+      ag.serverKey = null;
+      ag.serverEnv = null;
       syncContext();
       const e = what.env;
       append(ag.ctx, { role: 'note', text: `—— 模拟环境已切换为 ${e.label}${e.sandbox != null ? `（沙箱 ${e.sandbox}）` : ''}，`
@@ -319,7 +343,10 @@
   // 返回 true 表示收到 done
   function onEvent(c, it, ev) {
     const segs = it.segments;
-    if (ev.type === 'delta') {
+    if (ev.type === 'meta') {
+      if (c.key.startsWith('custom:')) $('agent-context-note').textContent =
+        `本次提问已附带 ${ev.attached_commands || 0} 条当前沙箱的命令与输出摘要；AI 不会主动执行命令。`;
+    } else if (ev.type === 'delta') {
       const last = segs[segs.length - 1];
       if (last && last.type === 'text') last.text += ev.text;
       else segs.push({ type: 'text', text: ev.text });

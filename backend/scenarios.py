@@ -102,6 +102,11 @@ REQUIRED = ("id", "title", "topology", "required_devices", "accessible_devices",
 PLATFORMS = {"vrp5": "VRP5（eNSP 经典版）", "yunshan": "YunShan OS（eNSP Pro）"}
 # 平台短标签：题名不带平台后缀（2026-10-07 起），档案 / 成绩单 / 模板管理里与题名并列显示，区分两个平台的同名题
 PLATFORM_TAGS = {"vrp5": "VRP5", "yunshan": "YunShan"}
+# Course previews can show these stable sandbox links even while another sandbox is selected.
+PREVIEW_LINKS_BY_TOPOLOGY = {
+    "ainet_test": [{"src_device": "AR1", "src_label": "GE0/0/1",
+                    "dst_device": "AR2", "dst_label": "GE0/0/1"}],
+}
 
 
 def platform_of(s: dict[str, Any]) -> str:
@@ -155,7 +160,7 @@ def device_load(s: dict[str, Any], topo: dict[str, Any] | None = None) -> int | 
     - 有本题拓扑（沙箱）时以拓扑里的设备类型为准：kind 为 pc / cloud 的不计（eNSP Pro 按 deviceType 判断，
       PC-CLIENT 等为 pc），其余（router / switch / other，如防火墙）都计；本题设备不在拓扑里 = 判断不了，返回 None。
     - 拿不到拓扑时按题目自身的信息：hosts[] 里声明的终端主机不计，设备名按 eNSP 命名惯例是 PC / CLIENT / SERVER /
-      STA / MCS / Cloud 开头的不计（topology.device_kind），其余都计（R1、T1 这类名字按路由器 / 交换机算）。"""
+      STA / MCS / Cloud 开头的不计（topology.device_kind），其余都计（R1、AR1 这类名字按路由器 / 交换机算）。"""
     req = list(s.get("required_devices") or [])
     if topo_matches(s, topo):
         by = {d.get("name"): d for d in topo.get("devices") or []}
@@ -564,12 +569,15 @@ def readiness(s: dict[str, Any], cur: dict[str, Any]) -> dict[str, Any]:
 
 def public(s: dict[str, Any]) -> dict[str, Any]:
     """给前端的场景信息：不含 checks 命令、inject / restore / solution、提示内容。"""
+    preview_links = s.get("preview_links") or PREVIEW_LINKS_BY_TOPOLOGY.get(topo_key(s["topology"]))
     return {
         "id": s["id"], "title": s["title"], "level": s.get("level", ""),
         "knowledge_tags": s.get("knowledge_tags", []), "topology": s["topology"],
         "required_devices": s["required_devices"], "accessible_devices": s["accessible_devices"],
         "symptom": s["symptom"], "checks_total": len(s["checks"]), "hints_total": len(s["hints"]),
         "platform": s.get("platform", "vrp5"),
+        # Safe topology metadata for a lightweight course preview.
+        **({"preview_links": preview_links} if preview_links else {}),
         "draft": bool(s.get("draft", False)),        # 未真机验证的草稿题（缺省不列出，config.SHOW_DRAFTS）
         # 课程页（面向学员，加载时已查过不泄露答案）
         **{k: s[k] for k in COURSE_FIELDS if k in s},

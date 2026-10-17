@@ -1,6 +1,6 @@
 """课程页全流程的真机 e2e（eNSP Pro + 无头浏览器，里程碑 6.11；不进默认 pytest）。
 
-前置：本机能访问 eNSP Pro（沙箱 ainet_test id 2：T1=6、T2=7；ainet_campus id 3：LSW0=8、AR0=9、PC1=12）；
+前置：本机能访问 eNSP Pro（沙箱 ainet_test id 2：AR1=6、AR2=7；ainet_campus id 3：LSW0=8、AR0=9、PC1=12）；
 服务以 AINET_LAB_PROVIDER=enspro、临时 AINET_DB_PATH 起好（本脚本读同一个库拿考试种子与操作记录，所以要把
 AINET_DB_PATH 也传给本脚本），建议 AINET_AI_SCORING=0 AINET_AI_HINTS=0 AINET_AI_AGENT=0。eNSP Pro 单会话：跑脚本期间
 不要在别处登录 eNSP Pro，也不要同时跑别的直连 eNSP Pro 的脚本。只启停本题设备、开 / 结束练习与考试（结束时复位），
@@ -8,12 +8,12 @@ AINET_DB_PATH 也传给本脚本），建议 AINET_AI_SCORING=0 AINET_AI_HINTS=0
 
   R0  预置：切到沙箱 3、启动 PC1（当作「旧沙箱里运行着的设备」）
   R1  登录后进课程页；eNSP 离线（置灰）、eNSP Pro 在线
-  R2  L02 →「T1 与 T2 互联不通」（题名不带平台后缀）→ 开始练习：准备进度（切换沙箱、启动设备、等待运行、检测终端）
+  R2  L02 →「AR1 与 AR2 互联不通」（题名不带平台后缀）→ 开始练习：准备进度（切换沙箱、启动设备、等待运行、检测终端）
       → 旧沙箱的 PC1 被自动停掉（stopped_old）→ 进操作页、练习进行中
-  R3  操作页：单层顶栏（56px）、题名气泡里有环境（eNSP Pro / YunShan）与拓扑（沙箱 ainet_test、运行台数）、T2 终端可用
-  R4  在 T2 上修复 → 自动判定通关 → 退出到课程 → 复位与开练前快照一致（reset_ok）→ 卡片「已通过」
+  R3  操作页：单层顶栏（56px）、题名气泡里有环境（eNSP Pro / YunShan）与拓扑（沙箱 ainet_test、运行台数）、AR2 终端可用
+  R4  在 AR2 上修复 → 自动判定通关 → 退出到课程 → 复位与开练前快照一致（reset_ok）→ 卡片「已通过」
   R5  同一题单题考试：开始（确认框）→ 修复 → 提交本题通过 → 交卷（二次确认）→ 成绩单（带平台标签、各题复位成功）
-  R6  L04 →「交换机管理地址 ping 不通（接入 VLAN 配错）」→ 开始练习：切到沙箱 3（停掉 T1、T2）、启动 AR0 / LSW0 / PC1，
+  R6  L04 →「交换机管理地址 ping 不通（接入 VLAN 配错）」→ 开始练习：切到沙箱 3（停掉 AR1、AR2）、启动 AR0 / LSW0 / PC1，
       LSW0 卡住时看门狗自动停止再启动（记录 restart 阶段与设备进度文字）→ 就绪探测 → 练习进行中
   R7  PC 设置气泡（练习中）：读出 PC1 当前地址 → 改 IP / 掩码 / 网关 / DNS →「已生效」→ 接口读回（refreshAttrs）一致 →
       PC1 终端里查看地址（ipconfig / ifconfig）
@@ -48,7 +48,7 @@ BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8799").rstrip("/
 SHOTS = sys.argv[2] if len(sys.argv) > 2 else "."
 DEBUG_PORT = int(os.environ.get("AINET_E2E_DEBUG_PORT", "9361"))
 VLAN_ONLY = len(sys.argv) > 3 and sys.argv[3] == "vlan"     # 只跑 R0、R1、R6~R10（再碰一次 LSW0 卡住 + 看门狗）
-T1, T2, LSW0, AR0, PC1 = 6, 7, 8, 9, 12
+AR1, AR2, LSW0, AR0, PC1 = 6, 7, 8, 9, 12
 TOPIC1, TOPIC2 = "enspro-t1-t2-link", "campus-lsw0-access-vlan-ys"
 PROMPT = r"(<[^<>\s]+>|\[[^\[\]\s]+\]|PC>)\s*$"
 BUF_JS = """(port => { const t = window.__ainet.state.tabs.get(port); if (!t) return '';
@@ -276,7 +276,7 @@ async def main(c) -> None:
         and ens and ens["dis"] and "离线" in ens["text"], json.dumps(envs, ensure_ascii=False))
 
     if not VLAN_ONLY:
-        # ---- R2：T1/T2 题 开始练习 ----
+        # ---- R2：AR1/AR2 题 开始练习 ----
         await pick(c, "L02", TOPIC1)
         title = await text(c, "#c-preview h1")
         card_t = await c.ev(f"(document.querySelector('.c-card[data-id=\"{TOPIC1}\"] strong') || {{}}).textContent")
@@ -293,8 +293,8 @@ async def main(c) -> None:
         log(f"  job.stopped_old={job.get('stopped_old')} last_stopped_old={so}")
         stopped_pc = (any("PC1" in (x.get("devices") or []) for x in (job.get("stopped_old") or []))
                       or "PC1" in (so.get("devices") or []))
-        chk("R2", "T1/T2 题：题名不带「（YunShan）」；开始练习有准备进度（阶段 / 设备 / 用时）、走到检测终端；旧沙箱的 PC1 被自动停掉；进入练习",
-            title == "T1 与 T2 互联不通" and card_t == "T1 与 T2 互联不通" and "检测设备终端" in "".join(seen["stages"])
+        chk("R2", "AR1/AR2 题：题名不带「（YunShan）」；开始练习有准备进度（阶段 / 设备 / 用时）、走到检测终端；旧沙箱的 PC1 被自动停掉；进入练习",
+            title == "AR1 与 AR2 互联不通" and card_t == "AR1 与 AR2 互联不通" and "检测设备终端" in "".join(seen["stages"])
             and seen["elapsed"] and active and stopped_pc, f"title={title!r} stages={seen['stages']} stopped_pc={stopped_pc}")
 
         # ---- R3：操作页 ----
@@ -306,11 +306,11 @@ async def main(c) -> None:
         pop = {"env": await text(c, "#tp-env"), "topo": await text(c, "#topo-status"), "devs": await text(c, "#tp-devs")}
         await shot(c, "r03_topbar_popover.png")
         await c.ev("window.__ainet.setTopicPop && window.__ainet.setTopicPop(false), 0")
-        t2_ok = await open_term(c, "T2", T2)
-        out = await type_cmd(c, T2, "display ip interface brief") if t2_ok else ""
+        t2_ok = await open_term(c, "AR2", AR2)
+        out = await type_cmd(c, AR2, "display ip interface brief") if t2_ok else ""
         await shot(c, "r03_t2_terminal.png")
-        chk("R3", "操作页单层顶栏（56px）、「练习 + 题名」；气泡：环境 eNSP Pro / YunShan、拓扑沙箱 ainet_test 与运行台数；T2 终端可用",
-            hdr == 56 and "练习" in topic and "T1 与 T2 互联不通" in topic and "eNSP Pro" in pop["env"] and "YunShan" in pop["env"]
+        chk("R3", "操作页单层顶栏（56px）、「练习 + 题名」；气泡：环境 eNSP Pro / YunShan、拓扑沙箱 ainet_test 与运行台数；AR2 终端可用",
+            hdr == 56 and "练习" in topic and "AR1 与 AR2 互联不通" in topic and "eNSP Pro" in pop["env"] and "YunShan" in pop["env"]
             and "ainet_test" in pop["topo"] and "运行" in pop["topo"] and t2_ok and "GE0/0/1" in out,
             f"hdr={hdr} topic={topic!r} pop={pop}")
 
@@ -319,11 +319,11 @@ async def main(c) -> None:
         link = (st.get("param_values") or {}).get("link")
         aid1 = st.get("attempt_id")
         for cmd in ("system-view", "interface GE0/0/1", f"ip address 10.0.{link}.2 24", "return"):
-            await type_cmd(c, T2, cmd)
-        t1_ok = await open_term(c, "T1", T1)
+            await type_cmd(c, AR2, cmd)
+        t1_ok = await open_term(c, "AR1", AR1)
 
         async def poke():
-            await type_cmd(c, T1, f"ping -c 2 10.0.{link}.2")
+            await type_cmd(c, AR1, f"ping -c 2 10.0.{link}.2")
         await poke()
         passed = await wait_practice_passed(c, poke)
         await shot(c, "r04_passed.png")
@@ -338,7 +338,7 @@ async def main(c) -> None:
         await pick(c, "L02", TOPIC1)
         prog = await c.ev(f"(document.querySelector('.c-card[data-id=\"{TOPIC1}\"] .c-prog') || {{}}).textContent")
         await shot(c, "r04_back_to_courses.png")
-        chk("R4", "T2 上修复 → 自动判定通关 → 退出到课程 → 复位与开练前快照一致（reset_ok）→ 卡片「已通过」",
+        chk("R4", "AR2 上修复 → 自动判定通关 → 退出到课程 → 复位与开练前快照一致（reset_ok）→ 卡片「已通过」",
             t1_ok and passed and back and last.get("reset_ok") is True and "已通过" in (prog or "")
             and cf4 and "已通关" in cf4[0],
             f"link={link} attempt={aid1} reset_ok={last.get('reset_ok')} leftovers={last.get('leftovers')} prog={prog!r} "
@@ -357,9 +357,9 @@ async def main(c) -> None:
         seed = json.loads(row[0]["state_json"])["questions"][0]["seed"] if row else 0
         link5 = expand(loaded[TOPIC1], seed)["param_values"]["link"]
         await shot(c, "r05_exam_started.png")
-        ok_t2 = await open_term(c, "T2", T2)
+        ok_t2 = await open_term(c, "AR2", AR2)
         for cmd in ("system-view", "interface GE0/0/1", f"ip address 10.0.{link5}.2 24", "return"):
-            await type_cmd(c, T2, cmd)
+            await type_cmd(c, AR2, cmd)
         await click(c, "#ex-submit")
         q_passed = await c.wait_for("window.__ainet.state.exam.question && window.__ainet.state.exam.question.passed", 90)
         await click(c, "#ex-finish")
@@ -410,12 +410,12 @@ async def main(c) -> None:
     log(f"  VLAN 题准备：stages={seen6['stages']} {seen6['seconds']}s msgs={sorted(seen6['msgs'])[:6]}")
     log(f"  job.notes={job6.get('notes')} stopped_old={job6.get('stopped_old')}")
     log(f"  看门狗事件：{json.dumps(watch.get('events'), ensure_ascii=False)[:1500]}")
-    stopped_t = any({"T1", "T2"} <= set(x.get("devices") or []) for x in (job6.get("stopped_old") or []))
+    stopped_t = any({"AR1", "AR2"} <= set(x.get("devices") or []) for x in (job6.get("stopped_old") or []))
     restarted = any(e.get("event") == "restart" and e.get("device") == "LSW0" for e in (watch.get("events") or []))
-    chk("R6", "VLAN 题：开始练习 → 切到沙箱 3（停掉 T1、T2）→ 启动 AR0 / LSW0 / PC1 → 就绪探测 → 练习进行中"
+    chk("R6", "VLAN 题：开始练习 → 切到沙箱 3（停掉 AR1、AR2）→ 启动 AR0 / LSW0 / PC1 → 就绪探测 → 练习进行中"
               f"（LSW0 本次{'卡住、看门狗自动重启后就绪' if restarted else '没有卡住'}）",
         active6 and (stopped_t or VLAN_ONLY) and "检测设备终端" in "".join(seen6["stages"]),
-        f"stages={seen6['stages']} stopped_T1T2={stopped_t} restarted={restarted}")
+        f"stages={seen6['stages']} stopped_AR1AR2={stopped_t} restarted={restarted}")
 
     # ---- R7：PC 设置气泡 ----
     st6 = (await api(c, "GET", "api/practice/current"))["data"] or {}

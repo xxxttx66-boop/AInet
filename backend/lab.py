@@ -206,7 +206,7 @@ class WatchParam:
     zero_off: bool = False
 
 
-# eNSP Pro 的看门狗参数。2026-10-07：一台 Windows 笔记本上 T1 / T2 冷启动 187~202 秒（Linux KVM 上约 100 秒），全局 150 秒
+# eNSP Pro 的看门狗参数。2026-10-07：一台 Windows 笔记本上 AR1 / AR2 冷启动 187~202 秒（Linux KVM 上约 100 秒），全局 150 秒
 # 的启动超时让看门狗误判卡住、自动重启 3 次后标 start_failed，所以改为按环境配置。
 ENSPRO_WATCH = (
     WatchParam("start_timeout", "启动超时", "秒", "AINET_ENSPRO_START_TIMEOUT", "ENSPRO_START_TIMEOUT", "start_timeout",

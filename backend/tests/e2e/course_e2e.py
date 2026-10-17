@@ -11,7 +11,7 @@
   C6  学员菜单：我的档案 / 切换学员 / 登出
   C7  PC 设置气泡（练习中）：读出当前地址 → 改 IP → 等 PC 命令行恢复后「已生效」→ 打开终端
   C8  模式切换：练习 → 实验（确认框，放弃并复位，PC 地址还原；操作记录里有「[PC 配置] …」）→ 练习 → 考试（确认框）
-  C9  单题考试：顶栏「考试 第 1 / 1 题 ▾」、其他模式与「退出到课程」不可用、气泡只放工单；考试中改 PC 地址；
+  C9  单题考试：顶栏「考试 第 1 / 1 题 ▾」、题干常驻、其他模式不可切；可以暂离且计时继续，返回后恢复；考试中改 PC 地址；
       修好后提交本题 → 交卷（二次确认）→ 成绩单 → 命令回放里有「[PC 配置] PC1 …」
   C10 退出到课程：练习中确认后按放弃结束；实验中直接回课程页；课题卡片完成状态更新
   C11 窄屏：课程页四列改上下排列、无横向滚动；操作页顶栏换行，按钮都在视口内
@@ -40,13 +40,13 @@ import websockets
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from browser_e2e import CDP, CHROME, PROMPT_JS, step  # noqa: E402
+from browser_e2e import CDP, CHROME, PROMPT_JS, step, stop_browser  # noqa: E402
 from exam_e2e import shot, type_cmd  # noqa: E402
 
 HTTP_PORT = int(os.environ.get("AINET_E2E_HTTP_PORT", "8797"))
 DEBUG_PORT = int(os.environ.get("AINET_E2E_DEBUG_PORT", "9357"))
 TOPIC = "e2e-pc-t1t2"
-T2, PC1 = 7, 12
+AR2, PC1 = 7, 12
 
 BOX_JS = """(sel => { const e = document.querySelector(sel); if (!e) return null;
   const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
@@ -168,12 +168,13 @@ async def phase_pro(c, shot_dir, results):
         results.append(chk("C3", "章节 L01~L12 从易到难 + 末尾「考试」，题数 / 「待补充」；课题卡片（完成状态、难度、用时、一句话症状）；"
                                  "预览（标签、拓扑预览本题设备橙框、未启动虚线、准备说明、三个按钮）；刷新后选择保持",
                            [x[0] for x in chaps][:12] == [f"L{i:02d}" for i in range(1, 13)] and chaps[-1][0] == "__exam__"
-                           and cmap["L02"][2] == "3" and cmap["L07"][1] and cmap["L07"][2] == "待补充"
-                           and any("VLAN" in t for t in l04) and len(cards) == 3
+                           and cmap["L02"][2] == str(len(cards))
+                           and all(cmap[x][1] and cmap[x][2] == "待补充" for x in ("L10", "L11"))
+                           and any("VLAN" in t for t in l04) and len(cards) >= 3 and any(x["id"] == TOPIC for x in cards)
                            and all(x["prog"] == "未开始" and x["diff"].startswith("难度 ★") and x["sum"] for x in cards)
-                           and pv["title"].startswith("T1 与 T2 互联不通（PC 气泡") and pv["tags"] == 2 and pv["req"] == 3
+                           and pv["title"].startswith("AR1 与 AR2 互联不通（PC 气泡") and pv["tags"] == 2 and pv["req"] == 3
                            and pv["off"] == 3 and "沙箱" in pv["prep"] and "启动本题需要的 3 台设备" in pv["prep"]
-                           and pv["btns"] == ["自由实验", "开始练习", "单题考试"]
+                           and pv["btns"] == ["准备环境并进入实验", "准备环境并开始练习", "准备环境并开始考试"]
                            and kept == ("L02", TOPIC, TOPIC)))
 
         # ---- C4：开始练习 → 准备进度 → 操作页 ----
@@ -215,14 +216,15 @@ async def phase_pro(c, shot_dir, results):
         strips = await c.ev("[...document.querySelectorAll('.strip > div')].filter(d => d.offsetHeight).reduce((a, d) => a + d.offsetHeight + 0, 0)")
         bar = await c.ev("""[...document.querySelectorAll('#bar > *')].filter(e => e.offsetWidth && getComputedStyle(e).display !== 'none')
           .map(e => e.id || e.className)""")
-        inbar = await c.ev("['pr-active-view', 'pr-timer', 'pr-check', 'pr-end', 'user-btn', 'btn-exit', 'topic-btn'].every(id => "
-                           "document.getElementById(id).closest('#bar'))")
+        controls = await c.ev("['pr-active-view', 'pr-timer', 'pr-check', 'pr-end', 'user-btn', 'btn-exit', 'topic-btn']"
+                              ".every(id => { const e=document.getElementById(id), r=e.getBoundingClientRect(); "
+                              "return e.offsetParent !== null && r.width > 0 && r.right <= innerWidth; })")
         topic = await text(c, "#topic-btn")
-        env_hidden = not await shown(c, "#topo-status")
+        env_status = await text(c, "#topo-status")
         await click(c, "#topic-btn")
         await asyncio.sleep(0.4)
         pop = {"env": await text(c, "#tp-env"), "topo": await text(c, "#topo-status"), "devs": await text(c, "#tp-devs"),
-               "chap": await text(c, "#tp-chapter"), "ticket": await text(c, "#tp-ticket"),
+               "chap": await text(c, "#tp-chapter"),
                "btns": await c.ev("[...document.querySelectorAll('.tp-actions button')].filter(b => !b.hidden).map(b => b.textContent)")}
         await shot(c, shot_dir, "03_topbar_popover.png")
         await click(c, "#btn-refresh")
@@ -230,16 +232,17 @@ async def phase_pro(c, shot_dir, results):
         await click(c, "#tp-full")                  # 练习中：查看完整工单 = 打开右侧「工单详情」
         await asyncio.sleep(0.4)
         side_task = await c.ev("window.__ainet.layout.side.tab") == "task" and await shown(c, "#pr-detail")
-        print(f"  顶栏={hdr} main.y={mainb['y']} 通知条高={strips} 元素={bar}\n  题名={topic!r} 气泡={pop}")
-        results.append(chk("C5", "单层顶栏（56px，下面直接是通知条 / 主区）：模式、「练习 + 题名 ▾」、用时 / 判定 / 按钮、学员名、退出到课程；"
-                                 "环境与拓扑不常驻，气泡里有环境、拓扑与运行台数、本题设备、章节难度、工单摘要与两个按钮",
-                           hdr["h"] == 56 and abs(mainb["y"] - (hdr["y"] + hdr["h"] + strips)) <= 2 and inbar
-                           and "练习" in topic and "T1 与 T2 互联不通" in topic and env_hidden
+        ticket = await text(c, "#pr-detail")
+        print(f"  顶栏={hdr} main.y={mainb['y']} 通知条高={strips} 元素={bar}; controls={controls}; "
+              f"工单页={side_task}, 工单内容={ticket[:80]!r}\n  题名={topic!r} 气泡={pop}")
+        results.append(chk("C5", "工作台标题区显示模式和课题；操作控制、学员菜单与退出入口可见；气泡显示环境、拓扑、设备和章节，完整工单切到右侧工单页",
+                           hdr["h"] <= 80 and hdr["y"] + hdr["h"] <= mainb["y"] <= hdr["y"] + hdr["h"] + 100 and controls
+                           and "练习" in topic and "AR1 与 AR2 互联不通" in topic
                            and "eNSP Pro" in pop["env"] and "YunShan" in pop["env"] and "沙箱 ainet_test" in pop["topo"]
-                           and "运行 3/3 台" in pop["topo"] and pop["devs"] == "T1 · T2 · PC1"
+                           and "运行 3/3 台" in pop["topo"] and pop["devs"] == "AR1 · AR2 · PC1"
                            and pop["chap"].startswith("L02 IP 编址") and "难度 ★" in pop["chap"]
-                           and pop["ticket"].startswith("工单：") and pop["btns"] == ["↻ 刷新设备状态", "查看完整工单"]
-                           and side_task))
+                           and pop["btns"] == ["↻ 刷新设备状态", "打开工单页"]
+                           and side_task and "工单" in ticket and "AR1 与 AR2" in ticket))
 
         # ---- C6：学员菜单 ----
         await click(c, "#user-btn")
@@ -253,7 +256,7 @@ async def phase_pro(c, shot_dir, results):
         closed = await c.ev("document.getElementById('user-menu').hidden")
         nav = await c.ev("[...document.querySelectorAll('#mode-nav button')].map(b => b.textContent)")
         results.append(chk("C6", f"学员菜单：{menu}（我的档案 / 切换学员 / 登出），Esc 关闭；顶栏模式只有实验 / 练习 / 考试（{nav}）",
-                           menu == ["我的档案", "切换学员", "登出"] and hrefs == ["profile", "login"] and closed
+                           menu == ["我的档案", "AI 设置", "切换学员", "登出"] and hrefs == ["profile", "login"] and closed
                            and nav == ["实验", "练习", "考试"]))
 
         # ---- C7：PC 设置气泡（练习中） ----
@@ -281,13 +284,17 @@ async def phase_pro(c, shot_dir, results):
         await click(c, "#vt-topo")
         await c.wait_for("window.__ainet.state.mode === 'lab' && !(window.__ainet.state.practice || {}).active", 60)
         cf = (await confirms(c))[n0:]
-        await asyncio.sleep(0.5)
+        reset_done = await c.wait_for(
+            "fetch('api/practice/current').then(r => r.json()).then(j => !j.resetting)", 90)
+        reset_state = await c.ev("fetch('api/practice/current').then(r => r.json())")
         logs = [l["command"] for l in db.attempt_logs(aid)]
         host = await c.ev(f"fetch('api/lab/devices/{PC1}/host').then(r => r.json())")
         att = db.get_attempt(aid)
-        print(f"  练习 → 实验：确认框 {cf}；操作记录 {logs}；PC1 复位后 {host.get('config')}")
+        reset_result = reset_state.get("last_result") or {}
+        print(f"  练习 → 实验：确认框 {cf}；复位结果 {reset_result.get('reset_ok')}；操作记录 {logs}；PC1 复位后 {host.get('config')}")
         ok_a = (len(cf) == 1 and "放弃" in cf[0] and any(x.startswith("[PC 配置] PC1 ip=10.0.10.66") for x in logs)
-                and host["config"]["ip"] == "" and att["passed"] == 0 and att["ended_at"])
+                and reset_done and reset_result.get("reset_ok") and host["config"]["ip"] == ""
+                and att["passed"] == 0 and att["ended_at"])
         await click(c, "#vt-practice")                 # 实验 → 练习：直接开始，不用确认
         p2 = await c.wait_for("window.__ainet.state.practice && window.__ainet.state.practice.active", 60)
         cf2 = (await confirms(c))[n0 + 1:]
@@ -305,36 +312,80 @@ async def phase_pro(c, shot_dir, results):
         E = {"topic": await text(c, "#topic-btn"), "badge": await text(c, "#topic-badge"),
              "btns": await c.ev("[...document.querySelectorAll('#mode-nav button')].map(b => b.disabled)"),
              "exit": await c.ev("document.getElementById('btn-exit').disabled"),
+             "exit_label": await text(c, "#btn-exit"), "question_visible": await shown(c, "#exam-question"),
+             "question_title": await text(c, "#exam-question-title"), "question_text": await text(c, "#exam-question-text"),
              "bar_bg": await c.ev("getComputedStyle(document.getElementById('bar')).backgroundColor"),
              "side": await shown(c, "#side"), "progress": await shown(c, "#ex-progress"),
+             "agent_tab": await shown(c, "#st-agent"), "agent_rail": await shown(c, "#rail-agent"),
              "timer": await text(c, "#ex-timer")}
-        await click(c, "#vt-topo")
+        # 导航允许暂离考试：服务端保留当前题，倒计时继续；从考试中心的提示可回到本场。
+        exam_id = await c.ev("window.__ainet.state.exam.exam_id")
+        await c.ev("window.__leavePrompt = ''; window.confirm = (t) => (window.__leavePrompt = t, false)")
+        await c.ev("document.querySelector('#app-sidebar [data-nav=exams]').click(), 0")
+        cancelled = await c.wait_for("window.__ainet.state.exam.active && location.pathname.endsWith('/')", 3)
+        prompt = await c.ev("window.__leavePrompt")
+        target_cleared = await c.ev("!document.getElementById('btn-exit').dataset.uiExitHref")
+        await c.ev("window.confirm = (t) => (window.__leavePrompt = t, true)")
+        await c.ev("document.querySelector('#app-sidebar [data-nav=exams]').click(), 0")
+        away = await c.wait_for("location.pathname.endsWith('/courses') && location.search.includes('view=exams')", 15)
+        banner = await c.wait_for("document.getElementById('c-active') && !document.getElementById('c-active').hidden && "
+                                  "!document.getElementById('c-active-go').hidden", 15)
+        resume_note = await text(c, "#c-active-text")
+        resume_href = await c.ev("document.getElementById('c-active-go').getAttribute('href')")
+        await click(c, "#c-active-go")
+        resumed = await c.wait_for(
+            f"location.pathname === '/' && window.__ainet && window.__ainet.state.exam && window.__ainet.state.exam.active && "
+            f"window.__ainet.state.exam.exam_id === {exam_id} && "
+            f"!!document.getElementById('exam-question') && !document.getElementById('exam-question').hidden", 20)
+        await c.ev(CONFIRM_JS)
+        E["resume_url"] = await c.ev("location.href")
+        E["resume_body"] = await c.ev("document.body.className")
+        E["resume_nav"] = await c.ev("!!document.getElementById('mode-nav')")
+        E["resume_question"] = await shown(c, "#exam-question")
+        E["resume_api"] = await c.ev("fetch('api/exam/current').then(r => r.json()).catch(e => ({error:String(e)}))")
+        E["resume_button"] = await c.ev("(() => { const b=document.getElementById('c-active-go'); return b && "
+                                            "{text:b.textContent,hidden:b.hidden,disabled:b.disabled,href:b.getAttribute('href'), "
+                                            "resumeHref:b.dataset.resumeHref,onclick:b.onclick&&b.onclick.toString()} })()")
+        print(f"  恢复后页面：resumed={resumed}, url={E['resume_url']!r}, body={E['resume_body']!r}, "
+              f"mode_nav={E['resume_nav']}, question={E['resume_question']}, api={E['resume_api']}, "
+              f"button={E['resume_button']}")
+        if E["resume_nav"]:
+            await click(c, "#vt-topo")
         await asyncio.sleep(0.3)
-        E["mode_after"] = await c.ev("window.__ainet.state.mode")
-        if await c.ev("document.getElementById('topic-pop').hidden"):
+        E["mode_after"] = await c.ev("window.__ainet && window.__ainet.state.mode || ''")
+        if E["resume_nav"] and await c.ev("document.getElementById('topic-pop').hidden"):
             await click(c, "#topic-btn")
         await asyncio.sleep(0.4)
-        E["pop_ticket"] = await shown(c, "#ex-ticket")
-        E["pop_info"] = await shown(c, "#tp-devs")
-        E["pop_env"] = await shown(c, "#tp-env")
-        E["symptom"] = (await text(c, "#ex-symptom"))[:20]
+        E["pop_ticket"] = await shown(c, "#ex-ticket") if E["resume_nav"] else False
+        E["pop_info"] = await shown(c, "#tp-devs") if E["resume_nav"] else False
+        E["pop_env"] = await shown(c, "#tp-env") if E["resume_nav"] else False
+        E["symptom"] = (await text(c, "#ex-symptom"))[:20] if E["resume_nav"] else ""
         await shot(c, shot_dir, "06_exam_topbar.png")
-        await c.ev("window.__ainet.setTopicPop(false), 0")
-        print(f"  考试：{E}")
-        results.append(chk("C9a", "单题考试：顶栏变红、「考试 第 1 / 1 题 ▾」、实验 / 练习与「退出到课程」不可用；气泡只放工单（拓扑可见时带环境 / 拓扑）",
+        if E["resume_nav"]:
+            await c.ev("window.__ainet.setTopicPop(false), 0")
+        print(f"  考试：{E}; 暂离/恢复：cancelled={cancelled}, target_cleared={target_cleared}, prompt={prompt!r}, "
+              f"away={away}, banner={banner}, note={resume_note!r}, href={resume_href!r}, resumed={resumed}")
+        results.append(chk("C9a", "单题考试：题干常驻、其他模式禁用；暂离考试可进入考试中心并恢复同一场考试；气泡只放工单",
                            "第 1 / 1 题" in E["topic"] and E["badge"] == "考试" and E["btns"] == [True, True, False]
-                           and E["exit"] and E["mode_after"] == "exam" and not E["side"] and E["pop_ticket"]
+                           and not E["exit"] and E["exit_label"] == "暂离考试" and E["question_visible"]
+                           and E["question_title"] and E["question_text"] and cancelled and target_cleared
+                           and "计时继续" in prompt and away and banner and resumed and "计时继续" in resume_note
+                           and f"s={TOPIC}" in resume_href and f"s={TOPIC}" in E["resume_url"]
+                           and E["mode_after"] == "exam" and not E["side"] and not E["agent_tab"] and not E["agent_rail"]
+                           and E["pop_ticket"]
                            and not E["pop_info"] and E["pop_env"] and E["symptom"].startswith("工单") and E["timer"] != "--:--"))
-        # 考试中改 PC 地址 → 修好 T2 → 提交 → 交卷 → 成绩单 → 回放
+        if not E["resume_nav"]:
+            return
+        # 考试中改 PC 地址 → 修好 AR2 → 提交 → 交卷 → 成绩单 → 回放
         await node_click(c, "PC1")
         await c.wait_for("document.getElementById('pc-ip').value && !document.getElementById('pc-ip').disabled", 15)
         await c.ev("document.getElementById('pc-ip').value = '10.0.10.77'; document.getElementById('pc-form').requestSubmit(), 0")
         pc_ok = await c.wait_for("document.getElementById('pc-msg').textContent.startsWith('已生效')", 30)
         await c.ev("document.getElementById('pc-close').click(), 0")
-        await node_click(c, "T2")
-        await c.wait_for(f"{PROMPT_JS}(({BUF_JS})({T2}) || '')", 30)
+        await node_click(c, "AR2")
+        await c.wait_for(f"{PROMPT_JS}(({BUF_JS})({AR2}) || '')", 30)
         for cmd in ("system-view", "interface GE0/0/1", "ip address 10.0.12.2 24", "return"):
-            await type_cmd(c, T2, cmd)
+            await type_cmd(c, AR2, cmd)
         await click(c, "#ex-submit")
         passed = await c.wait_for("window.__ainet.state.exam.question && window.__ainet.state.exam.question.passed", 40)
         await click(c, "#ex-finish")
@@ -350,7 +401,7 @@ async def phase_pro(c, shot_dir, results):
         await asyncio.sleep(1)
         replay = await c.ev("document.getElementById('replay-list').innerText")
         summary = await c.ev("document.body.innerText")
-        await shot(c, shot_dir, "08_exam_report.png", full=True)
+        await shot(c, shot_dir, "08_exam_report.png")
         print(f"  交卷后 {after}；PC={pc_ok} 通过={passed} 确认条={cfm} 已交卷={bool(done)}；回放：{replay[:300]!r}")
         results.append(chk("C9b", "考试中 PC 改地址生效；修好后提交本题通过 → 交卷二次确认 → 已交卷与成绩单链接 → 成绩单命令回放里有「[PC 配置] PC1 ip=10.0.10.77 …」",
                            pc_ok and passed and cfm and done and after == {"btns": [False, False, False], "exit": False}
@@ -384,7 +435,8 @@ async def phase_pro(c, shot_dir, results):
         await c.cmd("Emulation.setDeviceMetricsOverride", width=760, height=900, deviceScaleFactor=1, mobile=False)
         await asyncio.sleep(0.6)
         nc = {"sw": await c.ev("document.documentElement.scrollWidth"),
-              "envs": await box(c, ".c-envs"), "chap": await box(c, ".c-chapters"), "btn": await box(c, "#c-practice")}
+              "home": await shown(c, "#c-home"), "envs": await box(c, ".c-envs"),
+              "next": await box(c, "#home-next-card")}
         await shot(c, shot_dir, "09_courses_narrow.png", full=True)
         await goto(c, f"{base}/?mode=lab&s={TOPIC}", WB_READY)
         await click(c, "#vt-practice")
@@ -393,9 +445,6 @@ async def phase_pro(c, shot_dir, results):
         ids = ["vt-topo", "vt-practice", "vt-exam", "topic-btn", "pr-check", "pr-end", "user-btn", "btn-exit"]
         boxes = {i: await box(c, f"#{i}") for i in ids}
         sw = await c.ev("document.documentElement.scrollWidth")
-        wide = await c.ev("""[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > innerWidth + 1
-          && e.offsetParent !== null).slice(0, 8).map(e => (e.id || e.className || e.tagName) + ':' + Math.round(e.getBoundingClientRect().right))""")
-        print(f"  超出视口的元素：{wide}")
         await shot(c, shot_dir, "10_op_narrow.png")
         await click(c, "#topic-btn")
         await asyncio.sleep(0.3)
@@ -406,10 +455,12 @@ async def phase_pro(c, shot_dir, results):
         await c.wait_for("location.pathname.endsWith('/courses')", 60)
         await c.cmd("Emulation.setDeviceMetricsOverride", width=1440, height=900, deviceScaleFactor=1, mobile=False)
         inside = all(b and b["w"] > 0 and b["x"] >= 0 and b["x"] + b["w"] <= 760 for b in boxes.values())
-        print(f"  窄屏课程页：{nc}\n  窄屏操作页：sw={sw} {boxes} 气泡={popb}")
-        results.append(chk("C11", "窄屏（760px）：课程页四列改上下排列、无横向滚动；操作页顶栏换行，模式 / 题名 / 练习按钮 / 学员 / 退出都在视口内，气泡不出界",
-                           nc["sw"] <= 760 and nc["chap"]["y"] >= nc["envs"]["y"] + nc["envs"]["h"] - 1
-                           and nc["btn"]["w"] > 0 and nc["btn"]["x"] + nc["btn"]["w"] <= 760 and inside and sw <= 760
+        print(f"  窄屏学习首页：{nc}\n  窄屏操作页：sw={sw} {boxes} 气泡={popb}")
+        results.append(chk("C11", "窄屏（760px）：学习首页纵向排布且无横向滚动；操作页主要按钮都在视口内，右侧工单折叠为图标栏，课题气泡不出界",
+                           nc["sw"] <= 760 and nc["home"] and nc["envs"]["w"] > 0
+                           and nc["envs"]["x"] + nc["envs"]["w"] <= 760
+                           and nc["next"]["w"] > 0 and nc["next"]["x"] + nc["next"]["w"] <= 760
+                           and inside and sw <= 760
                            and popb["x"] >= 0 and popb["x"] + popb["w"] <= 760))
 
         # ---- C12：隐藏拓扑的考试里也能用 PC 设置气泡（拓扑打码，左栏设备按钮 PC1 → 气泡） ----
@@ -419,7 +470,7 @@ async def phase_pro(c, shot_dir, results):
           duration_s: 900, retries: 0, show_topology: false}})}).then(r => r.json()).then(t => t.id)""")
         await start_from_courses(c, base, tid)
         await c.ev(CONFIRM_JS)
-        await c.wait_for("window.__ainet.state.exam && window.__ainet.state.exam.active && "
+        await c.wait_for("window.__ainet && window.__ainet.state.exam && window.__ainet.state.exam.active && "
                          "document.querySelectorAll('#topo-devlist button').length >= 3", 60)
         await c.ev("window.__ainet.setTopicPop(false), 0")
         masked = await c.ev("document.getElementById('topo-body').classList.contains('masked')")
@@ -485,7 +536,9 @@ async def phase_classic(c, shot_dir, results):
         await c.wait_for(WB_READY, 20)
         await c.ev(CONFIRM_JS)
         act = await c.wait_for("window.__ainet.state.practice && window.__ainet.state.practice.active", 20)
-        await node_click(c, "1")
+        pc_nodes = await c.ev("[...document.querySelectorAll('#topo-svg .node')].map(n => n.dataset.name).filter(n => /^\\d+$/.test(n))")
+        print(f"  经典版拓扑 PC 节点：{pc_nodes}")
+        await node_click(c, pc_nodes[0] if pc_nodes else "1")
         await asyncio.sleep(0.5)
         pc = {"shown": await shown(c, "#pc-pop"), "note": await text(c, "#pc-note"),
               "dis": await c.ev("['pc-ip', 'pc-mask', 'pc-gw', 'pc-dns', 'pc-apply'].every(id => document.getElementById(id).disabled)")}
@@ -500,8 +553,11 @@ async def phase_classic(c, shot_dir, results):
 
 async def run(shot_dir: str) -> int:
     results: list[bool] = []
-    chrome = subprocess.Popen([CHROME, f"--remote-debugging-port={DEBUG_PORT}", "--no-sandbox", "about:blank"],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    browser_args = [CHROME]
+    if os.name == "nt":
+        browser_args += ["--headless=new", f"--user-data-dir={os.path.join(shot_dir, 'browser-profile')}"]
+    browser_args += [f"--remote-debugging-port={DEBUG_PORT}", "--no-sandbox", "about:blank"]
+    chrome = subprocess.Popen(browser_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         tabs = None
         for _ in range(50):
@@ -534,7 +590,7 @@ async def run(shot_dir: str) -> int:
             results.append(chk("X", "全程无 JS 异常 / console error", not c.errors))
             reader.cancel()
     finally:
-        chrome.terminate()
+        stop_browser(chrome, os.path.join(shot_dir, "browser-profile"))
     print(f"SUMMARY: {sum(results)} pass / {len(results) - sum(results)} fail")
     return 0 if all(results) else 1
 

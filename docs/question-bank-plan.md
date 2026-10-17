@@ -6,6 +6,8 @@
 > `undo dhcp enable`（出厂配置），两道 NAT 题改成 AR6700 的 nat-policy / nat server 写法（§4 L09）。
 > §6 的「需真机确认」各条已写上实测结论（「→ 实测」）。
 
+> 当前 AInet 对学员统一显示设备型号名：`ainet_test` 的 ENSP-AR（AR6700）节点在原沙箱 API 中叫 T1/T2，页面映射为 AR1/AR2；设备 ID、端口、连接及后台 console 绑定不变。其他沙箱按实际拓扑名称显示。
+
 ## 1. 现状与目标
 
 **现状**（2026-10-07，基线 master 6c6c792）：eNSP Pro 有 6 道已上线题，全部在真机验证过。
@@ -49,13 +51,13 @@ L01 以及 L07~L12 在两个环境下都还没有题。
 
 | 设备 | 类型 | 连线 |
 |---|---|---|
-| T1 | ENSP-AR（AR6700，YunShan OS 1.25.1.1 / V600R025C10SPC100） | T1 GE0/0/1 — T2 GE0/0/1 |
-| T2 | ENSP-AR（同上） | 同上 |
+| AR1 | ENSP-AR（AR6700，YunShan OS 1.25.1.1 / V600R025C10SPC100） | AR1 GE0/0/1 — AR2 GE0/0/1 |
+| AR2 | ENSP-AR（同上） | 同上 |
 
 - 只有一条链路，适合做两台路由器之间的题：接口、地址、掩码、静态路由，以及这几类叠加的多处故障。
 - **需真机确认**：
-  - 沙箱里除 T1、T2 外是否还有别的设备。课程 e2e 里出现的 PC1（deviceId 12）只存在于假环境。
-  - T2 的 GE0/0/2 是否存在、在未接线时是否显示物理 down。`enspro-t2-ip-wrong-port` 依赖这一点。
+  - 沙箱里除 AR1、AR2 外是否还有别的设备。课程 e2e 里出现的 PC1（deviceId 12）只存在于假环境。
+  - AR2 的 GE0/0/2 是否存在、在未接线时是否显示物理 down。`enspro-t2-ip-wrong-port` 依赖这一点。
 
 ### 2.2 ainet_campus（沙箱 id 3）
 
@@ -128,18 +130,18 @@ L01 以及 L07~L12 在两个环境下都还没有题。
 
 | # | 题目（文件） | 状态 | 沙箱 / 设备 | 难度 |
 |---|---|---|---|---|
-| 1 | T1 与 T2 链路中断（接口状态）`enspro-t2-port-shutdown` | 已上线（2026-10-07 真机） | ainet_test：T1、T2（ENSP-AR） | 1 |
-| 2 | 新接入的 T2 不通（地址配错接口）`enspro-t2-ip-wrong-port` | 已上线（2026-10-07 真机） | ainet_test：T1、T2 | 2 |
+| 1 | AR1 与 AR2 链路中断（接口状态）`enspro-t2-port-shutdown` | 已上线（2026-10-07 真机） | ainet_test：AR1、AR2（ENSP-AR） | 1 |
+| 2 | 新接入的 AR2 不通（地址配错接口）`enspro-t2-ip-wrong-port` | 已上线（2026-10-07 真机） | ainet_test：AR1、AR2 | 2 |
 | 3 | 网关 ping 不通交换机（端口状态）`campus-lsw0-port-shutdown-ys` | 已上线（2026-10-07 真机） | ainet_campus：AR0、LSW0、PC1（AR + LSW + PC） | 2 |
 
-1. **故障**：T2 的 GE0/0/1 被 shutdown，T2 开放终端，学员能修。spec §6.2 第 3 条说「关闭对端接口并且不开放对端」，那样学员修不了，所以本题让故障端开放。
-   - 注入：`T2: interface GE0/0/1 / shutdown`。
-   - 判定：T2 `display ip interface brief` 里 GE0/0/1 为 up/up；T1 能 `ping -c 2 10.0.12.2`。
-   - 复位：restore 撤销两端地址、对 T2 执行 undo shutdown；之后整机复位。
+1. **故障**：AR2 的 GE0/0/1 被 shutdown，AR2 开放终端，学员能修。spec §6.2 第 3 条说「关闭对端接口并且不开放对端」，那样学员修不了，所以本题让故障端开放。
+   - 注入：`AR2: interface GE0/0/1 / shutdown`。
+   - 判定：AR2 `display ip interface brief` 里 GE0/0/1 为 up/up；AR1 能 `ping -c 2 10.0.12.2`。
+   - 复位：restore 撤销两端地址、对 AR2 执行 undo shutdown；之后整机复位。
    - **需真机确认**：对端关闭后，本端 GE0/0/1 是否也显示 down。
 2. **故障**：互联地址被配到没接线的 GE0/0/2 上。
-   - 注入：`T2: GE0/0/1 undo ip address；GE0/0/2 ip address 10.0.12.2 24`。
-   - 判定：T1 能 ping 通 10.0.12.2。
+   - 注入：`AR2: GE0/0/1 undo ip address；GE0/0/2 ip address 10.0.12.2 24`。
+   - 判定：AR1 能 ping 通 10.0.12.2。
    - 复位：撤销两个接口的地址。
 3. **故障**：LSW0 的上联口 GE1/0/1 被关闭。PC1 到交换机通、到网关不通，借这个现象教学员分段判断。
    - 注入：`LSW0: interface GE1/0/1 / shutdown`。
@@ -150,31 +152,31 @@ L01 以及 L07~L12 在两个环境下都还没有题。
 
 | # | 题目（文件） | 状态 | 沙箱 / 设备 | 难度 |
 |---|---|---|---|---|
-| 1 | T1 与 T2 互联不通 `enspro-t1-t2-link` | 已上线 | ainet_test | 1 |
+| 1 | AR1 与 AR2 互联不通 `enspro-t1-t2-link` | 已上线 | ainet_test | 1 |
 | 2 | AR0 与 AR2 互联不通 `campus-ar0-ar2-link-ys` | 已上线 | ainet_campus | 1 |
 | 3 | 用户电脑访问服务器不通（网关）`campus-pc1-gateway-ys` | 已上线（2026-10-07 真机） | ainet_campus：AR0、AR2、LSW0、PC1 | 1 |
-| 4 | T1 ping 不通 T2（两端掩码不一致）`enspro-t2-mask-mismatch` | 已上线（2026-10-07 真机） | ainet_test：T1、T2 | 2 |
+| 4 | AR1 ping 不通 AR2（两端掩码不一致）`enspro-t2-mask-mismatch` | 已上线（2026-10-07 真机） | ainet_test：AR1、AR2 | 2 |
 
 3. **故障**：PC1 的网关被设成 10.0.10.100，网段里没有这个地址。同网段能通、跨网段不通。spec §6.2 允许在 eNSP Pro 上出 PC 地址类故障，学员用「PC 设置」气泡修。
    - 注入：`PC1: ip gateway 10.0.10.100`（主机命令，由 ainet 翻译成设备属性接口）。
    - 判定：PC1 能 `ping -c 2 192.168.2.1`。
    - 复位：restore 撤销 AR0、AR2 的地址和路由，以及 PC1 的地址；开练快照按地址配置拍。
    - LSW0 不下发配置，用缺省 VLAN 1。
-4. **故障**：T2 一端是 10.0.12.130/25，T1 的 10.0.12.1 不在这个网段里。请求能到 T2，T2 回不了包。
-   - 注入：`T2: interface GE0/0/1 / ip address 10.0.12.130 25`（重配地址时覆盖原地址）。
-   - 判定：T1 能 ping 通 10.0.12.130。
+4. **故障**：AR2 一端是 10.0.12.130/25，AR1 的 10.0.12.1 不在这个网段里。请求能到 AR2，AR2 回不了包。
+   - 注入：`AR2: interface GE0/0/1 / ip address 10.0.12.130 25`（重配地址时覆盖原地址）。
+   - 判定：AR1 能 ping 通 10.0.12.130。
 
 ### L03 静态路由
 
 | # | 题目（文件） | 状态 | 沙箱 / 设备 | 难度 |
 |---|---|---|---|---|
-| 1 | T1 访问 T2 的业务地址不通（静态路由）`enspro-t1-static-route-dest` | 已上线（2026-10-07 真机） | ainet_test：T1、T2 | 2 |
+| 1 | AR1 访问 AR2 的业务地址不通（静态路由）`enspro-t1-static-route-dest` | 已上线（2026-10-07 真机） | ainet_test：AR1、AR2 | 2 |
 | 2 | 管理网访问服务器网段不通（回程下一跳）`campus-ar2-return-route-ys` | 已上线 | ainet_campus | 3 |
 | 3 | 主链路断了没有切到备份（浮动静态路由） | 规划 | ainet_campus 加 AR0 GE0/0/2 — AR1 GE0/0/1 | 4 |
 
 1. 两台路由器的 LoopBack0 是 1.1.1.1 和 2.2.2.2，用静态路由互通。
-   - 注入：把 T1 去 2.2.2.2 的路由目的写成 22.2.2.2（`undo ip route-static 2.2.2.2 32 10.0.12.2`、`ip route-static 22.2.2.2 32 10.0.12.2`）。
-   - 判定：T1 `ping -c 2 -a 1.1.1.1 2.2.2.2`。
+   - 注入：把 AR1 去 2.2.2.2 的路由目的写成 22.2.2.2（`undo ip route-static 2.2.2.2 32 10.0.12.2`、`ip route-static 22.2.2.2 32 10.0.12.2`）。
+   - 判定：AR1 `ping -c 2 -a 1.1.1.1 2.2.2.2`。
    - 复位：撤销两边的路由、LoopBack0 和地址。
    - **需真机确认**：YunShan 上 `ping -c … -a …` 的参数顺序。
 3. **规划**：服务器网段 192.168.2.0/24 走两条路径：主路径 AR0 → AR2，备份路径 AR0 → AR1 → AR2，备份静态路由 `preference 100`。
@@ -349,11 +351,11 @@ L01 以及 L07~L12 在两个环境下都还没有题。
 
 | # | 题目（文件） | 状态 | 沙箱 / 设备 | 难度 |
 |---|---|---|---|---|
-| 1 | T1 访问 T2 业务地址不通（多处故障）`enspro-t1-t2-two-faults` | 已上线（2026-10-07 真机） | ainet_test：T1、T2 | 3 |
+| 1 | AR1 访问 AR2 业务地址不通（多处故障）`enspro-t1-t2-two-faults` | 已上线（2026-10-07 真机） | ainet_test：AR1、AR2 | 3 |
 | 2 | 管理网访问服务器不通（多处故障）`campus-mgmt-two-faults-ys` | 已上线（2026-10-07 真机） | ainet_campus：AR0、AR2、LSW0 | 4 |
 | 3 | OSPF + ACL 叠加 | 规划 | ainet_campus：R1~R3、LSW0 | 5 |
 
-1. 两处故障：T2 的互联地址网段错，T1 去 2.2.2.2 的下一跳是不存在的 10.0.12.3。
+1. 两处故障：AR2 的互联地址网段错，AR1 去 2.2.2.2 的下一跳是不存在的 10.0.12.3。
    - 两条判定分层：直连能 ping 通、源为 1.1.1.1 能 ping 通 2.2.2.2。
 2. 两处故障：LSW0 GE1/0/1 的接入 VLAN 被改成 30，AR2 回程下一跳被改成 10.0.12.3。两种写法各自都在真机上验证过，组合在一起没有。
    - 两条判定：LSW0 能 ping 通网关、能 ping 通服务器。
@@ -419,10 +421,10 @@ L01 以及 L07~L12 在两个环境下都还没有题。
 ## 6. 需要真机确认的点（汇总）
 
 1. **沙箱现状**：
-   - ainet_test 是否只有 T1、T2；
-   - T2 的 GE0/0/2 未接线时是否 down；
+   - ainet_test 是否只有 AR1、AR2；
+   - AR2 的 GE0/0/2 未接线时是否 down；
    - ainet_campus 里 AR1 其他口、LSW0 GE1/0/6~10 是否空闲。
-   - → 实测：ainet_test 只有 T1、T2；T2 GE0/0/2 未接线显示 down/down；ainet_campus 的 AR1 只接 GE0/0/0，LSW0 GE1/0/6~10 空闲。
+   - → 实测：ainet_test 只有 AR1、AR2；AR2 GE0/0/2 未接线显示 down/down；ainet_campus 的 AR1 只接 GE0/0/0，LSW0 GE1/0/6~10 空闲。
 2. **接口**：对端 shutdown 后本端是否显示 down；`display interface brief` 里 `*down` 的写法。
    - → 实测：对端 shutdown 后本端 down/down（虚拟链路传递）；`display interface brief` 与 `display ip interface brief` 里管理关闭都显示 `*down`。
 3. **地址**：接口重配同一地址、不同掩码时直接覆盖；`display ip interface brief` 掩码列的写法。

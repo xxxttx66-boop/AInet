@@ -363,6 +363,16 @@ class PracticeManager:
             return text                    # eNSP 经典版的 VRP5 不自动保存：不需要基线
         key = self._baseline_key(cur, dev)
         raw = await asyncio.to_thread(db.get_setting, key)
+        # ainet_test 以前以沙箱原始节点名 T1/T2 保存过干净基线；改为 AInet 展示别名后，
+        # 首次开练时先迁移旧键，避免把已被污染的配置误当成新基线。
+        topo = cur.get("topology") or {}
+        native = {"AR1": "T1", "AR2": "T2"}.get(dev) \
+            if (cur.get("lab") or {}).get("kind") == "enspro" and str(topo.get("name", "")).casefold() == "ainet_test" else None
+        if raw is None and native:
+            legacy_key = f"{key.rsplit(':', 1)[0]}:{native}"
+            raw = await asyncio.to_thread(db.get_setting, legacy_key)
+            if raw is not None:
+                await asyncio.to_thread(db.set_setting, key, raw)
         if raw is None:
             if self.baseline_auto:
                 await asyncio.to_thread(db.set_setting, key, json.dumps({"config": text, "at": _now_iso()},

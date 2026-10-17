@@ -19,7 +19,7 @@ eNSP Pro 同一账号只能有一个会话：跑脚本期间不要在别处登�
 - session：脚本另开一个 eNSP Pro 登录会话把 ainet 挤掉 → 页面状态栏提示、出现「重新登录 eNSP Pro」→ 缺省不自动重登
   → 点按钮重新登录（别处的会话被挤掉）→ AR1 终端恢复。
 全程无 JS 异常。
-题库扩充题（docs/question-bank-plan.md，2026-10-07）：设备号按当前拓扑取（ainet_test 的 T1 / T2 题也用本脚本，先经
+题库扩充题（docs/question-bank-plan.md，2026-10-07）：设备号按当前拓扑取（ainet_test 的 AR1 / AR2 题也用本脚本，先经
 POST /api/lab/prepare 切到 ainet_test）；开始后按 FAULT_WAIT 等（OSPF / DHCP 90 秒）、看一眼现象，再判一次应不通过（2c）。
 AINET_E2E_REQUIRE_BASELINE=1：开练时每台本题设备都要与干净基线比对过（clean / reset，2b）；AINET_E2E_LOG=<文件>：记下学员每条
 命令的完整回显；AINET_E2E_FAULT_WAIT=<秒> 覆盖等待时间。
@@ -164,30 +164,30 @@ def fixes(sid: str, pv: dict) -> list[tuple[str, list[str]]]:
                          "undo ip route-static 10.0.10.0 24 10.0.12.3", "ip route-static 10.0.10.0 24 10.0.12.1",
                          "return"]),
                 ("LSW0", ["ping -c 2 192.168.2.1"])]
-    # ainet_test（T1 / T2）
+    # ainet_test（AR1 / AR2）
     if sid == "enspro-t2-port-shutdown":
-        return [("T1", ["ping -c 2 10.0.12.2", "display ip interface brief"]),
-                ("T2", ["display ip interface brief", "system-view", "interface GE0/0/1", "undo shutdown", "return"]),
-                ("T1", ["ping -c 2 10.0.12.2"])]
+        return [("AR1", ["ping -c 2 10.0.12.2", "display ip interface brief"]),
+                ("AR2", ["display ip interface brief", "system-view", "interface GE0/0/1", "undo shutdown", "return"]),
+                ("AR1", ["ping -c 2 10.0.12.2"])]
     if sid == "enspro-t2-ip-wrong-port":
-        return [("T1", ["ping -c 2 10.0.12.2"]),
-                ("T2", ["display ip interface brief", "system-view", "interface GE0/0/2", "undo ip address",
+        return [("AR1", ["ping -c 2 10.0.12.2"]),
+                ("AR2", ["display ip interface brief", "system-view", "interface GE0/0/2", "undo ip address",
                         "interface GE0/0/1", "ip address 10.0.12.2 24", "return"]),
-                ("T1", ["ping -c 2 10.0.12.2"])]
+                ("AR1", ["ping -c 2 10.0.12.2"])]
     if sid == "enspro-t2-mask-mismatch":
-        return [("T1", ["ping -c 2 10.0.12.130"]),
-                ("T2", ["display ip interface brief", "system-view", "interface GE0/0/1", "ip address 10.0.12.130 24",
+        return [("AR1", ["ping -c 2 10.0.12.130"]),
+                ("AR2", ["display ip interface brief", "system-view", "interface GE0/0/1", "ip address 10.0.12.130 24",
                         "return"]),
-                ("T1", ["ping -c 2 10.0.12.130"])]
+                ("AR1", ["ping -c 2 10.0.12.130"])]
     if sid == "enspro-t1-static-route-dest":
-        return [("T1", ["ping -c 2 -a 1.1.1.1 2.2.2.2", "display ip routing-table", "system-view",
+        return [("AR1", ["ping -c 2 -a 1.1.1.1 2.2.2.2", "display ip routing-table", "system-view",
                         "undo ip route-static 22.2.2.2 32 10.0.12.2", "ip route-static 2.2.2.2 32 10.0.12.2", "return",
                         "ping -c 2 -a 1.1.1.1 2.2.2.2"])]
     if sid == "enspro-t1-t2-two-faults":
-        return [("T1", ["ping -c 2 10.0.12.2"]),
-                ("T2", ["display ip interface brief", "system-view", "interface GE0/0/1", "ip address 10.0.12.2 24",
+        return [("AR1", ["ping -c 2 10.0.12.2"]),
+                ("AR2", ["display ip interface brief", "system-view", "interface GE0/0/1", "ip address 10.0.12.2 24",
                         "return"]),
-                ("T1", ["ping -c 2 10.0.12.2", "display ip routing-table 2.2.2.2", "system-view",
+                ("AR1", ["ping -c 2 10.0.12.2", "display ip routing-table 2.2.2.2", "system-view",
                         "undo ip route-static 2.2.2.2 32 10.0.12.3", "ip route-static 2.2.2.2 32 10.0.12.2", "return",
                         "ping -c 2 -a 1.1.1.1 2.2.2.2"])]
     raise KeyError(sid)

@@ -871,6 +871,15 @@ class LabManager:
         log.info("模拟环境已切换：%s -> %s", old_label, new_desc)
         return stopped
 
+    async def forget_sandbox(self, key: str, sandbox: int) -> None:
+        """删除自建沙箱后清理它的监测；调用者持有切换锁，且已切走该沙箱。"""
+        if self.key == key and self.sandbox == sandbox:
+            raise LabError(409, "请先切离要删除的沙箱")
+        ctx = self._contexts.pop((key, sandbox), None)
+        if ctx is not None:
+            await ctx.close()  # 同环境共享的 REST 客户端仍由其他上下文持有。
+        await asyncio.to_thread(db.set_setting, f"lab:power:{key}:{sandbox}", None)
+
     async def _retire_contexts(self, key: str, *, close_timeout: float | None = None) -> None:
         """Stop monitoring a deleted/reconfigured endpoint and release its sessions."""
         contexts = [ctx for ctx in self._contexts.values() if ctx.key == key]

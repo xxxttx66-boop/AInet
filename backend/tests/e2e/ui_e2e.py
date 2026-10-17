@@ -31,7 +31,7 @@ import websockets
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-from browser_e2e import CDP, CHROME, PROMPT_JS, step  # noqa: E402
+from browser_e2e import CDP, CHROME, PROMPT_JS, step, stop_browser  # noqa: E402
 from exam_e2e import buf, shot, start_from_courses, type_cmd  # noqa: E402
 from fake_lab import fake_lab  # noqa: E402
 
@@ -104,8 +104,11 @@ async def width(c, sel):
 async def run(shot_dir: str, use_ai: bool) -> int:
     results: list[bool] = []
     async with fake_lab(shot_dir, HTTP_PORT, ai=use_ai) as (base, net):
-        chrome = subprocess.Popen([CHROME, f"--remote-debugging-port={DEBUG_PORT}", "--no-sandbox", "about:blank"],
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        browser_args = [CHROME]
+        if os.name == "nt":
+            browser_args += ["--headless=new", f"--user-data-dir={os.path.join(shot_dir, 'browser-profile')}"]
+        browser_args += [f"--remote-debugging-port={DEBUG_PORT}", "--no-sandbox", "about:blank"]
+        chrome = subprocess.Popen(browser_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             tabs = None
             for _ in range(50):
@@ -316,6 +319,8 @@ async def run(shot_dir: str, use_ai: bool) -> int:
                     "devlist": await c.ev("[...document.querySelectorAll('#topo-devlist button')].map(b => b.textContent + ':' + b.disabled)"),
                     "masked": await c.ev("document.getElementById('topo-body').classList.contains('masked')"),
                     "ticket": await shown(c, "#ex-ticket"),
+                    "question": await shown(c, "#exam-question"),
+                    "question_text": await c.ev("document.getElementById('exam-question-text').textContent"),
                     "timer": await c.ev("document.getElementById('ex-timer').textContent"),
                     "dots": await c.ev("document.querySelectorAll('#ex-progress .ex-dot').length"),
                     "hint": await shown(c, "#ex-hint"), "submit": await shown(c, "#ex-submit"),
@@ -331,7 +336,8 @@ async def run(shot_dir: str, use_ai: bool) -> int:
                                           f"终端加宽（{tw_before}→{E['term']}px）；Agent 接口 403；打码拓扑只列可登录设备",
                                     E["bar"] and not E["side"] and not E["rail"] and not E["split"]
                                     and E["term"] > tw_before + 300 and E["chat"] == 403 and E["hist"] == 403
-                                    and E["masked"] and len(E["devlist"]) >= 2 and E["ticket"] and E["dots"] == 1
+                                    and E["masked"] and len(E["devlist"]) >= 2 and E["ticket"] and E["question"]
+                                    and bool(E["question_text"].strip()) and E["dots"] == 1
                                     and E["hint"] and E["submit"] and E["finish"] and "Campus" not in E["env"]))
                 await c.ev("document.getElementById('ex-finish').click(), 0")
                 confirm = await c.wait_for("!document.getElementById('ex-confirm').hidden", 5)
@@ -384,7 +390,7 @@ async def run(shot_dir: str, use_ai: bool) -> int:
                                    not others and len(probes) == 2))
                 reader.cancel()
         finally:
-            chrome.terminate()
+            stop_browser(chrome, os.path.join(shot_dir, "browser-profile"))
     print(f"SUMMARY: {sum(results)} pass / {len(results) - sum(results)} fail")
     return 0 if all(results) else 1
 

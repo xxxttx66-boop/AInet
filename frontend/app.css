@@ -173,7 +173,17 @@ body:not(.exam-active) #ex-active-view, body:not(.exam-active) #ex-strip { displ
 .panel-head { height: 40px; flex: none; box-sizing: border-box; display: flex; align-items: center; gap: 8px;
   padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 #topo-title { color: var(--fg-strong); font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.topo-tools { display: flex; align-items: center; gap: 6px; color: var(--sub); font-size: 12px; }
+.topo-tools { display: flex; align-items: center; gap: 4px; color: var(--sub); font-size: 12px; }
+.topo-tools .zoom-btn { width: 22px; height: 24px; padding: 0; line-height: 1; font-size: 16px; flex: none; }
+.topo-tools .zoom-level { min-width: 32px; color: var(--muted); text-align: center; font: 10px var(--mono); }
+#topo-panel { container-type: inline-size; }
+@container (max-width: 300px) {
+  #topo-panel .topo-tools label { font-size: 0; line-height: 0; }
+  #topo-panel .topo-tools label input { margin: 0; }
+  #topo-panel .topo-tools .zoom-level { display: none; }
+  #topo-panel .topo-tools #btn-fit { padding-inline: 5px; font-size: 11px; gap: 3px; }
+  #topo-panel .panel-head { gap: 4px; }
+}
 #topo-foot { flex: none; padding: 8px 12px; border-top: 1px solid var(--line); color: var(--muted); line-height: 1.6; font-size: 12px; }
 #topo-foot:empty { display: none; }
 .rail { width: var(--rail); flex: none; display: none; flex-direction: column; align-items: center; gap: 8px; padding-top: 10px;
@@ -205,10 +215,8 @@ body.side-collapsed #side, body.side-collapsed #split-side { display: none; }
 body.side-collapsed #side-rail { display: flex; }
 /* 考试作答中：没有右侧面板，终端加宽 */
 body.exam-active #side, body.exam-active #split-side, body.exam-active #side-rail { display: none !important; }
-/* 自由实验只有 Agent；考试（未开考 / 已交卷）只有考试列表 */
-body.mode-lab #st-task, body.mode-lab #rail-task { display: none; }
+/* 考试（未开考 / 已交卷）只有考试列表 */
 body.mode-exam #st-agent, body.mode-exam #rail-agent, body.mode-exam #agent-badge { display: none; }
-body.mode-lab #side-tabs button { cursor: default; }
 /* 窄屏（< 1100px）：右侧面板改成抽屉，图标栏常驻 */
 body.narrow #split-side { display: none !important; }
 body.narrow #side-rail { display: flex; }
@@ -234,6 +242,13 @@ body.narrow.exam-active #side { display: none !important; }
 .pr-card button { margin-top: 6px; }
 .pr-sec { margin-bottom: 12px; }
 .pr-label { color: var(--muted); font-size: 12px; margin-bottom: 2px; }
+.lab-ticket { margin-bottom: 16px; }
+.ticket-preview { border: 1px solid var(--line); border-radius: 9px; padding: 12px; margin: 0 0 12px;
+  background: var(--surface-alt, var(--task)); color: var(--fg); line-height: 1.6; }
+.ticket-preview strong { display: block; color: var(--fg-strong); font-weight: 600; }
+.ticket-preview-text { margin-top: 7px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--sub); }
+.ticket-devices { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--line); }
+.ticket-devices .pr-label { flex: 0 0 100%; }
 #pr-symptom, #ex-symptom { color: var(--fg); white-space: pre-wrap; }
 #pr-devices, #ex-devices { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .pr-dev, .ex-dev { font-family: var(--mono); }
@@ -347,11 +362,13 @@ body.narrow.exam-active #side { display: none !important; }
 
 .grid { fill: none; stroke: #c8c8c8; stroke-width: 1; stroke-dasharray: 4 3; vector-effect: non-scaling-stroke; }
 .grid-layer, .shapes, .notes { pointer-events: none; }
-.link line { stroke: #2b2b2b; stroke-width: 1.5; }
+.link line { stroke: #68788a; stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.link .link-port { fill: #68788a; }
 .link text, .if-label { fill: #0d47a1; font-size: 10px; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
 #topo-svg.hide-if .if-label { display: none; }
 .note-bg { stroke: none; }
 .node .shape { stroke-width: 2; }
+.node .device-icon { transition: filter .12s ease, opacity .12s ease; }
 .node text { fill: #111; font-size: 12px; text-anchor: middle; paint-order: stroke; stroke: #fff; stroke-width: 3px;
   font-family: var(--mono); }
 .node .st-dot { stroke: #fff; stroke-width: 1.5; }
@@ -361,6 +378,7 @@ body.narrow.exam-active #side { display: none !important; }
 .node.online .st-dot { fill: #43a047; }
 .node.stopped .shape { fill: #eeeeee; stroke: #9e9e9e; stroke-dasharray: 4 3; }
 .node.stopped .glyph { stroke: #9e9e9e; }
+.node.stopped .device-icon { filter: grayscale(.8); opacity: .72; }
 .node.stopped .st-dot { fill: #9e9e9e; }
 .node.stopped text { fill: #888; }
 .node.na .shape { fill: #e8edf3; stroke: #6f87a6; }
@@ -368,9 +386,11 @@ body.narrow.exam-active #side { display: none !important; }
 .node.na .st-dot { display: none; }
 .node.starting .shape, .node.stopping .shape { fill: #fff8e1; stroke: #f9a825; stroke-dasharray: 4 3; }
 .node.starting .glyph, .node.stopping .glyph { stroke: #f9a825; }
+.node.starting .device-icon, .node.stopping .device-icon { filter: drop-shadow(0 0 3px #f9a825); }
 .node.starting .st-dot, .node.stopping .st-dot { fill: #f9a825; }
 .node.error .shape, .node.unknown .shape { fill: #fdecea; stroke: #c62828; }
 .node.error .glyph, .node.unknown .glyph { stroke: #c62828; }
+.node.error .device-icon, .node.unknown .device-icon { filter: drop-shadow(0 0 3px #e53935); }
 .node.error .st-dot, .node.unknown .st-dot { fill: #e53935; }
 /* 设备启停按钮（eNSP Pro） */
 .node .power { cursor: pointer; }
@@ -385,9 +405,12 @@ body.narrow.exam-active #side { display: none !important; }
 .node .power:hover rect { stroke-width: 2; }
 .node.clickable { cursor: pointer; }
 .node.clickable:hover .shape { stroke-width: 3; }
+.node.clickable:hover .device-icon { filter: drop-shadow(0 0 3px #1565c0); }
 /* 当前终端（聚焦的标签）= 橙框；其余已打开终端 = 蓝框 */
 .node.opened .shape { stroke: #1565c0; stroke-width: 3; }
 .node.current .shape { stroke: #e8a33d; stroke-width: 3.5; }
+.node.opened .device-icon { filter: drop-shadow(0 0 3px #1565c0); }
+.node.current .device-icon { filter: drop-shadow(0 0 4px #e8a33d); }
 .glyph { fill: none; stroke-width: 2; stroke-linecap: round; }
 
 /* 分栏滑块：6px 可点区域，中间 1px 细线，悬停 / 拖动时高亮 */
@@ -604,13 +627,16 @@ body.exam-active #um-ai { display: none !important; }
 .c-topo-cap { padding: 10px 14px 0; color: var(--muted); font-size: 12px; }
 #c-topo-svg { flex: 1; width: 100%; min-height: 180px; }
 .c-topo-legend { position: absolute; right: 14px; bottom: 10px; color: var(--muted); font-size: 12px; }
-.c-link { stroke: #4a5566; }
+.c-link { stroke: #68788a; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.c-link-port { fill: #68788a; }
+.c-if-label { fill: var(--accent-fg); font: 10px var(--mono); paint-order: stroke; stroke: var(--panel); stroke-width: 4px; stroke-linejoin: round; }
 .c-node rect { fill: #161b22; stroke: #3fb68b; }
+.c-node .device-icon { pointer-events: none; }
 .c-node text { fill: var(--fg); font-family: var(--mono); }
-.c-node.off rect { stroke: #5c6676; stroke-dasharray: 4 3; }
-.c-node.off text { fill: var(--muted); }
-.c-node.req rect { stroke: var(--warn); fill: #2a2216; stroke-dasharray: none; }
-.c-node.req text { fill: #fff; }
+.c-node.off .device-icon { opacity: .72; filter: grayscale(.7); }
+.c-node .c-node-label { fill: var(--fg); }
+.c-node.off .c-node-label { fill: var(--muted); }
+.c-node.req .c-node-label { fill: var(--warn-fg); font-weight: 600; }
 .c-actions { flex: none; display: flex; align-items: center; gap: 14px; padding: 12px 14px; border: 1px solid var(--line2);
   border-radius: 10px; background: var(--bar); flex-wrap: wrap; }
 .c-actions[hidden] { display: none; }

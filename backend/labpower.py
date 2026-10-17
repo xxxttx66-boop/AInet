@@ -43,7 +43,7 @@ log = logging.getLogger("ainet.labpower")
 SETTING_POWER = "lab:power"
 # 就绪探测命令（只读）：刚冷启动的 YunShan 设备在「构建配置」期间读配置也报
 # `Error: The system is busy in building configuration. Please wait for a moment...`，与改配置报 busy 的时间窗一致
-# （2026-10-07 T2 实测：接口报运行中后 0~27 秒两者都 busy，34 秒起都正常）；`system-view` / `quit` 全程不报 busy，不能用。
+# （2026-10-07 AR2 实测：接口报运行中后 0~27 秒两者都 busy，34 秒起都正常）；`system-view` / `quit` 全程不报 busy，不能用。
 PROBE_COMMANDS = ["display current-configuration | include sysname"]
 BUSY_RE = re.compile(r"\bbusy\b|building configuration|not ready|initializ|please wait|try again later", re.I)
 START_PHASE = {2: "分配虚机", 6: "启动系统"}

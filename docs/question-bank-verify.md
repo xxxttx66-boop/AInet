@@ -1,5 +1,7 @@
 # eNSP Pro 草稿题真机验证进度（2026-10-07）
 
+> AInet 学员界面把 `ainet_test` 原始节点 T1/T2 显示为 AR1/AR2（两台 ENSP-AR / AR6700）；底层仍使用原 deviceId 与连线。
+
 基线 master 7d01971；本机 KVM eNSP Pro（https://ensp-pro.example:8443），本地 ainet 只绑 127.0.0.1、独立临时数据库
 
 > 这是导入前的历史真机记录，旧提交编号不是当前 GitHub 仓库中的可检出提交。本轮未重新执行真机验收，当前实现与验证说明见 [HANDOFF.md](HANDOFF.md)。
@@ -12,7 +14,7 @@
 
 - ainet_campus（id 3）：8 台设备 LSW0(8) AR0(9) AR2(10) AR1(11) PC1(12) R1(14) R2(15) R3(16)；连线与规划文档 §2.2 一致：
   AR1 只接 GE0/0/0，LSW0 只用 GE1/0/1~5（GE1/0/6~10 空闲）。
-- ainet_test（id 2）：只有 T1、T2 两台（PC1 只存在于假环境）。
+- ainet_test（id 2）：只有 AR1、AR2 两台（PC1 只存在于假环境）。
 - AR1、R1、R2、R3、LSW0 是出厂配置（AR1 没有 LoopBack99 之类的旧实验标记，与其他 AR 逐行相同，只差 snmp engine-id、
   console 密码密文与时间戳）；PC1 没有地址。
 - 开工时 AR0、AR2 在运行，配置里各有一条题目残留：AR0 GE0/0/1 `10.0.14.1/24`、AR2 GE0/0/0 `10.0.30.2/24`
@@ -37,9 +39,9 @@
 | 10 | campus-ar2-easyip-acl-ys | L09 | fixed-pass | 第一次开始失败（约 3 分钟）；手工试写法约 20 分钟；改写后全程约 1 分钟 | 原写法 `nat outbound 2000` 在 AR6700 接口下报 Unrecognized command，开始即失败并已还原。手工试出 nat-policy + 接口 `nat enable` 的写法（试验配置事后逐台撤销、与基线比对无残留），改写 baseline / inject / checks / restore / solution / 提示；重跑 7 pass / 0 fail，修复后紧接着的 ping 还不通，约 16s 后自动判定通过；复位 0 轮 |
 | 11 | campus-ar2-nat-static-ys | L09 | fixed-pass | 开始 14s、全程约 1 分钟 | 原写法 `nat static global … inside …` 在 AR6700 接口下不存在，改为系统视图 `nat server mgmt global 198.51.100.10 inside 10.0.10.254` + GE0/0/2 `nat enable`，判定加一条 `display nat server` 的 inside 地址；7 pass / 0 fail，修复后 9s 判定通过；复位 0 轮 |
 | 12 | campus-mgmt-two-faults-ys | L12 | pass | 开始 23s、全程约 1 分钟 | 7 pass / 0 fail；注入后判定 0/2；修好二层后网关通、服务器仍不通（分层成立）；修好回程后判定通过；复位 0 轮 |
-| 13 | enspro-t2-port-shutdown | L01 | pass | 开始 15s、全程约 1 分钟 | 7 pass / 0 fail；对端关闭后 T1 GE0/0/1 down/down，T2 该口 *down；修复后 3s 判定通过；复位 0 轮。开题前先停掉 ainet_campus 全部设备，再经 POST /api/lab/prepare 切到 ainet_test 并启动 T1/T2；两台核对为出厂配置后手动记基线 |
-| 14 | enspro-t2-ip-wrong-port | L01 | pass | 开始 8s、全程约 1 分钟 | 7 pass / 0 fail；注入后 T2 GE0/0/1 unassigned up/down、GE0/0/2 10.0.12.2/24 down/down；修复后 3s 判定通过；复位 0 轮 |
-| 15 | enspro-t2-mask-mismatch | L02 | pass | 开始 8s、全程约 1 分钟 | 7 pass / 0 fail；注入后 T2 显示 10.0.12.130/25 up/up、T1 ping 不通；修复后 3s 判定通过；复位 0 轮 |
+| 13 | enspro-t2-port-shutdown | L01 | pass | 开始 15s、全程约 1 分钟 | 7 pass / 0 fail；对端关闭后 AR1 GE0/0/1 down/down，AR2 该口 *down；修复后 3s 判定通过；复位 0 轮。开题前先停掉 ainet_campus 全部设备，再经 POST /api/lab/prepare 切到 ainet_test 并启动 AR1/AR2；两台核对为出厂配置后手动记基线 |
+| 14 | enspro-t2-ip-wrong-port | L01 | pass | 开始 8s、全程约 1 分钟 | 7 pass / 0 fail；注入后 AR2 GE0/0/1 unassigned up/down、GE0/0/2 10.0.12.2/24 down/down；修复后 3s 判定通过；复位 0 轮 |
+| 15 | enspro-t2-mask-mismatch | L02 | pass | 开始 8s、全程约 1 分钟 | 7 pass / 0 fail；注入后 AR2 显示 10.0.12.130/25 up/up、AR1 ping 不通；修复后 3s 判定通过；复位 0 轮 |
 | 16 | enspro-t1-static-route-dest | L03 | pass | 开始 10s、全程约 1 分钟 | 7 pass / 0 fail；修复后 6s 判定通过；复位 0 轮 |
 | 17 | enspro-t1-t2-two-faults | L12 | pass | 开始 14s、全程约 1 分钟 | 7 pass / 0 fail；注入后判定 0/2；两处修完 6s 判定通过；复位 0 轮 |
 
@@ -59,14 +61,14 @@
 - 静态域名（§6.9）：`ip host` / `undo ip host <名字> <地址>` / `display ip host`（列 Host / Age / Flag / IP Address，Flag 为 Static）可用；ping 能直接用静态主机名，首行显示解析结果；改主机表后紧接着的 ping 可能还解析到旧地址，几秒后正常。
 - NAT（§6.10）：AR6700 接口下**没有** `nat outbound` / `nat static`（接口视图 nat 只有 enable、gratuitous-arp）。源 NAT 用 `nat-policy` → `rule name <名>` → `source-address 10.0.10.0 24` / `egress-interface GE0/0/2` / `action source-nat easy-ip`；一对一发布用系统视图 `nat server <名> global <公网> inside <内网>`；两者都要出接口 `nat enable`，否则规则不命中。不需要 license，不需要把接口加入安全区域（缺省 security-policy permit）。查看：`display nat-policy rule all`（HITS）、`display nat-policy rule name <名>`、`display nat server`、`display session all`；没有 `display nat outbound` / `display nat static`。删掉规则里最后一个 source-address 会问 [Y/N]；改完规则几秒后才生效。
 - 静态 NAT（§6.10）：公网地址与出接口同网段时 AR2 代答 ARP（AR1 直接 ping 通 198.51.100.10）；同名 nat server 不能直接覆盖（报 already exists），要先 `undo nat server name <名>`；`display nat server` 里 `inside-start-addr : 10.0.10.254`。
-- ainet_test 只有 T1、T2（§2.1）；未接线的 GE0/0/2 显示 down/down；`display ip interface brief` 里管理关闭的接口物理列也显示 `*down`。
+- ainet_test 只有 AR1、AR2（§2.1）；未接线的 GE0/0/2 显示 down/down；`display ip interface brief` 里管理关闭的接口物理列也显示 `*down`。
 - 地址（§6.3）：接口重配同一地址、不同掩码直接覆盖，不报冲突；`display ip interface brief` 显示为 `10.0.12.130/25`。
 - 命令参数（§6.4）：`ping -c 2 -a <源> <目的>` 可用；`display current-configuration | include …` 可用；`display current-configuration configuration ospf` 可用（`configuration nat-policy` 不可用）。
 
 ## 收尾与遗留
 
 - 17 道全部通过并去掉 draft（13 pass、4 fixed-pass、0 fail、0 skipped）。全部完成后停掉了 ainet_campus 8 台与 ainet_test 2 台设备
-  （其中 AR0、AR2 开工前就在运行），eNSP Pro 三个沙箱运行数都是 0；本地 ainet 已关闭并登出。停机前 T1、T2 与出厂配置逐行比对无差异，
+  （其中 AR0、AR2 开工前就在运行），eNSP Pro 三个沙箱运行数都是 0；本地 ainet 已关闭并登出。停机前 AR1、AR2 与出厂配置逐行比对无差异，
   campus 各设备最后一题结束时复位与基线一致。
 - 题目之外动过设备的操作：AR0 / AR2 残留地址各一次 `undo ip address`；NAT 写法手工试验动过 AR0、AR1、AR2、LSW0，试完逐台撤销，
   再与出厂配置比对，LSW0 漏掉的 `vlan batch 10` 手动删除，最终无差异（之后两道 NAT 题开练时基线比对也是 clean）。

@@ -1,12 +1,12 @@
 """eNSP Pro 设备启动可靠性的真机 e2e（spec §10.5；只走 HTTP / WebSocket 接口，不进默认 pytest）。
 
-前置：本机能访问 eNSP Pro；沙箱 ainet_test（id 2：T1=6、T2=7）与 ainet_campus（id 3：LSW0=8）；服务以
+前置：本机能访问 eNSP Pro；沙箱 ainet_test（id 2：AR1=6、AR2=7）与 ainet_campus（id 3：LSW0=8）；服务以
 AINET_LAB_PROVIDER=enspro、临时 AINET_DB_PATH 起好（建议 AINET_AI_SCORING=0）。eNSP Pro 单会话：跑脚本期间不要在别处登录，
 也不要同时跑别的直连 eNSP Pro 的脚本。脚本只启停设备、开 / 结束练习（结束时复位），不 save、不删设备。
 
 模式（每个模式对服务的环境变量要求不同）：
-  probe   冷启动 T1、T2（按题目准备环境）→ 记录 start / wait / probe 阶段与用时 → 任务完成后立即开练，期望 200（不再 busy）→ 结束练习。
-  switch  T1、T2 运行中切到沙箱 3 → 返回 stopped_old = [T1, T2]，沙箱 2 运行数变 0。
+  probe   冷启动 AR1、AR2（按题目准备环境）→ 记录 start / wait / probe 阶段与用时 → 任务完成后立即开练，期望 200（不再 busy）→ 结束练习。
+  switch  AR1、AR2 运行中切到沙箱 3 → 返回 stopped_old = [AR1, AR2]，沙箱 2 运行数变 0。
   stuck   缺省配置即可（LSW0 实测约一半的启动会卡住，与停机间隔无关）：沙箱 3 启动 LSW0 → 就绪 → 重启 →
           期望卡在「启动系统」→ 看门狗超时（AINET_ENSPRO_START_TIMEOUT，缺省 150）后自动停止再启动 → 就绪。
   gap     缺省停机间隔：LSW0 运行中重启 → 启动请求在停止后 ≥ 间隔才发出 → 正常就绪（不卡）。
@@ -28,7 +28,7 @@ import websockets
 
 MODE = sys.argv[1] if len(sys.argv) > 1 else "probe"
 BASE = (sys.argv[2] if len(sys.argv) > 2 else "http://127.0.0.1:8765").rstrip("/")
-T1, T2, LSW0 = 6, 7, 8
+AR1, AR2, LSW0 = 6, 7, 8
 RESULTS: list[tuple[str, bool, str]] = []
 T0 = time.time()
 
@@ -81,12 +81,12 @@ async def wait_status(c, dev, want, timeout, every=3.0, trace=True):
 
 async def mode_probe(c):
     await ensure_sandbox(c, 2)
-    for d in (T1, T2):
+    for d in (AR1, AR2):
         st, _, _ = await status(c, d)
         if st not in ("stopped",):
             await c.post("/api/lab/devices/stop", json={"devices": [d]})
-    await wait_status(c, T1, {"stopped"}, 60, trace=False)
-    await wait_status(c, T2, {"stopped"}, 60, trace=False)
+    await wait_status(c, AR1, {"stopped"}, 60, trace=False)
+    await wait_status(c, AR2, {"stopped"}, 60, trace=False)
     r = await c.post("/api/lab/prepare", json={"scenario_id": "enspro-t1-t2-link"})
     check("prepare 202", r.status_code == 202, r.text[:200])
     stages, t_probe, job = [], None, None
@@ -116,13 +116,13 @@ async def mode_probe(c):
 async def mode_switch(c):
     await ensure_sandbox(c, 2)
     _, devs = await topo(c)
-    running = [n for n in (T1, T2) if devs[n]["status"] in ("online", "initializing", "starting")]
+    running = [n for n in (AR1, AR2) if devs[n]["status"] in ("online", "initializing", "starting")]
     log(f"  沙箱 2 运行中：{running}")
     r = await c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 3})
     body = r.json()
     check("切到沙箱 3", r.status_code == 200, json.dumps(body.get("stopped_old"), ensure_ascii=False))
     st = body.get("stopped_old") or {}
-    check("返回停掉的旧沙箱设备", st.get("ok") and set(st.get("devices") or []) >= {"T1", "T2"} and st.get("sandbox") == 2,
+    check("返回停掉的旧沙箱设备", st.get("ok") and set(st.get("devices") or []) >= {"AR1", "AR2"} and st.get("sandbox") == 2,
           str(st))
     await asyncio.sleep(8)
     sbs = (await c.get("/api/lab/sandboxes")).json()["sandboxes"]
@@ -218,7 +218,7 @@ async def mode_idle(c):
 
 
 async def mode_stopall(c):
-    for sb, devs in ((3, [LSW0]), (2, [T1, T2])):
+    for sb, devs in ((3, [LSW0]), (2, [AR1, AR2])):
         await ensure_sandbox(c, sb)
         _, d = await topo(c)
         run = [k for k in devs if d.get(k, {}).get("status") not in ("stopped", None)]
