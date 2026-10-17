@@ -1,11 +1,11 @@
 {
   "id": "enspro-t2-mask-mismatch",
-  "title": "T1 ping 不通 T2（两端掩码不一致）",
+  "title": "AR1 ping 不通 AR2（两端掩码不一致）",
   "level": 2,
   "chapter": "L02",
   "difficulty": 2,
   "est_minutes": 15,
-  "summary": "两端地址看起来都对，T1 却 ping 不通 T2",
+  "summary": "两端地址看起来都对，AR1 却 ping 不通 AR2",
   "tags": [
     "IP 编址",
     "子网掩码",
@@ -20,40 +20,40 @@
   ],
   "topology": "ainet_test",
   "required_devices": [
-    "T1",
-    "T2"
+    "AR1",
+    "AR2"
   ],
   "accessible_devices": [
-    "T1",
-    "T2"
+    "AR1",
+    "AR2"
   ],
-  "symptom": "工单：T1 与 T2 直连（T1 GE0/0/1 — T2 GE0/0/1），规划网段 10.0.12.0/24，T1 一端 10.0.12.1，T2 一端 10.0.12.130。两端的值班同事都说「我这边的 IP 地址是对的」，接口也都是 up，可从 T1 ping 10.0.12.130 就是不通。请登录 T1、T2 排查并修复，使 T1 能 ping 通 10.0.12.130。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
+  "symptom": "工单：AR1 与 AR2 直连（AR1 GE0/0/1 — AR2 GE0/0/1），规划网段 10.0.12.0/24，AR1 一端 10.0.12.1，AR2 一端 10.0.12.130。两端的值班同事都说「我这边的 IP 地址是对的」，接口也都是 up，可从 AR1 ping 10.0.12.130 就是不通。请登录 AR1、AR2 排查并修复，使 AR1 能 ping 通 10.0.12.130。（设备为华为 YunShan OS，配置立即生效，不需要 commit。）",
   "baseline": {
-    "T1": [
+    "AR1": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.1 24"
     ],
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.130 24"
     ]
   },
   "inject": {
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.130 25"
     ]
   },
   "restore": {
-    "T1": [
+    "AR1": [
       "system-view",
       "interface GE0/0/1",
       "undo ip address"
     ],
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "undo ip address"
@@ -61,20 +61,20 @@
   },
   "checks": [
     {
-      "device": "T1",
+      "device": "AR1",
       "command": "ping -c 2 10.0.12.130",
       "expect": "\\b[12] packet\\(s\\) received",
-      "desc": "T1 能 ping 通 T2 的互联地址 10.0.12.130"
+      "desc": "AR1 能 ping 通 AR2 的互联地址 10.0.12.130"
     }
   ],
   "hints": [
     "地址对不等于网段对：一台设备认为对方「在不在同一网段」，要看地址和掩码两样。回包能不能回来？",
-    "在 T1、T2 上分别执行 display ip interface brief，对比 GE0/0/1 的地址 / 掩码；再在 T2 上用 display ip routing-table 10.0.12.1 看它怎么去 T1。",
-    "T2 的 GE0/0/1 掩码被配成了 /25（10.0.12.128/25），T1 的 10.0.12.1 不在这个网段里，T2 回不了包。在 T2 的 GE0/0/1 下执行 ip address 10.0.12.130 24。"
+    "在 AR1、AR2 上分别执行 display ip interface brief，对比 GE0/0/1 的地址 / 掩码；再在 AR2 上用 display ip routing-table 10.0.12.1 看它怎么去 AR1。",
+    "AR2 的 GE0/0/1 掩码被配成了 /25（10.0.12.128/25），AR1 的 10.0.12.1 不在这个网段里，AR2 回不了包。在 AR2 的 GE0/0/1 下执行 ip address 10.0.12.130 24。"
   ],
-  "reference_path": "T1 ping 10.0.12.130 不通 → 两端 display ip interface brief：T1 为 10.0.12.1/24，T2 为 10.0.12.130/25 → T2 上 display ip routing-table 10.0.12.1 没有路由（/25 网段是 10.0.12.128~255）→ 请求能到 T2、回包发不出 → 把 T2 掩码改回 24 → T1 再 ping 验证。",
+  "reference_path": "AR1 ping 10.0.12.130 不通 → 两端 display ip interface brief：AR1 为 10.0.12.1/24，AR2 为 10.0.12.130/25 → AR2 上 display ip routing-table 10.0.12.1 没有路由（/25 网段是 10.0.12.128~255）→ 请求能到 AR2、回包发不出 → 把 AR2 掩码改回 24 → AR1 再 ping 验证。",
   "solution": {
-    "T2": [
+    "AR2": [
       "system-view",
       "interface GE0/0/1",
       "ip address 10.0.12.130 24",
@@ -83,9 +83,9 @@
   },
   "scoring_points": [
     "两端都查地址和掩码（display ip interface brief），不只看 IP",
-    "能解释单向的原因：T1 认为对方直连，T2 按 /25 认为 10.0.12.1 不在本网段、没有回程",
-    "只修正 T2 的掩码，不改 T1、不加静态路由掩盖问题",
-    "修复后在 T1 上 ping 10.0.12.130 验证"
+    "能解释单向的原因：AR1 认为对方直连，AR2 按 /25 认为 10.0.12.1 不在本网段、没有回程",
+    "只修正 AR2 的掩码，不改 AR1、不加静态路由掩盖问题",
+    "修复后在 AR1 上 ping 10.0.12.130 验证"
   ],
-  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 T1 GE0/0/1 <-> T2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：接口下重配同一地址、不同掩码直接覆盖（不报冲突，注入与修复都是这样）；display ip interface brief 掩码列写法为 10.0.12.130/25；注入后 T1 ping 10.0.12.130 不通，修复后 3 秒自动判定通过。"
+  "note": "eNSP Pro 沙箱 ainet_test（id 2）：两台 ENSP-AR（AR6700，YunShan OS V600R025C10SPC100），连线 AR1 GE0/0/1 <-> AR2 GE0/0/1。YunShan 接口名只认缩写 GE0/0/x；配置立即生效，不需要 commit。2026-10-07 离线出题（docs/question-bank-plan.md），同日在本机 eNSP Pro 真机验证通过（开始 → 等待后确认故障 → 经终端修复 → 自动判定 → 结束复位与干净基线一致，docs/question-bank-verify.md）。 真机实测：接口下重配同一地址、不同掩码直接覆盖（不报冲突，注入与修复都是这样）；display ip interface brief 掩码列写法为 10.0.12.130/25；注入后 AR1 ping 10.0.12.130 不通，修复后 3 秒自动判定通过。 AInet 页面将 eNSP Pro 沙箱原始拓扑节点 T1 / T2 分别显示为 AR1 / AR2；对应设备 ID、型号和连接不变。"
 }

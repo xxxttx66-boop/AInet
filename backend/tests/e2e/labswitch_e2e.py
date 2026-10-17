@@ -1,18 +1,18 @@
 """模拟环境 / 沙箱切换的真机 + 无头浏览器 e2e（spec §5.2；不进默认 pytest）。
 
-前置：本机能访问 eNSP Pro；沙箱 ainet_test（id 2：T1=6、T2=7）与 ainet_campus（id 3：LSW0=8 …）；服务以
+前置：本机能访问 eNSP Pro；沙箱 ainet_test（id 2：AR1=6、AR2=7）与 ainet_campus（id 3：LSW0=8 …）；服务以
 AINET_LAB_PROVIDER=enspro AINET_ENSPRO_SANDBOX=2 和临时 AINET_DB_PATH 起好（建议 AINET_AI_SCORING=0）。
-eNSP Pro 单会话：跑脚本期间不要在别处登录。脚本会启动 T1、T2、LSW0，结束时停掉它们（不 save、不删设备）。
+eNSP Pro 单会话：跑脚本期间不要在别处登录。脚本会启动 AR1、AR2、LSW0，结束时停掉它们（不 save、不删设备）。
 
 步骤（2026-10-07 起环境切换只在课程页进行，操作页不再有环境 / 沙箱下拉；本脚本同步了选择器，未在真机上重跑）：
  1. 课程页环境列：eNSP Pro 在线（当前）；eNSP 按真实探测结果（本机没有 eNSP 经典版 → 置灰 + 「（离线）」）；沙箱接口列出 2、3。
- 2. 按题目准备环境（LabSwitch.prepare：T1–T2 互联题）→ 沙箱 2、启动 T1 / T2 → 运行中；T1 终端 display version。
+ 2. 按题目准备环境（LabSwitch.prepare：AR1–AR2 互联题）→ 沙箱 2、启动 AR1 / AR2 → 运行中；AR1 终端 display version。
  3. 切到沙箱 ainet_campus（LabSwitch.switchTo）→ 操作页旧终端标签关闭、拓扑重画为 ainet_campus。
  4. 启动 LSW0，打开终端执行 display version。
- 5. 切回沙箱 ainet_test → 拓扑重画为 T1、T2。
- 6. 开始练习（T1–T2 互联题）→ POST /api/lab/environment 返回 409；课程页提示进行中的练习、进入按钮禁用 → 结束练习（复位）。
+ 5. 切回沙箱 ainet_test → 拓扑重画为 AR1、AR2。
+ 6. 开始练习（AR1–AR2 互联题）→ POST /api/lab/environment 返回 409；课程页提示进行中的练习、进入按钮禁用 → 结束练习（复位）。
  7. 另一个（非管理员）账号：课程页环境列同样可操作（单人使用，不区分角色）；档案页顶栏只读显示当前环境。
- 8. 停掉 T1、T2、LSW0；全程无 JS 异常。
+ 8. 停掉 AR1、AR2、LSW0；全程无 JS 异常。
 
 用法：python tests/e2e/labswitch_e2e.py [base_url] [截图目录]
 """
@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import enspro_e2e as E  # noqa: E402
 
 BASE, SHOTS = E.BASE, E.SHOTS
-T1, LSW0 = 6, 8
+AR1, LSW0 = 6, 8
 
 
 async def api(c, method, url, body=None):
@@ -106,12 +106,12 @@ async def run_scenario(c) -> list[bool]:
           f" {time.time() - t0:.0f}s；阶段：{sorted(set(await c.ev('window.__prep')))[:6]}")
     await c.wait_for("window.__ainet.state.topo && window.__ainet.state.topo.name === 'ainet_test'", 10)
     await asyncio.sleep(6)       # 冷启动后 console 可能还要一会儿才响应
-    await c.click_node("T1")
-    await c.wait_for(f"(({E.BUF_JS})({T1})).trimEnd().endsWith('<HUAWEI>')", 240, 1)
-    ok, out = await E.run_cmd(c, T1, "display version")
-    E.step(res, 2, "按题目准备环境：切到沙箱 2、启动 T1/T2 到运行中；T1 终端 display version", job["ok"] and ok and
+    await c.click_node("AR1")
+    await c.wait_for(f"(({E.BUF_JS})({AR1})).trimEnd().endsWith('<HUAWEI>')", 240, 1)
+    ok, out = await E.run_cmd(c, AR1, "display version")
+    E.step(res, 2, "按题目准备环境：切到沙箱 2、启动 AR1/AR2 到运行中；AR1 终端 display version", job["ok"] and ok and
            "YunShan" in out, f"{time.time() - t0:.0f}s")
-    await c.shot("ls_02_prepared_t1_terminal.png")
+    await c.shot("ls_02_prepared_ar1_terminal.png")
 
     # 3. 切到沙箱 3：操作页发现切换代数变化，关闭旧终端、重画拓扑
     r = await switch_sandbox(c, 3)
@@ -120,7 +120,7 @@ async def run_scenario(c) -> list[bool]:
     s = await sel_state(c)
     print("  切换后:", r, s["topo"], s["nodes"], "tabs", s["tabs"])
     E.step(res, 3, "切到沙箱 ainet_campus：操作页旧终端关闭、拓扑重画（题名气泡里显示新沙箱）", r is True and bool(okc)
-           and s["tabs"] == 0 and "LSW0" in s["nodes"] and "T1" not in s["nodes"] and "ainet_campus" in s["topo"], s["topo"])
+           and s["tabs"] == 0 and "LSW0" in s["nodes"] and "AR1" not in s["nodes"] and "ainet_campus" in s["topo"], s["topo"])
     await c.shot("ls_03_sandbox3.png")
 
     # 4. LSW0 终端
@@ -145,7 +145,7 @@ async def run_scenario(c) -> list[bool]:
     okc = await c.wait_for("window.__ainet.state.topo && window.__ainet.state.topo.name === 'ainet_test'", 30)
     await asyncio.sleep(1.5)
     s = await sel_state(c)
-    E.step(res, 5, "切回沙箱 ainet_test：拓扑重画为 T1、T2，旧终端关闭", r is True and bool(okc) and s["nodes"] == ["T1", "T2"]
+    E.step(res, 5, "切回沙箱 ainet_test：拓扑重画为 AR1、AR2，旧终端关闭", r is True and bool(okc) and s["nodes"] == ["AR1", "AR2"]
            and s["tabs"] == 0, s["topo"])
     await c.shot("ls_05_back_to_sandbox2.png")
 

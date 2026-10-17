@@ -1,13 +1,13 @@
 """集中配置：eNSP 主机、拓扑目录、数据库等。
 
 部署到 eNSP 执行机（Windows 本机）时，设 ENSP_HOST=127.0.0.1。
-开发阶段远程连实测设备时默认 192.168.31.72。
+开发阶段远程连实测设备时显式配置 ENSP_HOST。
 """
 import os
 
 # eNSP 设备 console 所在主机。本机部署时为 127.0.0.1。只是缺省值：课程页「接入设置」改过以后以库里的
 # lab:endpoint:ensp 为准（lab.endpoint_value，spec §5.2「接入设置」）。
-ENSP_HOST: str = os.environ.get("ENSP_HOST", "192.168.31.72")
+ENSP_HOST: str = os.environ.get("ENSP_HOST", "127.0.0.1")
 
 # 连接设备的超时（秒）。
 CONNECT_TIMEOUT: float = 8.0
@@ -17,7 +17,7 @@ CONNECT_TIMEOUT: float = 8.0
 LAB_PROVIDER: str = os.environ.get("AINET_LAB_PROVIDER", "ensp").strip().lower() or "ensp"
 # eNSP Pro 服务地址（自签证书，不校验）与当前沙箱 id（拓扑 = 这个沙箱）。地址只是缺省值：课程页「接入设置」改过以后
 # 以库里的 lab:endpoint:enspro 为准（lab.endpoint_value）；运行时一律用 lab.endpoint_value("enspro")，不要直接读这里。
-ENSPRO_URL: str = os.environ.get("AINET_ENSPRO_URL", "https://192.168.56.101:8443").rstrip("/")
+ENSPRO_URL: str = os.environ.get("AINET_ENSPRO_URL", "https://127.0.0.1:8443").rstrip("/")
 _sb = os.environ.get("AINET_ENSPRO_SANDBOX", "").strip()
 ENSPRO_SANDBOX: int | None = int(_sb) if _sb else None
 # eNSP Pro 同一账号只能有一个会话：在别处（如网页）登录会把 ainet 挤掉。开启后检测到被挤掉时自动重新登录

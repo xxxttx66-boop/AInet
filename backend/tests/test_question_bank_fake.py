@@ -17,7 +17,7 @@ from test_enspro_api import BASE, PW, env, recv_until  # noqa: F401  （env 是 
 from test_scenarios import BANK_TEST, DRAFTS_TEST
 from practice_helpers import end_practice
 
-PORTS = {"T1": 6, "T2": 7}
+PORTS = {"AR1": 6, "AR2": 7}
 
 
 def _run_solution(c, dev: str, cmds: list[str]) -> None:
@@ -37,7 +37,7 @@ def test_draft_scenario_inject_fix_judge_reset(env, sid):  # noqa: F811
     pm = c.app.state.practice
     tpl = pm.scenarios[sid]
     assert tpl.get("draft", False) is draft and tpl["topology"] == "ainet_test"
-    snap = {"T1": t1.config_text(), "T2": t2.config_text()}
+    snap = {"AR1": t1.config_text(), "AR2": t2.config_text()}
 
     r = c.post("/api/practice/start", json={"scenario_id": sid, "seed": 0})   # 按 id 开始不受 draft 限制
     assert r.status_code == 200, r.text
@@ -52,20 +52,20 @@ def test_draft_scenario_inject_fix_judge_reset(env, sid):  # noqa: F811
 
     res = end_practice(c)
     assert res["passed"] and res["reset_ok"] and res["restored"], res
-    assert cr.same(snap["T1"], t1.config_text()) and cr.same(snap["T2"], t2.config_text())
+    assert cr.same(snap["AR1"], t1.config_text()) and cr.same(snap["AR2"], t2.config_text())
 
 
 def test_shutdown_breaks_link_in_fake_net():
     """假网络模型：任一端接口 shutdown 链路即不通、该接口不进路由表（L01 草稿题依赖这一点）。"""
-    net = FakeNet([(("T1", "GE0/0/1"), ("T2", "GE0/0/1"))])
-    t1 = net.add("T1", NetYunShan(BASE, password=PW))
-    t2 = net.add("T2", NetYunShan(BASE, password=PW))
+    net = FakeNet([(("AR1", "GE0/0/1"), ("AR2", "GE0/0/1"))])
+    t1 = net.add("AR1", NetYunShan(BASE, password=PW))
+    t2 = net.add("AR2", NetYunShan(BASE, password=PW))
     for dev, ip in ((t1, "10.0.12.1"), (t2, "10.0.12.2")):
         for cmd in ("system-view", "interface GE0/0/1", f"ip address {ip} 24", "return"):
             dev._apply(cmd)
-    assert net.ping("T1", "10.0.12.2")
+    assert net.ping("AR1", "10.0.12.2")
     for cmd in ("system-view", "interface GE0/0/1", "shutdown"):
         t2._apply(cmd)
-    assert not net.ping("T1", "10.0.12.2") and "GE0/0/1" not in net.l3("T2") and "GE0/0/1" in net.l3("T1")
+    assert not net.ping("AR1", "10.0.12.2") and "GE0/0/1" not in net.l3("AR2") and "GE0/0/1" in net.l3("AR1")
     t2._apply("undo shutdown")
-    assert net.ping("T1", "10.0.12.2")
+    assert net.ping("AR1", "10.0.12.2")

@@ -1,10 +1,11 @@
-// ainet 操作页（工作台）：单层顶栏 + 拓扑图（SVG）| 多设备终端（标签页 / 左右分屏）| 右侧面板（工单详情 / Agent）。
+// ainet 操作页（工作台）：ui.js / ui.css 提供平台导航与两行控制区；拓扑图 | 大终端 | 工单 / Agent。
 // 只用原生 JS 与本地化的 xterm.js；每个设备一个常驻 xterm 实例和 WebSocket。
 // 课题从课程页带入（?s=场景 id&mode=lab|practice|exam；进行中的练习 / 考试以服务端为准）。模式切换规则（spec §16.1）：
 //   实验 ↔ 练习可以切（练习中切到实验 = 放弃本次练习，确认后结束并复位）；实验 / 练习 → 考试（本题的单题考试）要确认；
-//   考试中不能切到其他模式，只能交卷；操作页内不能换题，换题 / 换环境 / 换拓扑要「退出到课程」（练习中确认后按放弃结束）。
+//   考试中不能切到其他模式，只能交卷；可以暂离工作台，考试状态保留且计时继续，返回后接着作答。
+//   操作页内不能换题，换题 / 换环境 / 换拓扑要「退出到课程」（练习中确认后按放弃结束）。
 // 布局状态（docs/design/ui-layout.html）都落在 body 的类上：mode-lab|practice|exam（顶栏模式）、practice-active /
-// exam-active（进行中）、topo-collapsed / side-collapsed（48px 图标栏）、narrow（< 1100px，右侧面板改抽屉）、
+// exam-active（进行中）、topo-collapsed / side-collapsed（48px 图标栏）、narrow（实际工作区 < 1050px 时右侧改抽屉）、
 // drawer-open。面板宽度与折叠状态存 localStorage（读写都 try/catch）。
 (() => {
   'use strict';
@@ -28,6 +29,14 @@
     topic: null,         // 当前课题（api/scenarios 里的面向学员字段）；没有 = 自由实验
     chapters: [],
   };
+  const customParams = new URLSearchParams(location.search);
+  const customLabId = Number(customParams.get('custom'));
+  const customLabTitle = (customParams.get('name') || '').slice(0, 60);
+  if (customLabId > 0) {
+    document.body.classList.add('custom-lab-workbench');
+    $('btn-exit').textContent = '返回自定义实验';
+    for (const button of document.querySelectorAll('#mode-nav button:not([data-mode="lab"])')) button.hidden = true;
+  }
 
   // ---------- 工具 ----------
   function svgEl(tag, attrs, parent) {
@@ -59,10 +68,11 @@
 
   // ---------- 拓扑图 ----------
   // .topo 中 cx/cy 是图标左上角；按类型估算图标尺寸取中心
-  const ICON_SIZE = { router: [54, 42], switch: [54, 42], pc: [40, 40], cloud: [85, 50], other: [50, 50] };
+  const ICON_SIZE = { router: [54, 54], switch: [54, 54], pc: [54, 54], cloud: [85, 85], other: [54, 54] };
+  const deviceIconSize = (d) => (window.AInetDeviceIcons && window.AInetDeviceIcons.size(d)) || ICON_SIZE[d.kind] || ICON_SIZE.other;
   function center(d) {
     if (d.anchor === 'center') return [d.x, d.y];   // eNSP Pro：坐标就是图标中心
-    const [w, h] = ICON_SIZE[d.kind] || ICON_SIZE.other;
+    const [w, h] = deviceIconSize(d);
     return [d.x + w / 2, d.y + h / 2];
   }
 
@@ -72,10 +82,43 @@
   function setViewBox(b) {
     view.box = b;
     svg.setAttribute('viewBox', `${b.x} ${b.y} ${b.w} ${b.h}`);
+    updateZoomControl();
     drawGrid();
   }
 
-  function drawGlyph(g, kind) {
+  const ZOOM_MIN = 30;
+  const ZOOM_MAX = 400;
+  function zoomPercent() {
+    return view.box && view.fitBox ? view.fitBox.w / view.box.w * 100 : 100;
+  }
+  function updateZoomControl() {
+    const pct = zoomPercent();
+    const ready = !!(view.box && view.fitBox);
+    const label = $('topo-zoom-level');
+    if (label) label.textContent = ready ? `${Math.round(pct)}%` : '—';
+    if ($('btn-zoom-in')) $('btn-zoom-in').disabled = !ready || pct >= ZOOM_MAX - 0.5;
+    if ($('btn-zoom-out')) $('btn-zoom-out').disabled = !ready || pct <= ZOOM_MIN + 0.5;
+  }
+  function zoomAt(x, y, factor) {
+    if (!view.box || !view.fitBox) return;
+    const b = view.box;
+    const current = zoomPercent();
+    const target = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, current / factor));
+    const actualFactor = current / target;
+    setViewBox({
+      x: x - (x - b.x) * actualFactor,
+      y: y - (y - b.y) * actualFactor,
+      w: b.w * actualFactor,
+      h: b.h * actualFactor,
+    });
+  }
+
+  function drawGlyph(g, d) {
+    const kind = d.kind;
+    if (window.AInetDeviceIcons) {
+      window.AInetDeviceIcons.appendSvg(g, d, svgEl);
+      return;
+    }
     switch (kind) {
       case 'router':
         svgEl('circle', { class: 'shape', cx: 0, cy: 0, r: 18 }, g);
@@ -166,6 +209,15 @@
     }
   }
 
+  // 端口位置按图标椭圆边界估算，让链路线从图标边缘起止。
+  function iconEdge(d, cx, cy, tx, ty) {
+    const [w, h] = deviceIconSize(d);
+    const rx = Math.max(12, w * 0.43), ry = Math.max(12, h * 0.43);
+    const dx = tx - cx, dy = ty - cy;
+    const scale = 1 / (Math.hypot(dx / rx, dy / ry) || 1);
+    return [cx + dx * scale, cy + dy * scale];
+  }
+
   // 网格只画可视范围内的线（平移 / 缩放后重画），线宽与虚线不随缩放变化
   let gridKey = '';
   function drawGrid() {
@@ -203,7 +255,12 @@
     $('topo-title').textContent = t ? (hidden ? '拓扑（考试中隐藏）' : `拓扑 · ${t.name}`) : '拓扑';
     renderDevList();
     svg.classList.toggle('has-topo', !!t && !hidden);
-    if (!t || hidden) return;
+    if (!t || hidden || !t.devices?.length) {
+      view.box = null;
+      view.fitBox = null;
+      updateZoomControl();
+      return;
+    }
     const byId = Object.fromEntries(t.devices.map((d) => [d.id, d]));
 
     layers.grid = svgEl('g', { class: 'grid-layer' }, svg);
@@ -231,13 +288,18 @@
         const nx = (-(y2 - y1) / len0) * off * sign, ny = ((x2 - x1) / len0) * off * sign;
         x1 += nx; y1 += ny; x2 += nx; y2 += ny;
       }
+      const [sx, sy] = iconEdge(a, x1, y1, x2, y2);
+      const [ex, ey] = iconEdge(b, x2, y2, x1, y1);
       const g = svgEl('g', { class: 'link' }, gLinks);
-      svgEl('line', { x1, y1, x2, y2 }, g);
-      const len = Math.hypot(x2 - x1, y2 - y1) || 1;
-      const k = Math.min(0.4, 56 / len); // 标注离节点中心约 56 单位，避开设备名
+      svgEl('line', { x1: sx, y1: sy, x2: ex, y2: ey }, g);
+      svgEl('circle', { class: 'link-port', cx: sx, cy: sy, r: 2.2 }, g);
+      svgEl('circle', { class: 'link-port', cx: ex, cy: ey, r: 2.2 }, g);
+      const dx = ex - sx, dy = ey - sy;
+      const len = Math.hypot(dx, dy) || 1;
+      const k = Math.min(0.42, 32 / len); // 接口名放在图标外侧的连线起点附近
       for (const [lx, ly, text] of [
-        [x1 + (x2 - x1) * k, y1 + (y2 - y1) * k, l.src_label],
-        [x2 - (x2 - x1) * k, y2 - (y2 - y1) * k, l.dst_label],
+        [sx + dx * k, sy + dy * k, l.src_label],
+        [ex - dx * k, ey - dy * k, l.dst_label],
       ]) {
         const te = svgEl('text', { class: 'if-label', x: lx, y: ly, 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, g);
         te.textContent = abbrIf(text);
@@ -249,14 +311,16 @@
     for (const d of t.devices) {
       const [cx, cy] = center(d);
       const g = svgEl('g', { class: 'node', transform: `translate(${cx} ${cy})`, 'data-id': d.id, 'data-name': d.name }, gNodes);
-      drawGlyph(g, d.kind);
-      svgEl('circle', { class: 'st-dot', cx: 16, cy: -14, r: 4.5 }, g);
-      const label = svgEl('text', { y: 34 }, g);
+      drawGlyph(g, d);
+      const [iconW, iconH] = deviceIconSize(d);
+      svgEl('circle', { class: 'st-dot', cx: iconW / 2 - 4, cy: -iconH / 2 + 4, r: 4.5 }, g);
+      const labelY = iconH / 2 + 15;
+      const label = svgEl('text', { y: labelY }, g);
       label.textContent = d.name;
       svgEl('title', {}, g);
       if (ck(d) > 0) {
         // 启停按钮（只有支持启停的实验后端显示，见 updateNodes）
-        const pw = svgEl('g', { class: 'power', transform: 'translate(0 52)' }, g);
+        const pw = svgEl('g', { class: 'power', transform: `translate(0 ${labelY + 18})` }, g);
         svgEl('rect', { x: -26, y: -9, width: 52, height: 17, rx: 3 }, pw);
         svgEl('text', { y: 4 }, pw);
         pw.addEventListener('click', (e) => { e.stopPropagation(); if (!pan.moved) powerClick(d); });
@@ -533,8 +597,7 @@
     e.preventDefault();
     const p = svgPoint(e);
     const f = e.deltaY > 0 ? 1.15 : 1 / 1.15;
-    const b = view.box;
-    setViewBox({ x: p.x - (p.x - b.x) * f, y: p.y - (p.y - b.y) * f, w: b.w * f, h: b.h * f });
+    zoomAt(p.x, p.y, f);
   }, { passive: false });
 
   const pan = { down: false, moved: false, sx: 0, sy: 0, box: null, s: 1 };
@@ -559,6 +622,12 @@
   });
   svg.addEventListener('dblclick', fitView);
   $('btn-fit').onclick = fitView;
+  $('btn-zoom-in').onclick = () => {
+    if (view.box) zoomAt(view.box.x + view.box.w / 2, view.box.y + view.box.h / 2, 1 / 1.25);
+  };
+  $('btn-zoom-out').onclick = () => {
+    if (view.box) zoomAt(view.box.x + view.box.w / 2, view.box.y + view.box.h / 2, 1.25);
+  };
   $('chk-if').onchange = (e) => svg.classList.toggle('hide-if', !e.target.checked);
   // 面板尺寸变化会改变可视范围（preserveAspectRatio meet），网格跟着补齐
   new ResizeObserver(() => { gridKey = ''; drawGrid(); }).observe($('topo-body'));
@@ -647,8 +716,15 @@
 
   $('btn-relogin').onclick = async () => {
     if (!confirm('重新登录 eNSP Pro？\n同一账号只能有一个会话：如果你正在别处（如浏览器里的 eNSP Pro 网页）使用它，那边会被挤掉。')) return;
-    try { await api('POST', 'api/lab/relogin'); msg('已重新登录 eNSP Pro'); } catch (e) { msg(`重新登录失败：${e.message}`, true); }
-    await refreshStatus(true);
+    try {
+      await api('POST', 'api/lab/relogin');
+      await refreshStatus(true);
+      for (const tab of state.tabs.values()) {
+        const device = tabDevice(tab);
+        if (device && canOpen(device)) connectTab(tab);
+      }
+      msg('已重新登录 eNSP Pro，终端正在重连');
+    } catch (e) { msg(`重新登录失败：${e.message}`, true); }
   };
   $('btn-refresh').onclick = async () => { msg('刷新中…'); await refreshStatus(); if (!$('topo-msg').classList.contains('err')) msg('状态已刷新'); };
 
@@ -694,7 +770,8 @@
     host.className = 'term-host';
     const tab = {
       port, name: dev.name, devId: dev.id || null, host,
-      term: new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 5000, theme: { background: '#0b0e12' } }),
+      term: new Terminal({ cursorBlink: true, fontSize: 14, scrollback: 5000,
+        theme: { background: '#101923', foreground: '#d7e1ec', cursor: '#d7e1ec' } }),
       fit: new FitAddon.FitAddon(), ws: null, status: 'closed', opened: false, el: null,
     };
     tab.term.loadAddon(tab.fit);
@@ -904,7 +981,7 @@
     },
   };
   const MIN_TERM = 260, RAIL = 48;
-  const PANEL = { topo: { def: 300, min: 200, max: 720 }, side: { def: 380, min: 300, max: 760 } };
+  const PANEL = { topo: { def: 220, min: 180, max: 720 }, side: { def: 300, min: 280, max: 760 } };
   const widths = {};
   for (const k of Object.keys(PANEL)) {
     const v = parseFloat(store.get(`${k}W`));
@@ -922,7 +999,7 @@
   // 按主区宽度收紧两侧面板，保证终端区至少 MIN_TERM（分屏时两倍）：先收右侧，再收拓扑
   function effWidths() {
     const mainW = $('main').clientWidth || window.innerWidth;
-    const need = state.split ? 2 * MIN_TERM : MIN_TERM;
+    const need = state.split && window.innerWidth > 700 ? 2 * MIN_TERM : MIN_TERM;
     let topo = topoOpen() ? widths.topo : 0;
     let side = sideInline() ? widths.side : 0;
     const rails = (topoOpen() ? 0 : RAIL) + (sideRail() ? RAIL : 0);
@@ -1004,10 +1081,10 @@
   $('btn-collapse').onclick = () => setTopoCollapsed(true);
   $('btn-expand-topo').onclick = () => setTopoCollapsed(false);
 
-  // 右侧面板页签：task（工单详情 / 练习、考试列表）/ agent
+  // 右侧面板页签：实验和练习可在 Agent 与工单间切换；考试列表只显示考试内容。
   const side = { tab: 'agent', hooks: [] };
   function sideTabs() {
-    if (state.mode === 'lab') return ['agent'];
+    if (state.mode === 'lab') return ['agent', 'task'];
     if (state.mode === 'exam') return ['task'];
     return ['task', 'agent'];
   }
@@ -1019,6 +1096,7 @@
     }
     $('side-task').hidden = tab !== 'task';
     $('side-agent').hidden = tab !== 'agent';
+    $('agent-badge').hidden = tab !== 'agent' || state.mode === 'exam';
     for (const b of document.querySelectorAll('#side-rail .rail-btn')) b.classList.toggle('on', b.dataset.tab === tab);
     if (tab === 'agent' && agentVisible()) clearAgentDot();
     for (const fn of side.hooks) fn('tab', tab);
@@ -1059,21 +1137,22 @@
     if (e.key === 'Escape' && body.classList.contains('drawer-open')) setSideCollapsed(true);
   });
 
-  // 窄屏（< 1100px）：右侧面板改成抽屉
-  const narrowMq = window.matchMedia('(max-width: 1099px)');
+  // 按实际工作区宽度决定抽屉模式，导航展开或收起时也重新计算。
+  const narrowMain = () => $('main').clientWidth < 1050;
   function applyNarrow() {
-    body.classList.toggle('narrow', narrowMq.matches);
-    if (!narrowMq.matches) body.classList.remove('drawer-open');
+    const narrow = narrowMain();
+    body.classList.toggle('narrow', narrow);
+    if (!narrow) body.classList.remove('drawer-open');
     applyWidths();
   }
-  if (narrowMq.addEventListener) narrowMq.addEventListener('change', applyNarrow);
-  else if (narrowMq.addListener) narrowMq.addListener(applyNarrow);
+  new ResizeObserver(applyNarrow).observe($('main'));
 
   // 初始折叠状态
   body.classList.toggle('topo-collapsed', store.get('topoCollapsed') === '1');
   body.classList.toggle('side-collapsed', store.get('sideCollapsed') === '1');
-  body.classList.toggle('narrow', narrowMq.matches);
-  window.addEventListener('resize', () => applyWidths());
+  body.classList.toggle('narrow', narrowMain());
+  if (window.innerWidth < 700 && store.get('topoCollapsed') === null) body.classList.add('topo-collapsed');
+  window.addEventListener('resize', applyNarrow);
   new ResizeObserver(() => { gridKey = ''; drawGrid(); }).observe($('topo-panel'));
 
   // 隐藏式滚动条：滚动中的容器短暂加 .scrolling，让滚动条在非悬停时也显示
@@ -1168,8 +1247,14 @@
         exam: '考试：本题的单题考试（计时 15 分钟、无 Agent、无提示）' }[m];
     }
     const ex = $('btn-exit');
-    ex.disabled = lock === 'exam' || !!busyOp;
-    ex.title = lock === 'exam' ? '考试中不能退出到课程，请先交卷' : '回到课程选择页（换题、换环境、换拓扑）';
+    ex.disabled = !!busyOp;
+    if (lock === 'exam') {
+      ex.textContent = '暂离考试';
+      ex.title = '本场考试会保留进度并继续计时；从考试中心可返回继续作答';
+    } else {
+      ex.textContent = customLabId > 0 ? '返回自定义实验' : '退出到课程';
+      ex.title = '回到课程选择页（换题、换环境、换拓扑）';
+    }
     if (lock && state.mode !== lock) setMode(lock);
     else applyWidths();
     renderTopic();
@@ -1184,8 +1269,10 @@
     for (const b of document.querySelectorAll('#mode-nav button[data-mode]')) b.classList.toggle('on', b.dataset.mode === m);
     $('practice-body').hidden = m !== 'practice';
     $('exam-body').hidden = m !== 'exam';
+    $('lab-ticket-body').hidden = m !== 'lab';
     $('st-agent').textContent = m === 'practice' ? 'Agent 导师' : 'Agent';
-    $('st-task').textContent = m === 'exam' ? '考试' : (state.practice && state.practice.active ? '工单详情' : '本题练习');
+    $('agent-badge').textContent = m === 'practice' ? '导师模式' : '自由问答';
+    $('st-task').textContent = m === 'exam' ? '考试' : m === 'lab' ? '工单' : (state.practice && state.practice.active ? '工单' : '本题练习');
     if (m === 'lab') setSideTab('agent');
     else if (m === 'exam') { setSideTab('task'); if (viewHooks.exam) viewHooks.exam(); }
     else {
@@ -1298,21 +1385,33 @@
   }
   for (const b of document.querySelectorAll('#mode-nav button')) b.onclick = () => requestMode(b.dataset.mode);
 
-  // 退出到课程：练习中确认后按放弃结束（复位）；考试中不可用
+  // 离开工作台：练习中确认后结束并复位；考试中保留状态并继续计时，返回时可恢复
   $('btn-exit').onclick = async () => {
     const lock = lockedMode();
-    if (lock === 'exam' || busyOp) return;
+    const exitButton = $('btn-exit');
+    const target = exitButton.dataset.uiExitHref || (customLabId > 0 ? `custom-labs?id=${customLabId}` : 'courses');
+    if (busyOp) { delete exitButton.dataset.uiExitHref; return; }
+    if (lock === 'exam' && !confirm('本场考试会保留当前进度，离开期间计时继续。你可以从考试中心返回继续作答。\n\n确定暂离考试吗？')) {
+      delete exitButton.dataset.uiExitHref;
+      return;
+    }
     if (lock === 'practice') {
       // 已通关的练习退出时仍按通关记录（后端 end() 不覆盖 passed），提示里不能说「按放弃记录」
       const done = state.practice && state.practice.passed;
       if (!confirm(done
         ? '退出到课程会结束本次练习：\n把设备复位到开练前的配置，本次按「已通关」记录。\n\n确定退出吗？'
-        : '退出到课程会结束本次练习：\n把设备复位到开练前的配置，本次按「放弃」记录。\n\n确定退出吗？')) return;
+        : '退出到课程会结束本次练习：\n把设备复位到开练前的配置，本次按「放弃」记录。\n\n确定退出吗？')) {
+        delete exitButton.dataset.uiExitHref;
+        return;
+      }
       setBusyOp('正在结束练习…');
-      try { if (!(await abandonPractice())) return; } finally { setBusyOp(''); }
+      try {
+        if (!(await abandonPractice())) { delete exitButton.dataset.uiExitHref; return; }
+      } finally { setBusyOp(''); }
     }
     for (const port of [...state.tabs.keys()]) closeTab(port);
-    location.href = 'courses';
+    delete exitButton.dataset.uiExitHref;
+    location.href = target;
   };
 
   // ---- 顶栏题名与气泡 ----
@@ -1336,19 +1435,19 @@
       title = t.title;
     } else {
       badge.hidden = true;
-      title = '自由实验';
+      title = customLabId > 0 ? (customLabTitle || '自定义实验') : '自由实验';
     }
     $('topic-title').textContent = title;
     $('topic-btn').title = ex ? `${ex.name}：${title}` : title;
     $('topic-btn').classList.toggle('practice', !!p);
-    // 气泡：考试只放工单（模板隐藏拓扑时也不显示环境与拓扑）；练习 / 实验放环境、拓扑、本题设备、章节、工单摘要
+    // 气泡：考试只放考试工单；练习 / 实验显示环境、拓扑、本题设备和章节，完整工单在右侧页签查看。
     const hideEnv = !!(ex && ex.config && ex.config.show_topology === false);
     for (const el of document.querySelectorAll('#tp-grid .tp-envrow')) el.hidden = hideEnv;
     for (const el of document.querySelectorAll('#tp-grid .tp-info')) el.hidden = !!ex || !t;
     $('tp-grid').hidden = hideEnv && !!ex;
     $('ex-ticket').hidden = !ex;
     $('ex-name').hidden = !ex;
-    $('tp-ticket').hidden = !!ex;
+    $('tp-ticket').hidden = true;
     $('tp-full').hidden = !!ex;
     if (t) {
       const devs = p ? p.devices.map((d) => d.name) : t.required_devices || [];
@@ -1356,18 +1455,42 @@
       const ch = state.chapters.find((c) => c.id === t.chapter);
       $('tp-chapter').textContent = `${ch ? `${ch.id} ${ch.title}` : (t.chapter || '—')} · 难度 ${stars(t.difficulty || t.level)}`;
     }
-    const tk = $('tp-ticket');
-    if (!t && !p) {
-      tk.innerHTML = '<span class="muted">没有选择课题：可以自由操作当前拓扑。练习 / 考试请回到课程页选题。</span>';
-    } else if (tk.dataset.full === '1' && !p) {
-      tk.textContent = t.symptom || '';
-    } else {
-      const sym = p ? p.scenario.symptom : t.symptom;
-      const brief = String(sym || '').split('\n')[0].replace(/^\s*工单[:：]\s*/, '');
-      tk.textContent = `工单：${brief.length > 90 ? `${brief.slice(0, 90)}…` : brief}`;
-    }
-    $('tp-full').textContent = !p && tk.dataset.full === '1' ? '收起工单' : '查看完整工单';
-    $('tp-full').disabled = !t && !p;
+    $('tp-full').textContent = '打开工单页';
+    $('tp-full').disabled = !t && !p && customLabId <= 0;
+    renderTicketPreviews();
+  }
+
+  function renderTicketPreviews() {
+    const p = state.practice && state.practice.active ? state.practice : null;
+    const topic = (p && p.scenario) || state.topic;
+    const devices = p && Array.isArray(p.devices)
+      ? p.devices.map((d) => d.name)
+      : (topic && Array.isArray(topic.required_devices) ? topic.required_devices : []);
+
+    const labBody = $('lab-ticket-body');
+    labBody.hidden = state.mode !== 'lab';
+    const labEmpty = !topic;
+    $('lab-ticket-title').textContent = topic ? (topic.title || '当前课题') :
+      (customLabId > 0 ? (customLabTitle || '自定义实验') : '自由实验');
+    $('lab-ticket-symptom').textContent = topic ? (topic.symptom || '当前课题没有填写工单说明。') : '';
+    $('lab-ticket-empty').textContent = customLabId > 0
+      ? '当前自定义实验没有关联课程工单。'
+      : '当前是自由实验，没有关联课程工单。';
+    $('lab-ticket-empty').hidden = !labEmpty;
+    $('lab-ticket-devices-wrap').hidden = !devices.length;
+    $('lab-ticket-devices').textContent = devices.join(' · ');
+
+    const practicePreview = $('pr-topic-ticket');
+    const showPracticeTicket = state.mode === 'practice' && !(p && p.active) && !pr.summary && !!topic;
+    practicePreview.hidden = !showPracticeTicket;
+    $('pr-topic-title').textContent = topic ? (topic.title || '当前课题') : '';
+    $('pr-topic-symptom').textContent = topic ? (topic.symptom || '当前课题没有填写工单说明。') : '';
+
+    const examPreview = $('ex-topic-ticket');
+    const showExamTicket = state.mode === 'exam' && !(state.exam && state.exam.active) && !!topic;
+    examPreview.hidden = !showExamTicket;
+    $('ex-topic-title').textContent = topic ? (topic.title || '当前课题') : '';
+    $('ex-topic-symptom').textContent = topic ? (topic.symptom || '当前课题没有填写工单说明。') : '';
   }
   function setTopicPop(open) {
     $('topic-pop').hidden = !open;
@@ -1376,10 +1499,8 @@
   }
   $('topic-btn').onclick = (e) => { e.stopPropagation(); setTopicPop($('topic-pop').hidden); };
   $('tp-full').onclick = () => {
-    if (state.practice && state.practice.active) { setTopicPop(false); openSide('task'); return; }
-    const tk = $('tp-ticket');
-    tk.dataset.full = tk.dataset.full === '1' ? '' : '1';
-    renderTopic();
+    setTopicPop(false);
+    openSide('task');
   };
   // 学员菜单
   function setUserMenu(open) {
@@ -1408,7 +1529,7 @@
     $('pr-active-view').hidden = name !== 'active';
     $('pr-detail').hidden = name !== 'active';
     $('pr-summary-view').hidden = name !== 'summary';
-    $('st-task').textContent = name === 'active' ? '工单详情' : '本题练习';
+    $('st-task').textContent = name === 'active' ? '工单' : '本题练习';
   }
 
   // 练习模式、没有进行中的练习：右侧只显示本题（操作页内不能换题）
@@ -1426,6 +1547,7 @@
       list.innerHTML = '';
       if (!s) { list.innerHTML = '<p class="pr-notready">课题不存在（题库已更新？），请回到课程页重新选择</p>'; return; }
       state.topic = { ...t, ...s };
+      renderTicketPreviews();
       const card = document.createElement('div');
       card.className = 'pr-card';
       card.dataset.id = s.id;

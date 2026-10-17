@@ -80,6 +80,7 @@ import ai
 import agent as agent_lib
 import grading
 import hints
+from custom_labs import CustomLabs
 from grading import Scorer
 
 # 本项目日志（ainet.*：提示回退原因、评分失败等）输出到控制台，便于排查；uvicorn 只配置了它自己的 logger
@@ -161,6 +162,7 @@ async def lifespan(app: FastAPI):
     # Agent 面板：监听 hub 的学员命令（快照用），只读命令走隐藏事务
     app.state.agent = agent_lib.AgentService(hub, practice, exam_mgr, lab)
     app.state.agent.labmgr = mgr
+    app.state.custom_labs = CustomLabs(mgr)
     mgr.bind(hub, practice, exam_mgr, app.state.agent)
     mgr.start_background()     # 启动看门狗接着跟踪上次没完成的启动、空闲自动停机（spec §10.5）
     for e in errors:
@@ -171,8 +173,8 @@ async def lifespan(app: FastAPI):
         await exam_mgr.close()
         await practice.shutdown()
         await scorer.close()
-        await hub.close()
         await mgr.close()          # eNSP Pro：退出登录，释放单会话
+        await hub.close()
         LAB = None
         LABMGR = None
 
@@ -183,6 +185,7 @@ FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 
 # 前端第三方库本地化（局域网机器不依赖 CDN）
 app.mount("/vendor", StaticFiles(directory=FRONTEND / "vendor"), name="vendor")
+app.mount("/device-icons", StaticFiles(directory=FRONTEND / "device-icons"), name="device-icons")
 
 # 会话：token -> student_id
 SESSIONS: dict[str, int] = {}
@@ -280,7 +283,7 @@ async def index(request: Request) -> FileResponse | RedirectResponse:
 
 
 # 工作台页面拆出的脚本 / 样式（只放行这几个文件）
-_STATIC_FILES = {"app.js", "app.css", "exam.js", "agent.js", "page.js", "labswitch.js", "courses.js", "aiset.js"}
+_STATIC_FILES = {"app.js", "app.css", "ui.js", "ui.css", "exam.js", "agent.js", "page.js", "labswitch.js", "courses.js", "aiset.js", "custom_lab.js", "custom_lab.css", "device_icons.js"}
 
 
 @app.get("/static/{name}")
@@ -310,6 +313,13 @@ async def profile_page(request: Request) -> FileResponse | RedirectResponse:
     if current_student_id(request.cookies) is None:
         return RedirectResponse("login", status_code=303)
     return FileResponse(FRONTEND / "profile.html")
+
+
+@app.get("/custom-labs", response_model=None)
+async def custom_labs_page(request: Request) -> FileResponse | RedirectResponse:
+    if current_student_id(request.cookies) is None:
+        return RedirectResponse("login", status_code=303)
+    return FileResponse(FRONTEND / "custom_lab.html")
 
 
 @app.get("/exam/templates", response_model=None)
@@ -667,6 +677,102 @@ async def api_lab_power(action: str, body: PowerBody, request: Request) -> dict:
     return res
 
 
+# ---- 自定义实验：新沙箱与拓扑编辑（只操作当前学员在 AInet 中创建的 eNSP Pro 沙箱） ----
+
+class CustomLabBody(BaseModel):
+    environment: str = Field(min_length=1, max_length=32)
+    name: str = Field(min_length=1, max_length=60)
+
+
+class CustomPointBody(BaseModel):
+    x: float = Field(ge=-0.48, le=0.48)
+    y: float = Field(ge=-0.48, le=0.48)
+
+
+class CustomDeviceBody(CustomPointBody):
+    name: str = Field(min_length=1, max_length=32)
+    model_id: int = Field(gt=0)
+
+
+class CustomLinkBody(BaseModel):
+    left_if: int = Field(gt=0)
+    right_if: int = Field(gt=0)
+
+
+async def _custom(coro):
+    try:
+        return await coro
+    except lab_lib.LabError as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.detail) from None
+
+
+@app.get("/api/custom-labs")
+async def api_custom_labs(request: Request) -> dict:
+    sid = require_student_id(request)
+    return await asyncio.to_thread(request.app.state.custom_labs.list, sid)
+
+
+@app.post("/api/custom-labs", status_code=201)
+async def api_custom_labs_create(body: CustomLabBody, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.create(sid, body.environment, body.name))
+
+
+@app.post("/api/custom-labs/{lab_id}/activate")
+async def api_custom_labs_activate(lab_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.activate(lab_id, sid))
+
+
+@app.get("/api/custom-labs/{lab_id}")
+async def api_custom_labs_detail(lab_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.detail(lab_id, sid))
+
+
+@app.get("/api/custom-labs/{lab_id}/models")
+async def api_custom_labs_models(lab_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.models(lab_id, sid))
+
+
+@app.post("/api/custom-labs/{lab_id}/devices")
+async def api_custom_labs_add_device(lab_id: int, body: CustomDeviceBody, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.add_device(
+        lab_id, sid, body.name, body.model_id, body.x, body.y))
+
+
+@app.patch("/api/custom-labs/{lab_id}/devices/{device_id}")
+async def api_custom_labs_move_device(lab_id: int, device_id: int, body: CustomPointBody, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.move_device(lab_id, sid, device_id, body.x, body.y))
+
+
+@app.delete("/api/custom-labs/{lab_id}/devices/{device_id}")
+async def api_custom_labs_remove_device(lab_id: int, device_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.remove_device(lab_id, sid, device_id))
+
+
+@app.post("/api/custom-labs/{lab_id}/links")
+async def api_custom_labs_add_link(lab_id: int, body: CustomLinkBody, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.add_link(lab_id, sid, body.left_if, body.right_if))
+
+
+@app.delete("/api/custom-labs/{lab_id}/links/{link_id}")
+async def api_custom_labs_remove_link(lab_id: int, link_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.remove_link(lab_id, sid, link_id))
+
+
+@app.delete("/api/custom-labs/{lab_id}")
+async def api_custom_labs_delete(lab_id: int, request: Request) -> dict:
+    sid = require_student_id(request)
+    return await _custom(request.app.state.custom_labs.delete(lab_id, sid))
+
+
 # ---- PC 设置气泡（终端主机地址，eNSP Pro） ----
 
 _IPV4 = r"(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)"
@@ -766,7 +872,7 @@ async def api_lab_relogin(request: Request) -> dict:
     """eNSP Pro 会话被挤掉（同一账号在别处登录）后，由用户确认重新登录。"""
     require_student_id(request)
     try:
-        return await lab().relogin()
+        return await _mgr(request).relogin()
     except lab_lib.LabError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
 
@@ -963,10 +1069,13 @@ async def _ecall(coro):
 
 def _norm_template(body: TemplateBody, request: Request) -> tuple[str, str]:
     import json as _json
+    pm = _practice(request)
     try:
-        cfg = normalize_config(body.config, set(_practice(request).scenarios))
+        cfg = normalize_config(body.config, set(pm.scenarios))
     except ExamError as exc:
         raise HTTPException(status_code=exc.status, detail=exc.detail)
+    if len(template_platforms(cfg, pm.scenarios)) > 1:
+        raise HTTPException(status_code=422, detail="一份考试模板只能包含同一设备平台的题目，请拆分为 VRP5 或 YunShan 模板")
     return body.name.strip(), _json.dumps(cfg, ensure_ascii=False)
 
 

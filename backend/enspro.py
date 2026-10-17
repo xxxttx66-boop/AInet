@@ -1,6 +1,6 @@
 """eNSP Pro 实验后端（LabProvider 实现，见 lab.py；spec §5、§10.4）。
 
-eNSP Pro 是浏览器 + 服务端形态的模拟器（本机 KVM 虚机，https://192.168.56.101:8443，自签证书）：
+eNSP Pro 是浏览器 + 服务端形态的模拟器（本机 KVM 虚机，https://ensp-pro.example:8443，自签证书）：
 - REST：统一返回 {code, message, data}，code 0 成功。离线模式免密码登录：GET / → GET /api/login?service=<origin>
   （跟随跳转 ssoCheck?code=offline → userCheck → /），同一个 cookie jar 保存 __Host-SESSION 与 csrfToken；之后的请求带
   请求头 X-CSRF-TOKEN 与 csrfToken（值都取自 csrfToken cookie）。GET /api/getUserInfo 验证登录；
@@ -122,6 +122,10 @@ class EnsproClient:
         return {"X-CSRF-TOKEN": t, "csrfToken": t}
 
     async def _login(self) -> None:
+        # Stale gateway cookies can otherwise reuse the invalidated SSO session.
+        self.logged_in = False
+        self.user = None
+        self._http.cookies.clear()
         self._last_login = self.clock()
         self.logins += 1
         try:
@@ -175,6 +179,7 @@ class EnsproClient:
                    _retry: bool = True) -> Any:
         """调接口，返回 data。code 非 0 抛 EnsproError；会话失效抛 EnsproSessionLost（开了自动重登则重登后重试一次）。"""
         await self.ensure()
+        login_generation = self.logins
         try:
             r = await self._http.request(method, path, json=body, params=params, headers=self._headers())
         except httpx.HTTPError as exc:
@@ -185,6 +190,9 @@ class EnsproClient:
             raise EnsproError(f"eNSP Pro 返回的不是 JSON（HTTP {r.status_code}）", http_status=r.status_code) from None
         code = payload.get("code") if isinstance(payload, dict) else None
         if code in SESSION_LOST_CODES:
+            if _retry and self.logged_in and self.logins != login_generation:
+                # A response from the former session must not invalidate a completed relogin.
+                return await self.call(method, path, body, params=params, _retry=False)
             self._lost(code, payload.get("message", ""))
             if self.auto_relogin and _retry:
                 await self.ensure()
@@ -421,6 +429,15 @@ def _notes(items: Any) -> list[dict[str, Any]]:
     return out
 
 
+def sandbox_device_aliases(sb: dict[str, Any]) -> dict[str, str]:
+    """AInet 页面使用的设备名；只给已知的双 AR 测试沙箱做型号化显示。"""
+    raw_names = {str(d.get("name") or "") for d in (sb.get("devices") or [])}
+    return ({"T1": "AR1", "T2": "AR2"}
+            if str(sb.get("name") or "").casefold() == "ainet_test"
+            and {"T1", "T2"}.issubset(raw_names)
+            and not {"AR1", "AR2"}.intersection(raw_names) else {})
+
+
 def sandbox_to_topology(sb: dict[str, Any]) -> dict[str, Any]:
     """getOneSandbox 的 data -> 拓扑（字段同 topology.parse_topo，另有 status / progress / anchor）。
 
@@ -431,6 +448,9 @@ def sandbox_to_topology(sb: dict[str, Any]) -> dict[str, Any]:
     """
     devices: list[dict[str, Any]] = []
     if_name: dict[int, tuple[str, int]] = {}
+    # ainet_test 的两台设备实际都是 ENSP-AR / AR6700。原拓扑用 T1/T2 作临时标签，
+    # AInet 面向学员统一显示为 AR1/AR2；deviceId、接口和 console 映射保持原样。
+    aliases = sandbox_device_aliases(sb)
     # 接口返回的设备 / 连线顺序不固定（实测两次调用 T1、T2 先后不同）：按 id 排序，拓扑指纹与绘制顺序才稳定
     for dev in sorted(sb.get("devices") or [], key=lambda d: int(d.get("id") or 0)):
         kind = device_kind(dev)
@@ -442,8 +462,9 @@ def sandbox_to_topology(sb: dict[str, Any]) -> dict[str, Any]:
         x, y = _xy(dev.get("devicePosition"))
         dt = dev.get("deviceType") or {}
         did = int(dev["id"])
+        raw_name = str(dev.get("name") or did)
         devices.append({
-            "id": str(did), "name": str(dev.get("name") or did),
+            "id": str(did), "name": aliases.get(raw_name, raw_name), "native_name": raw_name,
             "model": str(dt.get("name") or dt.get("displayName") or ""),
             "com_port": 0, "console": did if _has_console(kind) else 0,
             "device_id": did, "x": x, "y": y, "anchor": "center", "kind": kind, "interfaces": names,
@@ -590,6 +611,12 @@ class EnsproProvider(LabProvider):
         progress: dict[str, Any] = {}
         running = total = 0
         w = self.watch
+        if w is not None:
+            # 服务重启后恢复的旧看门狗记录可能仍保存原始节点名；随拓扑刷新为当前学员展示名。
+            names = {d["device_id"]: d["name"] for d in topo["devices"]}
+            for did, track in w.tracks.items():
+                if did in names:
+                    track.name = names[did]
         for d in topo["devices"]:
             if d["console"] <= 0:
                 status[d["id"]] = "na"
@@ -763,13 +790,16 @@ class EnsproProvider(LabProvider):
         except EnsproError as exc:
             raise LabError(409 if isinstance(exc, EnsproSessionLost) else 502, exc.message) from None
         self.sandbox_name = str(data.get("name") or f"sandbox-{self.sandbox_id}")
+        aliases = sandbox_device_aliases(data)
         out: dict[int, dict[str, Any]] = {}
         for d in data.get("devices") or []:
             try:
                 did = int(d["id"])
             except (KeyError, TypeError, ValueError):
                 continue
-            out[did] = {"name": str(d.get("name") or did), "status": device_status(d.get("status")),
+            raw_name = str(d.get("name") or did)
+            out[did] = {"name": aliases.get(raw_name, raw_name), "native_name": raw_name,
+                        "status": device_status(d.get("status")),
                         "code": d.get("status"), "console": _has_console(device_kind(d))}
         return out
 
@@ -866,6 +896,8 @@ class EnsproProvider(LabProvider):
     async def relogin(self) -> dict[str, Any]:
         try:
             await self.client.relogin()
+            # Verify the simulator service, in addition to the SSO user endpoint.
+            await self.client.sandboxes()
         except EnsproError as exc:
             raise LabError(502, exc.message) from None
         self.invalidate()

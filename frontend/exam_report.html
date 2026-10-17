@@ -11,47 +11,47 @@
     main a { color: var(--info); }
     h1 { font-size: 18px; margin: 14px 0 4px; }
     h2 { font-size: 15px; margin-top: 22px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
-    button, select { background: #0f1419; color: var(--fg); border: 1px solid var(--line2); border-radius: 3px; font: inherit;
-      padding: 2px 8px; cursor: pointer; }
-    button:hover { border-color: #888; }
-    button:disabled { opacity: .45; cursor: default; }
-    .meta { color: #999; }
-    .total { display: flex; align-items: baseline; gap: 8px; margin: 10px 0; }
-    .big { font-size: 34px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
-    .tag { font-size: 12px; border: 1px solid #ffb74d; color: #ffb74d; border-radius: 3px; padding: 0 4px; }
-    .tag.ok { border-color: #43a047; color: #8bc34a; }
-    .tag.bad { border-color: #8e3b3b; color: #ef9a9a; }
-    .q { border: 1px solid #333; border-radius: 4px; background: var(--panel); padding: 8px 12px; margin: 10px 0; }
+    button, select { background: var(--panel); color: var(--fg-strong); border: 1px solid var(--line2); border-radius: 8px; font: inherit;
+      min-height: 36px; padding: 6px 10px; cursor: pointer; }
+    button:hover:not(:disabled) { background: var(--sel); border-color: var(--accent); }
+    button:disabled { background: var(--surface-alt); color: var(--dim); opacity: 1; cursor: not-allowed; }
+    .meta { color: var(--muted); }
+    .total { display: flex; align-items: baseline; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+    .big { font-size: 34px; font-weight: bold; color: var(--fg-strong); font-variant-numeric: tabular-nums; }
+    .tag { font-size: 12px; border: 1px solid var(--warn); color: var(--warn-fg); border-radius: 6px; padding: 2px 7px; }
+    .tag.ok { border-color: var(--ok); color: var(--ok-fg); }
+    .tag.bad { border-color: var(--err); color: var(--err-fg); }
+    .q { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 12px 14px; margin: 10px 0; }
     .qh { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
-    .qh .t { color: #fff; font-weight: bold; }
-    .qs { font-size: 20px; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .qh .t { color: var(--fg-strong); font-weight: bold; }
+    .qs { font-size: 20px; color: var(--fg-strong); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .row { margin: 3px 0; }
-    .sym { color: #bbb; white-space: pre-wrap; margin: 4px 0; }
+    .sym { color: var(--sub); white-space: pre-wrap; margin: 4px 0; }
     .dims { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 8px 0; }
-    .dim { background: #262626; border-radius: 4px; padding: 6px 8px; }
+    .dim { background: var(--surface-alt); border-radius: 8px; padding: 10px 12px; }
     .dim .h { display: flex; justify-content: space-between; }
-    .dim .r { color: #aaa; font-size: 12px; white-space: pre-wrap; margin-top: 3px; }
-    .bar { height: 5px; background: #333; border-radius: 3px; margin: 3px 0; overflow: hidden; }
-    .bar i { display: block; height: 100%; background: #64b5f6; }
-    .list b { color: #9ecbff; font-weight: normal; }
-    .list.good b { color: #8bc34a; }
-    .list.bad b { color: #ffb74d; }
+    .dim .r { color: var(--muted); font-size: 12px; white-space: pre-wrap; margin-top: 3px; }
+    .bar { height: 5px; background: var(--line); border-radius: 3px; margin: 3px 0; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); }
+    .list b { color: var(--info); font-weight: normal; }
+    .list.good b { color: var(--ok-fg); }
+    .list.bad b { color: var(--warn-fg); }
     .list ul { margin: 2px 0 6px; padding-left: 20px; }
-    .path { white-space: pre-wrap; color: #ccc; }
-    .warn { color: #ffb74d; white-space: pre-wrap; }
+    .path { white-space: pre-wrap; color: var(--sub); }
+    .warn { color: var(--warn-fg); white-space: pre-wrap; }
     /* 命令回放 */
     #replay-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; }
-    #replay-pos { color: #999; }
-    #replay-list { max-height: 520px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; background: #161616; }
-    .rp { padding: 4px 10px; border-bottom: 1px solid #262626; cursor: pointer; }
-    .rp.cur { background: #233447; }
+    #replay-pos { color: var(--muted); }
+    #replay-list { max-height: 520px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+    .rp { padding: 8px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .rp.cur { background: var(--sel); }
     .rp.future { opacity: .35; }
-    .rp .c { color: #fff; }
-    .rp .c .dev { color: #8bc34a; }
-    .rp .c .off { color: #777; margin-right: 6px; font-variant-numeric: tabular-nums; }
-    .rp pre { margin: 3px 0 0 0; white-space: pre-wrap; color: #aaa; font: inherit; font-size: 12px; max-height: 240px;
+    .rp .c { color: var(--fg-strong); }
+    .rp .c .dev { color: var(--ok-fg); }
+    .rp .c .off { color: var(--muted); margin-right: 6px; font-variant-numeric: tabular-nums; }
+    .rp pre { margin: 3px 0 0 0; white-space: pre-wrap; color: var(--sub); font: inherit; font-size: 12px; max-height: 240px;
       overflow-y: auto; }
-    .empty { color: #888; }
+    .empty { color: var(--muted); }
     @media (max-width: 700px) { .dims { grid-template-columns: 1fr; } }
     ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
     ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
@@ -63,8 +63,10 @@
       *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
     }
   </style>
+  <link rel="stylesheet" href="../static/ui.css?v=ui-20261015-3" />
+  <script src="../static/ui.js?v=exam-nav-20261017-1"></script>
 </head>
-<body class="page" data-root="../">
+<body class="page" data-root="../" data-ui-page="report">
 <header class="topbar">
   <a class="logo" href="../courses" title="课程选择">ainet</a>
   <nav class="mode-nav" aria-label="导航"><a href="../courses">课程</a><a href=".././">操作页</a><a href="../profile">档案</a></nav>
@@ -100,8 +102,8 @@
   const id = Number(new URLSearchParams(location.search).get('id'));
   const rp = { data: null, q: 0, pos: -1, timer: null, all: true };
 
-  async function api(url) {
-    const r = await fetch(url);
+  async function api(url, options = {}) {
+    const r = await fetch(url, options);
     if (r.status === 401) { location.href = '../login'; throw new Error('未登录'); }
     const d = await r.json().catch(() => null);
     if (!r.ok) throw new Error((d && d.detail) || `HTTP ${r.status}`);
@@ -145,11 +147,15 @@
       const subs = (q.submissions || []).map((s) => `第 ${s.n} 次${s.passed ? '通过' : '未通过'}（${s.passed_items}/${s.total}）`).join('；') || '无';
       const d = q.scores || {};
       const cm = q.comment;
+      const canRescore = q.attempt_id && ['degraded', 'failed'].includes(q.score_status);
+      const warning = q.score_status === 'degraded' ? q.reason : q.score_status === 'failed' ? (q.reason || '评分失败') : '';
+      const rescore = canRescore
+        ? `<button class="report-rescore" data-attempt-id="${Number(q.attempt_id)}">重新评分</button><span class="rescore-feedback" role="status" aria-live="polite"></span>`
+        : '';
       return `<div class="q">${head}<div class="row">${tags}</div>` +
         `<div class="row meta">用时 ${dur(q.duration_s)} · 命令 ${q.commands ?? 0} 条 · 提示 ${q.hints_used} 级 · 提交：${esc(subs)}</div>` +
         `<details><summary class="meta">工单</summary><div class="sym">${esc(q.symptom)}</div></details>` +
-        (q.score_status === 'degraded' && q.reason ? `<div class="warn">${esc(q.reason)}</div>` : '') +
-        (q.score_status === 'failed' ? `<div class="warn">${esc(q.reason || '评分失败')}</div>` : '') +
+        (warning ? `<div class="warn">${esc(warning)} ${rescore}</div>` : '') +
         (d.result ? `<div class="dims">${dimBox('结果', d.result)}${dimBox('过程（方法论）', d.process)}${dimBox('规范 / 副作用', d.side)}</div>` : '') +
         (cm ? (cm.summary ? `<div class="row">${esc(cm.summary)}</div>` : '') + list('做得好的', cm.good, 'good') +
           list('存在的问题', cm.problems, 'bad') + list('改进建议', cm.suggestions, '') : '') +
@@ -157,14 +163,36 @@
           : (q.reference_path ? `<div class="list"><b>参考思路</b><div class="path">${esc(q.reference_path)}</div></div>` : '')) +
         '</div>';
     }).join('');
+    for (const button of $('questions').querySelectorAll('.report-rescore')) {
+      button.onclick = async () => {
+        const feedback = button.parentElement.querySelector('.rescore-feedback');
+        button.disabled = true;
+        button.textContent = '提交中…';
+        try {
+          await api(`../api/practice/rescore/${button.dataset.attemptId}`, { method: 'POST' });
+          await load();
+        } catch (e) {
+          button.disabled = false;
+          button.textContent = '重新评分';
+          if (feedback) feedback.textContent = `提交失败：${e.message}`;
+        }
+      };
+    }
     $('replay-h').hidden = $('replay').hidden = !r.replay_available;
   }
 
   // ---------- 命令回放：按时间顺序逐条播放或滚动查看 ----------
   function rpLogs() { return (rp.data && rp.data.questions[rp.q] && rp.data.questions[rp.q].logs) || []; }
+  function syncReplayControls(logs = rpLogs()) {
+    $('rp-prev').disabled = !logs.length || rp.pos <= 0;
+    $('rp-next').disabled = !logs.length || rp.pos >= logs.length - 1;
+    $('rp-play').disabled = !logs.length;
+    $('rp-all').disabled = !logs.length || rp.all;
+  }
   function rpRender() {
     const logs = rpLogs();
     const box = $('replay-list');
+    syncReplayControls(logs);
     if (!logs.length) { box.innerHTML = '<div class="rp empty">本题没有命令记录</div>'; $('replay-pos').textContent = ''; return; }
     box.innerHTML = logs.map((l, i) => `<div class="rp${i === rp.pos ? ' cur' : ''}${!rp.all && i > rp.pos ? ' future' : ''}" data-i="${i}">` +
       `<div class="c"><span class="off">+${off(l.offset_s)}</span><span class="dev">${esc(l.device || '?')}&gt;</span> ${esc(l.command)}</div>` +
@@ -217,10 +245,12 @@
     if (r.score_status === 'scoring' || r.questions.some((q) => q.score_status === 'scoring')) setTimeout(load, 2000);
   }
   window.__report = { rp, load, step };
+  syncReplayControls();
   load();
 })();
 </script>
 <script src="../static/labswitch.js"></script>
+<script src="../static/aiset.js"></script>
 <script src="../static/page.js"></script>
 </body>
 </html>

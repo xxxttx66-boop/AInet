@@ -1,4 +1,4 @@
-"""eNSP 运行时探测：哪些设备正在运行、eNSP 最近打开了哪个拓扑。
+r"""eNSP 运行时探测：哪些设备正在运行、eNSP 最近打开了哪个拓扑。
 
 eNSP 启动设备时在 <LOCALAPPDATA>\\eNSP\\VBoxServer\\devices\\<GUID>\\ 下建虚机副本
 （如 AR_Clone_<GUID>），停止后目录不删，所以「目录存在」不等于「在运行」。

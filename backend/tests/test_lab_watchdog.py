@@ -195,16 +195,21 @@ def test_non_current_env_only_saved_then_applied_on_switch(db_path, monkeypatch)
         assert mgr._retries_of(lab_lib.get_env("enspro")) == 2
         monkeypatch.setattr(lab_lib, "available", lambda k, force=False: asyncio.sleep(0, {"available": True}))
         await mgr.switch("enspro", 2, sandbox_given=True)
+        classic = w
+        w = mgr.power
+        assert w is not classic
         assert (w.start_timeout, w.retries, w.configured_for) == (300, 2, "enspro")
-        # 同环境换沙箱不重设（测试 / e2e 直接改过的属性保留）
+        # 各沙箱有独立运行上下文；修改一个计时器不能改变另一个。
         w.start_timeout = 0.3
         await mgr._replace(lab_lib.get_env("enspro"), 3)
-        assert w.start_timeout == 0.3
-        # 切回经典版再切回来：重新换成 eNSP Pro 的参数
+        other = mgr.power
+        assert other is not w and other.start_timeout == 300 and w.start_timeout == 0.3
         await mgr._replace(lab_lib.get_env("ensp"), None)
-        assert w.start_timeout == 0.3                # 经典版没有看门狗：不动
+        assert mgr.power.start_timeout == config.ENSPRO_START_TIMEOUT
         await mgr.set_watch("enspro", {"start_timeout": 360})
-        assert w.start_timeout == 360                # 看门狗仍按 eNSP Pro 配置着：改了立即生效
+        assert w.start_timeout == other.start_timeout == 360
+        assert mgr.power.start_timeout == config.ENSPRO_START_TIMEOUT
+        await mgr.close()
     asyncio.run(run())
 
 

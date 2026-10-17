@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>自定义实验 · ainet</title>
+  <link rel="stylesheet" href="static/app.css" />
+  <link rel="stylesheet" href="static/ui.css" />
+  <link rel="stylesheet" href="static/custom_lab.css?v=ensp-icons-20261016-3" />
+  <script src="static/ui.js?v=exam-nav-20261017-1"></script>
+</head>
+<body class="page custom-lab-page" data-root="" data-ui-page="custom-labs">
+  <header class="topbar">
+    <a class="logo" href="courses">ainet</a>
+    <span class="page-title">自定义实验</span>
+    <span class="spacer"></span>
+    <span id="user">学员：<span id="who">…</span> <a href="login">切换</a> <button id="logout" class="link-btn">登出</button></span>
+  </header>
+  <main class="cl-main">
+    <div id="cl-message" class="cl-message" role="status" hidden></div>
+    <section id="cl-list-view" aria-label="我的自定义实验">
+      <div class="cl-intro">
+        <div class="ui-eyebrow">自由搭建 · 自由操作 · AI 指导</div>
+        <h1>从空白拓扑开始实验</h1>
+        <p>在 eNSP Pro 中创建独立沙箱，添加设备、连线并进入终端操作。AI 会结合你执行的命令及输出给出建议。</p>
+      </div>
+      <section class="cl-create-card" aria-labelledby="cl-create-title">
+        <div><h2 id="cl-create-title">新建实验</h2><p>只会创建新的沙箱，课程和考试使用的拓扑不会被修改。</p></div>
+        <form id="cl-create-form">
+          <label>实验名称<input id="cl-name" type="text" maxlength="60" placeholder="例如：双交换机 VLAN 练习" required /></label>
+          <label>模拟环境<select id="cl-environment" required></select></label>
+          <button id="cl-create" type="submit" class="primary" data-icon="plus">创建并编辑</button>
+        </form>
+      </section>
+      <div class="cl-list-head"><h2>我的实验</h2><span id="cl-count"></span></div>
+      <div id="cl-labs" class="cl-labs"></div>
+    </section>
+
+    <section id="cl-editor" aria-label="拓扑编辑" hidden>
+      <div class="cl-editor-head">
+        <button id="cl-back" type="button" data-icon="back">我的实验</button>
+        <div class="cl-editor-title"><span class="ui-eyebrow" id="cl-env-label"></span><h1 id="cl-title">拓扑编辑</h1><p id="cl-summary"></p></div>
+        <div class="cl-editor-actions">
+          <button id="cl-refresh" type="button" data-icon="refresh">刷新</button>
+          <button id="cl-enter" type="button" class="primary" data-icon="terminal">进入实验工作台</button>
+        </div>
+      </div>
+      <div class="cl-layout">
+        <section class="cl-canvas-card" aria-labelledby="cl-canvas-title">
+          <div class="cl-canvas-head"><h2 id="cl-canvas-title">拓扑画布</h2><span>拖动设备调整位置 · 点击设备查看接口</span></div>
+          <div id="cl-canvas" class="cl-canvas"><svg id="cl-links" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true"></svg><div id="cl-nodes"></div></div>
+          <div class="cl-canvas-foot"><span class="cl-legend"><i class="online"></i>运行中</span><span class="cl-legend"><i></i>已停止</span><span>增删设备和连线前，请先停止涉及的设备。</span></div>
+        </section>
+        <aside class="cl-tools" aria-label="拓扑工具">
+          <section class="cl-tool-card"><h2>添加设备</h2>
+            <form id="cl-device-form">
+              <label>设备型号<select id="cl-model" required></select></label>
+              <label>设备名称<input id="cl-device-name" type="text" maxlength="32" pattern="[A-Za-z][A-Za-z0-9_-]*" placeholder="例如 AR1" required /></label>
+              <button type="submit" class="primary" data-icon="plus">添加到画布</button>
+            </form>
+          </section>
+          <section class="cl-tool-card"><h2>连接接口</h2>
+            <form id="cl-link-form">
+              <label>第一个接口<select id="cl-left-if" required></select></label>
+              <label>第二个接口<select id="cl-right-if" required></select></label>
+              <button type="submit" data-icon="network">添加连线</button>
+            </form>
+          </section>
+          <section class="cl-tool-card" id="cl-selected-card"><h2>设备操作</h2><div id="cl-selected">在画布上选择设备，查看状态与接口。</div></section>
+          <section class="cl-tool-card"><h2>现有连线</h2><div id="cl-link-list"></div></section>
+          <section class="cl-tool-card cl-danger-zone"><h2>管理实验</h2><p>删除实验会同时删除 eNSP Pro 中的这个沙箱及全部设备。</p><button id="cl-delete-lab" type="button" class="danger">删除这个实验</button></section>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <script src="static/aiset.js"></script>
+  <script src="static/page.js"></script>
+  <script src="static/device_icons.js?v=ensp-icons-20261016-3"></script>
+  <script src="static/custom_lab.js?v=ensp-icons-20261016-3"></script>
+</body>
+</html>

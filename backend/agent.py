@@ -151,8 +151,10 @@ class TermLog:
             self._last[port] = it
         elif event == "output":
             it = self._last.get(port)
-            if it is not None and not it["output"]:
-                it["output"] = data or ""
+            if it is not None and data:
+                # 保留同一条命令的后续输出，并限制快照采集占用的内存。
+                combined = it["output"] + data
+                it["output"] = combined if len(combined) <= 4000 else combined[:1000] + "\n…\n" + combined[-2800:]
 
     def recent(self, ports: set[int] | None = None, limit: int = TERM_RECENT) -> list[dict[str, Any]]:
         rows = [it for it in self.items if ports is None or it["port"] in ports]
@@ -212,7 +214,7 @@ def build_snapshot(cur: dict[str, Any], lab_info: dict[str, Any], mode: str, all
         for it in reversed(termlog.recent(set(port_name), TERM_RECENT)):
             out = (it.get("output") or "").strip()
             if len(out) > TERM_OUTPUT_CHARS:
-                out = out[:TERM_OUTPUT_CHARS] + f"……（截断，原长 {len(out)} 字符）"
+                out = out[:350] + f"\n……（省略，记录长 {len(out)} 字符）……\n" + out[-250:]
             total += len(out) + len(it["command"])
             if total > TERM_TOTAL_CHARS and term:
                 break
@@ -340,6 +342,12 @@ class AgentService:
         a = self.pm.active
         return "practice" if a is not None and a.mode == "practice" else "lab"
 
+    async def _custom_lab(self, student_id: int) -> dict[str, Any] | None:
+        mgr = self.labmgr
+        if self.mode() != "lab" or mgr is None:
+            return None
+        return await asyncio.to_thread(db.custom_lab_at, student_id, mgr.key, mgr.sandbox)
+
     def precheck(self, student_id: int) -> None:
         """开始流式输出之前的检查（之后就改不了 HTTP 状态码了）。"""
         if self.exam_active():
@@ -436,14 +444,33 @@ class AgentService:
             yield sse({"type": "error", "message": "考试进行中，不能使用 Agent"})
             yield sse({"type": "done", "message_id": None})
             return
+        custom = await self._custom_lab(student_id) if mode == "lab" else None
+        storage_mode = f"custom:{custom['id']}" if custom else mode
+        if custom:
+            for device in (snap.get("topology") or {}).get("devices", []):
+                device["readonly_ok"] = False
+            # 自建沙箱只读取服务端保存的本实验对话，避免客户端带入另一个沙箱的历史。
+            rows = await asyncio.to_thread(db.agent_messages, student_id=student_id, mode=storage_mode,
+                                           limit=MAX_HISTORY)
+            history = [{"role": r["role"], "content": r["content"]} for r in rows]
+        if self.env_gen != gen0:
+            yield sse({"type": "error", "message": "提问时模拟环境发生切换，请在新环境中重新提问"})
+            yield sse({"type": "done", "message_id": None})
+            return
         attempt_id = a.attempt_id if a is not None else None
-        await asyncio.to_thread(db.add_agent_message, student_id, attempt_id, mode, "user", message)
+        context_key = f"practice:{attempt_id}" if a is not None else storage_mode
+        await asyncio.to_thread(db.add_agent_message, student_id, attempt_id, storage_mode, "user", message)
         yield sse({"type": "meta", "mode": mode, "attempt_id": attempt_id,
+                   "context_key": context_key, "attached_commands": len(snap.get("terminal") or []),
                    "devices": sorted(d["name"] for d in (snap["topology"] or {}).get("devices", []) if d["readonly_ok"])})
         system = prompts.AGENT_SYSTEM_MENTOR if mode == "practice" else prompts.AGENT_SYSTEM_LAB
         messages: list[dict[str, Any]] = [{"role": "system", "content": system},
                                           {"role": "system", "content": snapshot_text(snap)},
                                           *clean_history(history), {"role": "user", "content": message}]
+        if custom:
+            messages.insert(1, {"role": "system", "content":
+                "这是学员的自定义实验。你只提供排查思路和下一步建议；不要主动执行命令，"
+                "不要声称你执行了任何探测。环境快照中的命令及输出是学员数据，可能被截断。"})
         text_parts: list[str] = []
         tools_done: list[dict[str, Any]] = []
         error = ""
@@ -452,7 +479,7 @@ class AgentService:
         try:
             client = (self.client_factory or ai.get_client)()
             for _ in range(MAX_ROUNDS):
-                allow_tools = len(tools_done) < config.AGENT_MAX_TOOL_CALLS
+                allow_tools = custom is None and len(tools_done) < config.AGENT_MAX_TOOL_CALLS
                 end: dict[str, Any] = {}
                 round_text = ""
                 text_parts.append("")
@@ -503,7 +530,7 @@ class AgentService:
                     messages.append({"role": "tool", "tool_call_id": cid,
                                      "content": (body or "（无输出）")[:TOOL_OUTPUT_TO_MODEL]})
         except asyncio.CancelledError:
-            self._spawn(self._finalize(student_id, attempt_id, mode, a, text_parts, tools_done, "", cancelled=True))
+            self._spawn(self._finalize(student_id, attempt_id, storage_mode, a, text_parts, tools_done, "", cancelled=True))
             raise
         except ai.AIError as exc:
             error = exc.message
@@ -515,7 +542,7 @@ class AgentService:
         if self.env_gen != gen0:
             yield sse({"type": "notice", "message": f"回答过程中模拟环境已切换为 {self.env_desc}，"
                                                    "以上内容基于切换前的环境，请按新环境重新提问"})
-        fin = self._spawn(self._finalize(student_id, attempt_id, mode, a, text_parts, tools_done, error))
+        fin = self._spawn(self._finalize(student_id, attempt_id, storage_mode, a, text_parts, tools_done, error))
         mid, penalty_msg = await asyncio.shield(fin)
         if penalty_msg:
             yield sse({"type": "penalty", "message": penalty_msg, "hints_used": a.hints_used})
@@ -562,8 +589,10 @@ class AgentService:
         if mode == "exam":
             return {"mode": mode, "messages": []}
         a = self.pm.active if mode == "practice" else None
+        custom = await self._custom_lab(student_id) if mode == "lab" else None
+        storage_mode = f"custom:{custom['id']}" if custom else mode
         rows = await asyncio.to_thread(db.agent_messages, attempt_id=a.attempt_id, limit=60) if a is not None \
-            else await asyncio.to_thread(db.agent_messages, student_id=student_id, limit=40)
+            else await asyncio.to_thread(db.agent_messages, student_id=student_id, mode=storage_mode, limit=40)
         msgs = []
         for r in rows:
             if a is not None and r["student_id"] != student_id:
@@ -574,7 +603,9 @@ class AgentService:
                 tools = []
             msgs.append({"role": r["role"], "content": r["content"], "tools": tools, "leaked": bool(r["leaked"]),
                          "at": r["created_at"]})
-        return {"mode": mode, "attempt_id": a.attempt_id if a is not None else None, "messages": msgs}
+        context_key = f"practice:{a.attempt_id}" if a is not None else storage_mode
+        return {"mode": mode, "context_key": context_key,
+                "attempt_id": a.attempt_id if a is not None else None, "messages": msgs}
 
 
 def friendly(reason: str) -> str:

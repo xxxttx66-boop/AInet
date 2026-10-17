@@ -613,14 +613,22 @@ def test_whitelist_follows_running_topology(client, topo_dirs, monkeypatch):
     assert "白名单" in msg and "未保存" in msg
 
 
-def test_scan_skips_links_and_app_dir(tmp_path, monkeypatch):
+def test_scan_skips_links(tmp_path, monkeypatch):
     # 链接/联接点不跟进；扫描上层目录时也不收录本项目自带的测试样例
     (tmp_path / "real").mkdir()
     shutil.copy(TOPOS / "BGP3-6.topo", tmp_path / "real" / "a.topo")
-    (tmp_path / "link").symlink_to(TOPOS, target_is_directory=True)
+    try:
+        (tmp_path / "link").symlink_to(TOPOS, target_is_directory=True)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows account does not have symbolic-link privileges; covered on Linux CI")
+        raise
     monkeypatch.setattr(config, "TOPO_DIRS", [str(tmp_path)])
     names = {t["name"] for t in topology.list_topologies()}
     assert names == {"a"}
+
+
+def test_scan_skips_app_dir(monkeypatch):
     app_parent = str(Path(topology._APP_ROOT).parent)
     monkeypatch.setattr(topology, "_MAX_DEPTH", 2)
     monkeypatch.setattr(config, "TOPO_DIRS", [app_parent])

@@ -152,6 +152,22 @@ def hub(c) -> FakeHub:
     return c.app.state.hub
 
 
+def test_booting_console_rejected_before_attempt_or_configuration(pclient):
+    pclient.post("/api/login", json={"login": "admin", "password": "admin"})
+
+    async def booting(port):
+        return HiddenResult("busy", "#### booting ####")
+    pclient.app.state.hub.check_ready = booting
+    result = pclient.post("/api/practice/start", json={"scenario_id": "campus-ar0-ar2-link"})
+    assert result.status_code == 409 and "console 未就绪" in result.json()["detail"]
+    assert pclient.app.state.practice.active is None and pclient.app.state.hub.calls == []
+    conn = db.connect()
+    try:
+        assert conn.execute("SELECT count(*) FROM attempts").fetchone()[0] == 0
+    finally:
+        conn.close()
+
+
 def test_requires_login(pclient):
     for method, url, body in [("get", "/api/scenarios", None), ("post", "/api/practice/start", {"scenario_id": "x"}),
                               ("post", "/api/practice/check", None), ("post", "/api/practice/hint", {"level": 1}),

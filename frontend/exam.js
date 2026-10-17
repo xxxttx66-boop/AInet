@@ -1,5 +1,5 @@
 // ainet 操作页「考试」模式（里程碑 6 / 6.9）：未开考时右侧面板是本题的「单题考试」卡片（多题考试在课程页「考试」里选模板）
-// → 作答（单层顶栏变红：题名处「第 n/N 题 ▾」，点开气泡是工单；题号进度、总倒计时、本题计时、提示、提交本题、下一题、
+// → 作答（题名处显示题号；当前题目和工单固定显示在工作区上方，题名气泡可查看设备 / 提示；题号进度、总倒计时、本题计时、提交本题、下一题、
 // 交卷（二次确认）；作答中没有右侧面板，也不能切换模式 / 退出到课程）→ 已交卷（右侧面板，成绩单链接）。
 // 计时以服务端为准：每 2 秒拉一次 /api/exam/current，两次之间按本地时钟插值显示。
 // 依赖 app.js 暴露的 window.__ainet（终端标签、拓扑状态、api / esc / fmtDur）。
@@ -68,6 +68,7 @@
     state.exam = st;
     if (!st.active) {
       stopTimers();
+      $('exam-question').hidden = true;
       if (was && was.active) {                 // 刚交卷（或计时器到点自动交卷）
         finished(st.exam_id || st.last_exam_id || was.exam_id);
         A.refreshStatus(true);
@@ -112,6 +113,9 @@
     const q = st.question || {};
     const cfg = st.config || {};
     $('ex-name').textContent = st.name;
+    $('exam-question-title').textContent = q.title || '';
+    $('exam-question-text').textContent = q.symptom || '';
+    $('exam-question').hidden = !q.title && !q.symptom;
     $('ex-progress').hidden = st.total <= 1;          // 单题考试不显示题号进度
     A.renderTopic();
     $('ex-progress').innerHTML = st.questions.map((x) => {
@@ -294,6 +298,7 @@
 
   function finished(id) {
     stopTimers();
+    $('exam-question').hidden = true;
     state.exam = { active: false, last_exam_id: id };
     ex.doneId = id;
     ex.activeKey = null;

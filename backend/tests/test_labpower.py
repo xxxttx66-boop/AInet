@@ -80,7 +80,7 @@ async def until(cond, timeout=5.0, step=0.02):
     return False
 
 
-async def status_of(h, name="T1"):
+async def status_of(h, name="AR1"):
     cur = await h.p.resolve()
     d = next(d for d in cur["topology"]["devices"] if d["name"] == name)
     return d["status"], cur
@@ -104,7 +104,7 @@ def test_watchdog_restarts_stuck_device_then_ready(db_path):
         assert await until(lambda: 6 not in h.w.tracks, timeout=5)
         st, _ = await status_of(h)
         assert st == "online"
-        ev = [e["event"] for e in h.w.events if e["device"] == "T1"]
+        ev = [e["event"] for e in h.w.events if e["device"] == "AR1"]
         assert ev[:1] == ["restart"] and "ready" in ev and "failed" not in ev
         assert per_dev(rest, "/service/ensp/device/batchStop") == {6: 1}
         assert per_dev(rest, "/service/ensp/device/batchStart") == {6: 2}
@@ -132,9 +132,9 @@ def test_watchdog_marks_start_failed_after_retry_and_manual_start_restarts(db_pa
         assert "停在「启动系统」" in reason and f"已自动停止再启动 {n} 次" in reason
         assert "启动失败" in cur["message"] and "启动失败" in cur["progress"]["6"]
         # 开练前的就绪判断：给出启动失败的原因
-        s = {"topology": "ainet_test", "required_devices": ["T1", "T2"], "platform": "yunshan", "hosts": []}
+        s = {"topology": "ainet_test", "required_devices": ["AR1", "AR2"], "platform": "yunshan", "hosts": []}
         rd = sc.readiness(s, cur)
-        assert not rd["ready"] and "启动失败" in rd["reason"] and "T1" in rd["reason"]
+        assert not rd["ready"] and "启动失败" in rd["reason"] and "AR1" in rd["reason"]
         # 终端不放行，原因说明启动失败
         assert 6 not in h.p.allowed(cur) and "启动失败" in h.p.deny_reason(cur, 6)
         # 用户再点「启动」：先停止再启动（计数清零），这次正常
@@ -239,7 +239,7 @@ def test_staggered_start(db_path):
         h.w.stagger = 0.3
         r = await h.w.start([6, 7])
         assert r["started"] == [6] and r["queued"] == [7]
-        st, cur = await status_of(h, "T2")
+        st, cur = await status_of(h, "AR2")
         assert st == "starting" and "排队" in cur["progress"]["7"]
         assert await until(lambda: len([t for t in rest.times if t[1].endswith("batchStart")]) == 2, timeout=3)
         starts = [t for t in rest.times if t[1].endswith("batchStart")]
@@ -262,26 +262,41 @@ def test_restart_gap_after_stop_and_reboot_is_stop_wait_start(db_path):
     rest = FakeRest()
     rest.status = {6: 4, 7: 4}
     rest.instant_start = True
+    now = [1000.0]
+    observed = []
+    original = rest.handle
+
+    def handle(req):
+        if req.url.path.endswith(("batchStop", "batchStart")):
+            observed.append((now[0], req.url.path))
+        return original(req)
+    rest.handle = handle
 
     async def run():
-        h = harness(rest)
+        h = harness(rest, clock=lambda: now[0])
         h.w.restart_gap = 0.4
         await h.w.stop([6])
-        t_stop = rest.times[-1][0]
+        t_stop = observed[-1][0]
         r = await h.w.start([6])
         assert r["started"] == [] and r["queued"] == [6]
         st, cur = await status_of(h)
         assert st == "starting" and "停机" in cur["progress"]["6"]
+        now[0] += 0.39
+        await asyncio.sleep(0.05)
+        assert not any(p.endswith("batchStart") for _, p in observed)
+        now[0] += 0.02
         assert await until(lambda: any(p.endswith("batchStart") for _, p, _ in rest.times), timeout=3)
-        t_start = next(t for t, p, _ in rest.times if p.endswith("batchStart"))
-        assert t_start - t_stop >= 0.38
+        t_start = next(t for t, p in observed if p.endswith("batchStart"))
+        assert t_start - t_stop >= 0.4
         # 重启
         rest.times.clear()
+        observed.clear()
         res = await h.w.reboot([7])
         assert res["via"] == "stop+start" and res["start_after_s"] == 0.4
+        now[0] += 0.41
         assert await until(lambda: any(p.endswith("batchStart") for _, p, _ in rest.times), timeout=3)
-        (t1, p1, _), (t2, p2, _) = rest.times[:2]
-        assert p1.endswith("batchStop") and p2.endswith("batchStart") and t2 - t1 >= 0.38
+        (t1, p1), (t2, p2) = observed[:2]
+        assert p1.endswith("batchStop") and p2.endswith("batchStart") and t2 - t1 >= 0.4
         assert not any(p.endswith("batchReboot") for _, p, _ in rest.calls)
         await h.w.close()
     asyncio.run(run())
@@ -305,8 +320,8 @@ def test_watchdog_resumes_after_service_restart(db_path):
         await h.w.close()                              # 服务退出
     asyncio.run(first())
     saved = json.loads(db.get_setting(labpower.SETTING_POWER))
-    assert {t["name"]: t["phase"] for t in saved["tracks"]} == {"T1": "starting", "T2": "queued"}
-    # 把记录里的时间往前拨：T1 已启动 200 秒、T2 的停机间隔已过
+    assert {t["name"]: t["phase"] for t in saved["tracks"]} == {"AR1": "starting", "AR2": "queued"}
+    # 把记录里的时间往前拨：AR1 已启动 200 秒、AR2 的停机间隔已过
     for t in saved["tracks"]:
         t["since"] -= 200
         t["not_before"] -= 200
@@ -316,12 +331,12 @@ def test_watchdog_resumes_after_service_restart(db_path):
         h = harness(rest)
         h.w.start_timeout = 150
         assert h.w.resume() == 2
-        st, cur = await status_of(h, "T1")
+        st, cur = await status_of(h, "AR1")
         assert st == "starting"
         assert await until(lambda: not h.w.tracks, timeout=5)
-        assert per_dev(rest, "/service/ensp/device/batchStop") == {6: 1}            # T1 超时 → 停止再启动
-        assert per_dev(rest, "/service/ensp/device/batchStart") == {6: 2, 7: 1}     # T2 排队的启动补发
-        assert (await status_of(h, "T1"))[0] == "online" and (await status_of(h, "T2"))[0] == "online"
+        assert per_dev(rest, "/service/ensp/device/batchStop") == {6: 1}            # AR1 超时 → 停止再启动
+        assert per_dev(rest, "/service/ensp/device/batchStart") == {6: 2, 7: 1}     # AR2 排队的启动补发
+        assert (await status_of(h, "AR1"))[0] == "online" and (await status_of(h, "AR2"))[0] == "online"
         await h.w.close()
     asyncio.run(second())
     # 记录只认当前环境 / 沙箱：换了沙箱不恢复
@@ -373,7 +388,7 @@ def test_probe_initializing_until_not_busy(db_path):
         st, cur = await status_of(h)
         assert st == "initializing" and cur["running"] == 0 and "初始化" in cur["message"]
         assert 6 in h.p.allowed(cur)                   # 初始化中可以开终端看启动过程
-        s = {"topology": "ainet_test", "required_devices": ["T1"], "platform": "yunshan", "hosts": []}
+        s = {"topology": "ainet_test", "required_devices": ["AR1"], "platform": "yunshan", "hosts": []}
         rd = sc.readiness(s, cur)
         assert not rd["ready"] and "initializing" in rd["reason"] and "busy" in rd["reason"]
         assert await until(lambda: 6 not in h.w.tracks, timeout=3)
@@ -403,7 +418,7 @@ def test_probe_timeout_counts_as_stuck(db_path):
 
 
 class BusyYunShan(FakeVRP):
-    """刚冷启动的 YunShan（2026-10-07 T2 实测）：构建配置期间读配置报 busy，之后正常。"""
+    """刚冷启动的 YunShan（2026-10-07 AR2 实测）：构建配置期间读配置报 busy，之后正常。"""
 
     def __init__(self):
         super().__init__(host="HUAWEI", page=50)
@@ -479,6 +494,7 @@ def app(db_path, monkeypatch):
 
 def test_practice_start_409_while_initializing_and_prepare_probe_stage(app):
     c, rest = app.c, app.rest
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
     mgr = c.app.state.labmgr
     gate = {"ready": False}
 
@@ -498,10 +514,10 @@ def test_practice_start_409_while_initializing_and_prepare_probe_stage(app):
         if job["stage"] == "probe":
             break
         time.sleep(0.05)
-    assert job["stage"] == "probe" and job["devices"] == {"T1": "initializing", "T2": "initializing"}, job
+    assert job["stage"] == "probe" and job["devices"] == {"AR1": "initializing", "AR2": "initializing"}, job
     assert "busy" in job["message"]
     topo = c.get("/api/topology/current").json()
-    assert {d["name"]: d["status"] for d in topo["topology"]["devices"]} == {"T1": "initializing", "T2": "initializing"}
+    assert {d["name"]: d["status"] for d in topo["topology"]["devices"]} == {"AR1": "initializing", "AR2": "initializing"}
     r = c.post("/api/practice/start", json={"scenario_id": "enspro-t1-t2-link"})
     assert r.status_code == 409 and "initializing" in r.json()["detail"] and "busy" in r.json()["detail"]
     gate["ready"] = True
@@ -509,7 +525,29 @@ def test_practice_start_409_while_initializing_and_prepare_probe_stage(app):
     while time.time() < end and not c.get("/api/lab/prepare").json()["job"]["done"]:
         time.sleep(0.05)
     job = c.get("/api/lab/prepare").json()["job"]
-    assert job["ok"] and job["devices"] == {"T1": "online", "T2": "online"} and job["stopped_old"] == []
+    assert job["ok"] and job["devices"] == {"AR1": "online", "AR2": "online"} and job["stopped_old"] == []
+
+
+@pytest.mark.parametrize("raw_status, expected_stop", [(6, True), (4, False)])
+def test_prepare_recovers_existing_failed_start(app, raw_status, expected_stop):
+    c, rest = app.c, app.rest
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
+    mgr = c.app.state.labmgr
+    w = mgr.power
+    w.poll, w.stagger, w.restart_gap, w.probe_enabled = 0.02, 0, 0, False
+    mgr.prepare_poll = 0.02
+    rest.status, rest.instant_start = {6: raw_status, 7: 4}, True
+    now = w.clock()
+    w.tracks[6] = labpower.Track(2, 6, "AR1", "failed", now, now, reason="previous attempt timed out")
+    assert c.post("/api/lab/prepare", json={"scenario_id": "enspro-t1-t2-link"}).status_code == 202
+    end = time.time() + 5
+    while time.time() < end:
+        job = c.get("/api/lab/prepare").json()["job"]
+        if job["done"]:
+            break
+        time.sleep(0.02)
+    assert job["done"] and job["ok"], job
+    assert any(path.endswith("batchStop") for _, path, _ in rest.calls) is expected_stop
 
 
 def test_switch_sandbox_stops_old_devices(app, monkeypatch):
@@ -519,11 +557,11 @@ def test_switch_sandbox_stops_old_devices(app, monkeypatch):
     r = c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 3})
     assert r.status_code == 200, r.text
     st = r.json()["stopped_old"]
-    assert st["ok"] and st["sandbox"] == 2 and st["sandbox_name"] == "ainet_test" and st["devices"] == ["T1", "T2"]
+    assert st["ok"] and st["sandbox"] == 2 and st["sandbox_name"] == "ainet_test" and st["devices"] == ["AR1", "AR2"]
     assert rest.status == {6: 0, 7: 0}
     stop_calls = [b for _, p, b in rest.calls if p.endswith("batchStop")]
     assert stop_calls == [{"deviceIds": [6, 7], "sandboxId": 2}]
-    assert c.get("/api/lab").json()["last_stopped_old"]["devices"] == ["T1", "T2"]
+    assert c.get("/api/lab").json()["last_stopped_old"]["devices"] == ["AR1", "AR2"]
     # 停机记下了时刻：切回去立刻启动也要遵守停机间隔
     assert (2, 6) in c.app.state.labmgr.power.stopped_at
     # 开关关掉：不停
@@ -538,7 +576,7 @@ def test_prepare_reports_stopped_old_devices(app):
     c, rest = app.c, app.rest
     mgr = c.app.state.labmgr
     mgr.prepare_poll = 0.05
-    rest.extra[3] = {**sandbox_json(3, {6: 4, 7: 0}), "name": "ainet_campus"}   # 沙箱 3 的 T1 在跑
+    rest.extra[3] = {**sandbox_json(3, {6: 4, 7: 0}), "name": "ainet_campus"}   # 沙箱 3 的原始节点 T1 在跑
     rest.status = {6: 0, 7: 0}
     rest.instant_start = True
     stops = []
@@ -612,11 +650,11 @@ def test_idle_stop_warns_then_stops(db_path):
         assert await idle.check() is None and not h.hub.notes
         clk.t += 6                                      # 51 秒：进入预告窗口（提前 10 秒）
         assert await idle.check() is None
-        assert len(h.hub.notes) == 1 and "自动停止" in h.hub.notes[0] and "T1" in h.hub.notes[0]
+        assert len(h.hub.notes) == 1 and "自动停止" in h.hub.notes[0] and "AR1" in h.hub.notes[0]
         assert await idle.check() is None and len(h.hub.notes) == 1     # 只预告一次
         clk.t += 10                                     # 61 秒：停
         res = await idle.check()
-        assert res and res["devices"] == ["T1", "T2"] and rest.status == {6: 0, 7: 0}
+        assert res and res["devices"] == ["AR1", "AR2"] and rest.status == {6: 0, 7: 0}
         assert len(h.hub.notes) == 2 and "已自动停止" in h.hub.notes[1]
         assert sorted(h.hub.disconnected) == [6, 7]
         assert (2, 6) in h.w.stopped_at                 # 经看门狗停机：记下停机时刻

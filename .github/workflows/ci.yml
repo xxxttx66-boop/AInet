@@ -1,0 +1,47 @@
+name: Project checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.11', '3.13']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: '1'
+      ENSP_HOST: '127.0.0.1'
+      AINET_LAB_PROVIDER: 'ensp'
+      AINET_ENSPRO_URL: 'https://127.0.0.1:9'
+      AINET_ENSP_TOPO_HIS: ''
+      AINET_ENSP_DEVICES_DIRS: ''
+      AINET_AUTO_LOGIN: ''
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '22'
+      - run: python -m pip install -r backend/requirements.txt
+      - run: python scripts/check_project.py
+      - run: node scripts/check_frontend.mjs
+      - name: Unit and integration tests with fake devices
+        working-directory: backend
+        run: python -m pytest tests --ignore=tests/e2e --ignore=tests/manual -q --junitxml=test-results.xml
+      - uses: actions/upload-artifact@v7.0.2
+        if: failure()
+        with:
+          name: tests-${{ matrix.os }}-${{ matrix.python }}
+          path: backend/test-results.xml

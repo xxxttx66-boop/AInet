@@ -8,7 +8,7 @@ LabManager 负责：
 - 启动时选定环境：数据库 app_settings（lab:env、lab:sandbox:<环境>）优先，没有记录时用环境变量
   AINET_LAB_PROVIDER / AINET_ENSPRO_SANDBOX 作缺省值。
 - 切换（switch）：串行加锁；有练习 / 考试进行中返回 409；目标环境不可用返回 409；
-  关掉旧后端的全部 console 连接与 hub 通道（终端收到「环境已切换」）→ 退出旧后端的登录（eNSP Pro 单会话）→
+  关掉旧后端的全部 console 连接与 hub 通道（终端收到「环境已切换」）→ 保留旧环境的后台监测（同环境共享会话）→
   建新后端（登录是懒的，第一次调用接口时才登录）→ 清空拓扑 / 状态缓存 → 记库。
 - 接入设置（endpoint_info / set_endpoint / test_endpoint）：每种环境的接入地址可在运行时改（app_settings
   lab:endpoint:<环境>，优先级与 lab:env 相同：库里的记录优先，AINET_LAB_FORCE=1 时环境变量优先）；改当前环境的地址时
@@ -87,6 +87,11 @@ class LabManager:
         from labpower import IdleStop, PowerWatch
         self.power = PowerWatch(self)
         self.idle = IdleStop(self)
+        self._contexts: dict[tuple[str, int | None], Any] = {}
+        self._runtime: Any = None
+        self._stop_times: dict[str, dict] = {}
+        self._unused_clients: list[Any] = []
+        self._background_started = False
 
     # ---- 同时运行设备上限（里程碑 6.17）----
 
@@ -159,13 +164,40 @@ class LabManager:
     def _new(self, key: str, sandbox: int | None) -> LabProvider:
         make = self._make or lab_lib.make_provider
         env = lab_lib.get_env(key)
-        p = make(key, **({"sandbox": sandbox} if env.sandboxes else {}))
+        opts = {"sandbox": sandbox} if env.sandboxes else {}
+        shared = next((getattr(c.provider, "client", None) for c in self._contexts.values()
+                       if c.key == key and getattr(c.provider, "client", None) is not None), None)
+        if shared is not None:
+            opts["client"] = shared
+        p = make(key, **opts)
+        if shared is not None and getattr(p, "client", shared) is not shared:
+            self._unused_clients.append(p.client)  # Factories used by tests may ignore the option.
+            p.client = shared
         if getattr(p, "power", False):
             try:
                 p.watch = self.power          # resolve() 叠加 initializing / start_failed
             except AttributeError:
                 pass
         return p
+
+    def _activate(self, key: str, sandbox: int | None, p: LabProvider) -> Any:
+        from labcontext import LabContext
+        ctx = self._contexts.get((key, sandbox))
+        if ctx is None:
+            first = self._runtime is None and not self.power._closed
+            ctx = LabContext(self, key, sandbox, p, power=self.power if first else None,
+                             idle=self.idle if first else None)
+            self._contexts[(key, sandbox)] = ctx
+        self._runtime = ctx
+        self.key, self.sandbox, self.provider = key, sandbox, ctx.provider
+        self.power, self.idle = ctx.power, ctx.idle
+        self._apply_watch(key)
+        return ctx
+
+    async def _close_unused_clients(self) -> None:
+        clients, self._unused_clients = self._unused_clients, []
+        for client in clients:
+            await client.aclose()
 
     def boot(self) -> LabProvider:
         """选定启动时的环境。AINET_LAB_FORCE=1：以环境变量为准（并写回库）；否则库里的记录优先。日志写明来源。
@@ -190,6 +222,7 @@ class LabManager:
         lab_lib.load_watch(force=config.LAB_FORCE)         # 各环境的看门狗参数（同一套优先级）
         self.key, self.sandbox = key, sbs.get(key)
         self.provider = self._new(key, self.sandbox)
+        self._activate(key, self.sandbox, self.provider)
         self._apply_watch(key)
         where = {"db": "数据库记录（app_settings lab:env，改环境变量不生效；要以环境变量为准请设 AINET_LAB_FORCE=1）",
                  "env": "环境变量（AINET_LAB_FORCE=1，已覆盖并写回数据库）",
@@ -217,12 +250,44 @@ class LabManager:
     def bind(self, hub: Any, pm: Any, exam: Any, agent: Any = None) -> None:
         self.hub, self.pm, self.exam, self.agent = hub, pm, exam, agent
         if hub is not None and hasattr(hub, "add_listener"):
-            hub.add_listener(self.idle.on_hub)   # 终端输入 / 命令 / 输出 = 有活动（空闲停机计时）
+            hub.add_listener(self._on_hub_activity)
+        if pm is not None:
+            pm.capacity_guard = self.capacity_reason
+
+    def _on_hub_activity(self, event: str, port: int, data: str) -> None:
+        self.idle.on_hub(event, port, data)
 
     def start_background(self) -> None:
         """lifespan 里调用（需要事件循环）：接着跟踪上次没完成的启动、开始空闲停机检查。"""
-        self.power.resume()
-        self.idle.start()
+        self._background_started = True
+        # Recover every previously visited simulator, rather than only the selected one.
+        saved = list(db.get_settings_prefix("lab:power:").values())
+        legacy = db.get_setting("lab:power")
+        if legacy:
+            saved.append(legacy)
+        for raw in saved:
+            try:
+                data = json.loads(raw)
+                key, sb = data["env"], data["sandbox"]
+                env = lab_lib.REGISTRY.get(key)
+                if env is None or not env.power or (key, sb) in self._contexts:
+                    continue
+                from labcontext import LabContext
+                p = self._new(key, sb)
+                ctx = LabContext(self, key, sb, p)
+                ctx.power.configure(lab_lib.watch_values(key), env=key)
+                self._contexts[(key, sb)] = ctx
+            except (ValueError, KeyError, TypeError):
+                log.warning("忽略无效的环境运行状态记录")
+        for ctx in self._contexts.values():
+            ctx.start()
+        self._startup_task = asyncio.create_task(self._persist_contexts())
+
+    async def _persist_contexts(self) -> None:
+        await self._close_unused_clients()
+        for ctx in list(self._contexts.values()):
+            if getattr(ctx.provider, "power", False):
+                await ctx.power._persist()
 
     def touch(self, why: str = "") -> None:
         """有活动（练习 / 考试 / Agent 命令 / 启停 / 准备环境）：空闲停机重新计时。"""
@@ -381,6 +446,8 @@ class LabManager:
                             await self._replace(env, self.sandbox, notice=f"{env.label} 接入地址已改为 {new}",
                                                 stop_old=False, close_timeout=CLOSE_TIMEOUT)
                             rebuilt = True
+                        elif new != old:
+                            await self._retire_contexts(env.key, close_timeout=CLOSE_TIMEOUT)
                         if new != old:
                             log.info("%s %s已改：%s -> %s%s", env.label, env.endpoint.label, old, new,
                                      "（已重建当前后端）" if rebuilt else "")
@@ -450,8 +517,11 @@ class LabManager:
                         lab_lib.set_watch_override(env.key, name, v, "db")
                     after = {p.name: (lab_lib.watch_value(env.key, p.name), lab_lib.watch_source(env.key, p.name))
                              for p in env.watch}
-                    applied = env.key == self.key or self.power.configured_for == env.key
-                    if applied:
+                    affected = [ctx for ctx in self._contexts.values() if ctx.key == env.key]
+                    applied = bool(affected) or env.key == self.key
+                    for ctx in affected:
+                        ctx.power.configure(lab_lib.watch_values(env.key), env=env.key)
+                    if applied and not affected:
                         self.power.configure(lab_lib.watch_values(env.key), env=env.key)
                     if after != before:
                         log.info("%s 启动看门狗参数已改：%s%s", env.label, "，".join(
@@ -598,8 +668,11 @@ class LabManager:
                     changed.append("device_password")
             if "device_password" in changed:
                 lab_lib.clear_probe_cache(env.key)
-                if env.key == self.key and isinstance(getattr(self.provider, "auth_blocked", None), dict):
-                    self.provider.auth_blocked.clear()
+                for ctx in self._contexts.values():
+                    if ctx.key == env.key:
+                        if isinstance(getattr(ctx.provider, "auth_blocked", None), dict):
+                            ctx.provider.auth_blocked.clear()
+                        await ctx.reset_background_hub()
                 log.info("模拟环境 %s 的设备 console 密码已%s（%s，secrets 文件）", env.key,
                          "清除" if pw is None else "更新", name)
         return {"changed": changed, "environment": await asyncio.to_thread(self._env_view, env)}
@@ -625,6 +698,7 @@ class LabManager:
                                             "完成后再删除环境")
                     if env.key == self.key:
                         raise LabError(409, f"{env.label} 是当前环境，先切换到其他环境再删除")
+                    await self._retire_contexts(env.key)
                     name = lab_lib.device_secret_name(env.key)
 
                     def cleanup() -> tuple[int, bool]:
@@ -650,6 +724,22 @@ class LabManager:
         if not self.env.sandboxes or not hasattr(p, "list_sandboxes"):
             raise LabError(409, f"当前模拟环境 {self.env.label} 没有沙箱")
         return {"environment": self.key, "current": self.sandbox, "sandboxes": await p.list_sandboxes()}
+
+    async def relogin(self) -> dict[str, Any]:
+        """Verify the new REST session and reconnect consoles that used the former session."""
+        async with self._lock:
+            p = self.provider
+            result = await p.relogin()
+            for ctx in self._contexts.values():
+                if getattr(ctx.provider, "client", None) is getattr(p, "client", None):
+                    if hasattr(ctx.provider, "invalidate"):
+                        ctx.provider.invalidate()
+                    await ctx.reset_background_hub()
+            if self.hub is not None:
+                for port in list(getattr(self.hub, "channels", {})):
+                    await self.hub.disconnect(port, "\r\n[eNSP Pro 已重新登录，正在重建终端连接]\r\n")
+            self.touch("relogin")
+            return result
 
     # ---- 切换 ----
 
@@ -723,18 +813,29 @@ class LabManager:
         """换后端。notice：终端里显示的提示（缺省「模拟环境已切换为 X」）；stop_old=False 不停旧沙箱的设备（改接入地址时）；
         close_timeout：关闭旧后端的等待上限（None = 不限）。"""
         old, old_label = self.provider, self.env.label
+        if self._runtime is None and old is not None:
+            self._activate(self.key, self.sandbox, old)
+        old_ctx = self._runtime
         new_desc = env.label + (f"（沙箱 {sandbox}）" if env.sandboxes and sandbox is not None else "")
         self.gen += 1
-        self.power.reset()                    # 不再跟踪旧沙箱的启动（也不会再去重启它们）
-        self._apply_watch(env.key)            # 换环境时看门狗换成新环境的参数（同环境换沙箱不变）
+        if stop_old and config.ENSPRO_STOP_OLD:
+            self.power.reset()
         # 1) 关掉旧后端的全部 console 连接与 hub 通道，终端标签收到提示
         if self.hub is not None:
             await self.hub.reset_all(f"\r\n[{notice or f'模拟环境已切换为 {new_desc}'}，终端已断开]\r\n",
                                      default_sysname=SYSNAME.get(env.platform, "Huawei"))
         # 1.5) 停掉旧沙箱里运行着的设备（单人使用，省内存；要在旧后端退出登录之前）
         stopped = await self._stop_old(old) if old is not None and stop_old else None
-        # 2) 退出旧后端的登录（eNSP Pro 同一账号只能有一个会话）
-        if old is not None:
+        if old_ctx is not None and getattr(old, "power", False):
+            await old_ctx.power._persist()
+        # Keep independent simulator runtimes alive. Sandboxes of one simulator share
+        # its REST client, so changing the selected sandbox does not invalidate sessions.
+        if notice is not None and not stop_old:
+            await self._retire_contexts(env.key, close_timeout=close_timeout)
+        elif old is not None and not getattr(old, "power", False):
+            if old_ctx is not None:
+                await old_ctx.close()
+                self._contexts.pop((old_ctx.key, old_ctx.sandbox), None)
             try:
                 if close_timeout is None:
                     await old.close()
@@ -743,8 +844,15 @@ class LabManager:
             except Exception as exc:          # 登出失败 / 超时不影响切换
                 log.warning("关闭旧实验后端 %s 失败：%s", old_label, f"{type(exc).__name__}: {exc}")
         # 3) 建新后端（eNSP Pro 的登录是懒的），清缓存
-        new = self._new(env.key, sandbox)
-        self.key, self.sandbox, self.provider = env.key, sandbox, new
+        target = self._contexts.get((env.key, sandbox))
+        new = target.provider if target is not None else self._new(env.key, sandbox)
+        ctx = self._activate(env.key, sandbox, new)
+        await ctx.reset_background_hub()
+        await self._close_unused_clients()
+        if self._background_started:
+            ctx.start()
+        if getattr(new, "power", False):
+            await ctx.power._persist()
         import ensp_runtime
         import topology
         topology.clear_scan_cache()
@@ -762,6 +870,37 @@ class LabManager:
                                     "" if sandbox is None else str(sandbox))
         log.info("模拟环境已切换：%s -> %s", old_label, new_desc)
         return stopped
+
+    async def forget_sandbox(self, key: str, sandbox: int) -> None:
+        """删除自建沙箱后清理它的监测；调用者持有切换锁，且已切走该沙箱。"""
+        if self.key == key and self.sandbox == sandbox:
+            raise LabError(409, "请先切离要删除的沙箱")
+        ctx = self._contexts.pop((key, sandbox), None)
+        if ctx is not None:
+            await ctx.close()  # 同环境共享的 REST 客户端仍由其他上下文持有。
+        await asyncio.to_thread(db.set_setting, f"lab:power:{key}:{sandbox}", None)
+
+    async def _retire_contexts(self, key: str, *, close_timeout: float | None = None) -> None:
+        """Stop monitoring a deleted/reconfigured endpoint and release its sessions."""
+        contexts = [ctx for ctx in self._contexts.values() if ctx.key == key]
+        closed: set[int] = set()
+        for ctx in contexts:
+            await ctx.close()
+        for ctx in contexts:
+            p = ctx.provider
+            identity = id(getattr(p, "client", p))
+            if identity not in closed:
+                closed.add(identity)
+                try:
+                    if close_timeout is None:
+                        await p.close()
+                    else:
+                        await asyncio.wait_for(p.close(), close_timeout)
+                except Exception as exc:
+                    log.warning("关闭重新配置的环境 %s 失败：%s", key, type(exc).__name__)
+            self._contexts.pop((ctx.key, ctx.sandbox), None)
+        self._stop_times.pop(key, None)
+        await asyncio.to_thread(db.delete_settings_prefix, f"lab:power:{key}:")
 
     # ---- 按题目准备环境（课程页用） ----
 
@@ -1010,6 +1149,19 @@ class LabManager:
             job["device_info"] = self._device_info(job, by, st)
             offline = [n for n in req if st[n] != "online"]
             if not offline:
+                if not p.power and self.hub is not None and hasattr(self.hub, "check_ready"):
+                    for n in req:
+                        ready = await self.hub.check_ready(console_of(by[n]))
+                        if not ready.ok:
+                            st[n] = "initializing"
+                            offline.append(n)
+                    if offline:
+                        job["device_info"] = self._device_info(job, by, st)
+                        self._stage(job, "check", f"等待设备 console 提示符（busy）：{'、'.join(offline)}")
+                        if loop.time() >= end:
+                            raise LabError(504, f"等待 console 就绪超时：{'、'.join(offline)}")
+                        await asyncio.sleep(self.prepare_poll)
+                        continue
                 return
             if not p.power:
                 raise LabError(409, f"请在 {self.env.label} 中启动 {'、'.join(offline)}（ainet 不能启停该环境的设备）")
@@ -1092,6 +1244,10 @@ class LabManager:
                 log.warning("停止沙箱 %s 的设备 %s 失败：%s", g["sandbox_name"], "、".join(g["devices"]), exc.detail)
                 continue
             self.power.note_stopped(g["sandbox"], g["ids"])      # 切回那个沙箱时同样遵守停机间隔
+            other_ctx = self._contexts.get((self.key, g["sandbox"]))
+            if other_ctx is not None:
+                other_ctx.power.forget(g["ids"])
+                await other_ctx.power._persist()
             job["stopped_other"].append({"sandbox": g["sandbox"], "sandbox_name": g["sandbox_name"],
                                          "devices": g["devices"]})
             log.info("准备环境 #%s：同时运行设备上限 %s 台，已停止沙箱 %s 的设备 %s", job["id"], limit,
@@ -1128,7 +1284,23 @@ class LabManager:
     async def close(self) -> None:
         if self._job_task is not None and not self._job_task.done():
             self._job_task.cancel()
-        await self.power.close()
-        await self.idle.close()
-        if self.provider is not None:
-            await self.provider.close()
+            await asyncio.gather(self._job_task, return_exceptions=True)
+        startup = getattr(self, "_startup_task", None)
+        if startup is not None:
+            await asyncio.gather(startup, return_exceptions=True)
+        await self._close_unused_clients()
+        if not self._contexts:
+            await self.power.close()
+            await self.idle.close()
+            if self.provider is not None:
+                await self.provider.close()
+            return
+        for ctx in self._contexts.values():
+            await ctx.close()
+        closed: set[int] = set()
+        for ctx in self._contexts.values():
+            p = ctx.provider
+            identity = id(getattr(p, "client", p))
+            if identity not in closed:
+                closed.add(identity)
+                await p.close()

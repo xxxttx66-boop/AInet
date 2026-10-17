@@ -122,6 +122,16 @@ CREATE TABLE IF NOT EXISTS agent_messages (
     leaked     INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS custom_labs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id  INTEGER NOT NULL REFERENCES students(id),
+    env_key     TEXT NOT NULL,
+    sandbox_id  INTEGER NOT NULL,
+    name        TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    UNIQUE(env_key, sandbox_id)
+);
+CREATE INDEX IF NOT EXISTS idx_custom_labs_owner ON custom_labs(student_id, id);
 CREATE INDEX IF NOT EXISTS idx_attempts_student ON attempts(student_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_agent_messages_attempt ON agent_messages(attempt_id);
 CREATE INDEX IF NOT EXISTS idx_agent_messages_student ON agent_messages(student_id, id);
@@ -131,7 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_attempt_logs_attempt ON attempt_logs(attempt_id);
 TABLES = (
     "students", "knowledge_tags", "topologies", "scenarios",
     "exam_templates", "attempts", "attempt_logs", "student_mastery",
-    "app_settings", "attempt_configs", "exams", "agent_messages",
+    "app_settings", "attempt_configs", "exams", "agent_messages", "custom_labs",
 )
 
 # 学生对外字段（不含密码）。
@@ -567,17 +577,78 @@ def add_agent_message(student_id: int, attempt_id: int | None, mode: str, role: 
 
 
 def agent_messages(*, attempt_id: int | None = None, student_id: int | None = None,
-                   limit: int = 200) -> list[dict[str, Any]]:
+                   mode: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
     """按练习记录取对话（attempt_id）；或取某学员自由实验（attempt_id 为空）的最近对话（student_id）。按时间正序。"""
     conn = connect()
     try:
         if attempt_id is not None:
             rows = conn.execute("SELECT * FROM agent_messages WHERE attempt_id = ? ORDER BY id DESC LIMIT ?",
                                 (attempt_id, limit)).fetchall()
+        elif mode is not None:
+            rows = conn.execute("SELECT * FROM agent_messages WHERE student_id = ? AND attempt_id IS NULL"
+                                " AND mode = ? ORDER BY id DESC LIMIT ?", (student_id, mode, limit)).fetchall()
         else:
             rows = conn.execute("SELECT * FROM agent_messages WHERE student_id = ? AND attempt_id IS NULL"
                                 " ORDER BY id DESC LIMIT ?", (student_id, limit)).fetchall()
         return [dict(r) for r in reversed(rows)]
+    finally:
+        conn.close()
+
+
+# ---- 自定义实验：只有创建者能看到或修改其沙箱 ----
+
+def list_custom_labs(student_id: int) -> list[dict[str, Any]]:
+    conn = connect()
+    try:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM custom_labs WHERE student_id = ? ORDER BY id DESC", (student_id,))]
+    finally:
+        conn.close()
+
+
+def get_custom_lab(lab_id: int, student_id: int) -> dict[str, Any] | None:
+    conn = connect()
+    try:
+        row = conn.execute("SELECT * FROM custom_labs WHERE id = ? AND student_id = ?",
+                           (lab_id, student_id)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def custom_lab_at(student_id: int, env_key: str, sandbox_id: int | None) -> dict[str, Any] | None:
+    if sandbox_id is None:
+        return None
+    conn = connect()
+    try:
+        row = conn.execute("SELECT * FROM custom_labs WHERE student_id = ? AND env_key = ? AND sandbox_id = ?",
+                           (student_id, env_key, sandbox_id)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def create_custom_lab(student_id: int, env_key: str, sandbox_id: int, name: str) -> dict[str, Any]:
+    conn = connect()
+    try:
+        with conn:
+            cur = conn.execute(
+                "INSERT INTO custom_labs (student_id, env_key, sandbox_id, name, created_at)"
+                " VALUES (?, ?, ?, ?, ?)", (student_id, env_key, sandbox_id, name, _now()))
+            row = conn.execute("SELECT * FROM custom_labs WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return dict(row)
+    finally:
+        conn.close()
+
+
+def delete_custom_lab(lab_id: int, student_id: int) -> bool:
+    conn = connect()
+    try:
+        with conn:
+            conn.execute("DELETE FROM agent_messages WHERE student_id = ? AND mode = ?",
+                         (student_id, f"custom:{lab_id}"))
+            cur = conn.execute("DELETE FROM custom_labs WHERE id = ? AND student_id = ?", (lab_id, student_id))
+        return cur.rowcount > 0
     finally:
         conn.close()
 
@@ -616,6 +687,16 @@ def set_setting(key: str, value: str | None) -> None:
                     " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                     (key, value),
                 )
+    finally:
+        conn.close()
+
+
+def get_settings_prefix(prefix: str) -> dict[str, str]:
+    """Read scoped runtime settings without treating wildcard characters as SQL patterns."""
+    conn = connect()
+    try:
+        return {r["key"]: r["value"] for r in conn.execute(
+            "SELECT key, value FROM app_settings WHERE substr(key, 1, ?) = ?", (len(prefix), prefix))}
     finally:
         conn.close()
 

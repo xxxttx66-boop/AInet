@@ -26,8 +26,8 @@ import websockets
 
 CHROME = os.environ.get(
     "AINET_CHROME",
-    "/home/xixi/.cache/ms-playwright/chromium_headless_shell-1228/"
-    "chrome-headless-shell-linux64/chrome-headless-shell",
+    os.path.expanduser("~/.cache/ms-playwright/chromium_headless_shell-1228/"
+                       "chrome-headless-shell-linux64/chrome-headless-shell"),
 )
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:8770"
 SHOT = sys.argv[2] if len(sys.argv) > 2 else "ainet_e2e.png"
@@ -54,6 +54,7 @@ class CDP:
         self.pending: dict[int, asyncio.Future] = {}
         self.errors: list[str] = []
 
+
     async def reader(self):
         async for raw in self.ws:
             m = json.loads(raw)
@@ -68,7 +69,10 @@ class CDP:
                     str(a.get("value", a.get("description"))) for a in m["params"]["args"]))
             elif m.get("method") == "Log.entryAdded" and m["params"]["entry"]["level"] == "error":
                 e = m["params"]["entry"]
-                self.errors.append(f"log.error: {e.get('text')} {e.get('url', '')}")
+                url = e.get("url", "")
+                # 浏览器默认请求站点图标；当前 UI 没有单独 favicon，忽略该无关 404。
+                if "favicon.ico" not in url:
+                    self.errors.append(f"log.error: {e.get('text')} {url}")
 
     async def cmd(self, method, **params):
         self.i += 1
@@ -89,7 +93,7 @@ class CDP:
     async def click_node(self, name):
         rect = await self.ev(f"""(() => {{
           const g = [...document.querySelectorAll('#topo-svg .node')].find(n => n.dataset.name === {json.dumps(name)});
-          const r = g.querySelector('.shape').getBoundingClientRect();
+          const r = (g.querySelector('.device-icon') || g.querySelector('.shape') || g).getBoundingClientRect();
           return {{x: r.x + r.width / 2, y: r.y + r.height / 2}}; }})()""")
         for typ in ("mouseMoved", "mousePressed", "mouseReleased"):
             await self.cmd("Input.dispatchMouseEvent", type=typ, x=rect["x"], y=rect["y"],
@@ -104,6 +108,29 @@ class CDP:
                 return v
             await asyncio.sleep(0.3)
         return await self.ev(js)
+
+
+def stop_browser(proc: subprocess.Popen, profile_dir: str | None = None) -> None:
+    """Close this test's isolated browser and renderer children on Windows."""
+    if os.name == "nt":
+        pids = {proc.pid}
+        if profile_dir:
+            needle = os.path.normpath(profile_dir).replace("'", "''")
+            query = (f"$needle='{needle}'; Get-CimInstance Win32_Process | "
+                     "Where-Object { $_.Name -eq 'msedge.exe' -and $_.CommandLine -and $_.CommandLine.Contains($needle) } | "
+                     "Select-Object -ExpandProperty ProcessId")
+            found = subprocess.run(["powershell.exe", "-NoProfile", "-Command", query],
+                                   capture_output=True, text=True, check=False)
+            pids.update(int(line) for line in found.stdout.splitlines() if line.strip().isdigit())
+        for pid in pids:
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    elif proc.poll() is None:
+        proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
 
 
 async def run_none(c, reader) -> int:

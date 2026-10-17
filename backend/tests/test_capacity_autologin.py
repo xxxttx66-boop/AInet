@@ -160,14 +160,14 @@ def test_prepare_keeps_extra_devices_within_limit(app):
 
 
 def test_capacity_uses_sandbox_device_kinds(app):
-    """见过本题沙箱后按 deviceType 计数（T1 / T2 是 ENSP-AR）；本题设备不在沙箱里 = 判断不了，不隐藏、只记一次日志。"""
+    """见过本题沙箱后按 deviceType 计数（AR1 / AR2 是 ENSP-AR）；本题设备不在沙箱里 = 判断不了，不隐藏、只记一次日志。"""
     c = app.c
     login(c)
     _set_max(c, 1)
     mgr = c.app.state.labmgr
     s = c.app.state.practice.scenarios["enspro-t1-t2-link"]
     assert mgr.capacity(s) == {"limit": 1, "count": 2, "over": True}
-    mgr.note_topology({"topology": {"name": "ainet_test", "devices": [{"name": "T1", "kind": "router"}]}}, "enspro")
+    mgr.note_topology({"topology": {"name": "ainet_test", "devices": [{"name": "AR1", "kind": "router"}]}}, "enspro")
     assert mgr.capacity(s)["over"] is False and mgr.capacity(s)["count"] is None
     assert "enspro-t1-t2-link" in {x["id"] for x in c.get("/api/scenarios?env=enspro").json()["scenarios"]}
 

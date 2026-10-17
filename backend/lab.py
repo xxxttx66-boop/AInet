@@ -206,7 +206,7 @@ class WatchParam:
     zero_off: bool = False
 
 
-# eNSP Pro 的看门狗参数。2026-10-07：一台 Windows 笔记本上 T1 / T2 冷启动 187~202 秒（Linux KVM 上约 100 秒），全局 150 秒
+# eNSP Pro 的看门狗参数。2026-10-07：一台 Windows 笔记本上 AR1 / AR2 冷启动 187~202 秒（Linux KVM 上约 100 秒），全局 150 秒
 # 的启动超时让看门狗误判卡住、自动重启 3 次后标 start_failed，所以改为按环境配置。
 ENSPRO_WATCH = (
     WatchParam("start_timeout", "启动超时", "秒", "AINET_ENSPRO_START_TIMEOUT", "ENSPRO_START_TIMEOUT", "start_timeout",
@@ -370,7 +370,7 @@ def normalize_endpoint(kind: str, raw: str) -> str:
     if len(v) > 300 or any(c.isspace() or ord(c) < 32 for c in v):
         raise ValueError("地址里不能有空白或控制字符（最长 300 个字符）")
     if kind == "url":
-        if "://" not in v:                           # 不写协议（如 47.105.42.104:33000、host:8443）：按 https，缺端口补 8443
+        if "://" not in v:                           # 不写协议（如 203.0.113.10:8443、host:8443）：按 https，缺端口补 8443
             v = _with_https(v)
         try:
             u = urlsplit(v)

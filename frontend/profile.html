@@ -27,34 +27,25 @@
       *:hover { scrollbar-color: rgba(255, 255, 255, .28) transparent; }
     }
   </style>
+  <link rel="stylesheet" href="static/ui.css?v=ui-20261015-1" />
+  <script src="static/ui.js?v=exam-nav-20261017-1"></script>
 </head>
-<body class="page" data-root="">
+<body class="page" data-root="" data-ui-page="profile">
 <header class="topbar">
   <a class="logo" href="courses" title="课程选择">ainet</a>
   <nav class="mode-nav" aria-label="导航"><a href="courses">课程</a><a href="./">操作页</a><a href="profile" class="on">档案</a></nav>
-  <span class="page-title">学生档案</span>
+  <span class="page-title">学习记录</span>
   <span id="user"><span><span id="who-label">学生：</span><span id="who">…</span></span><a href="login" title="切换学生">切换</a><button id="logout" class="link-btn">登出</button></span>
 </header>
 <main>
-  <h1 id="title">学生档案</h1>
-
-  <h2>身份</h2>
-  <div id="identity"></div>
-
-  <h2>进度</h2>
-  <div id="progress"></div>
-
-  <h2>掌握度</h2>
-  <div id="mastery" class="wrap"></div>
-
-  <h2>考试记录</h2>
-  <div id="exams" class="wrap"></div>
-
-  <h2>最近练习 / 考试</h2>
-  <div id="recent" class="wrap"></div>
-
-  <h2>错题本</h2>
-  <div id="wrong" class="wrap"></div>
+  <div class="ui-eyebrow">学习记录与复盘</div><h1 id="title">我的学习记录</h1>
+  <div id="progress" class="learning-overview"></div>
+  <nav class="learning-jump" aria-label="学习记录分类"><a href="#recent-section">最近练习</a><a href="#exam-section">考试记录</a><a href="#mastery-section">掌握度</a><a href="#wrong-section">错题本</a></nav>
+  <section id="recent-section" class="learning-section"><h2>最近练习 / 考试</h2><div id="recent" class="wrap"></div></section>
+  <section id="exam-section" class="learning-section"><h2>考试记录</h2><div id="exams" class="wrap"></div></section>
+  <section id="mastery-section" class="learning-section"><h2>知识点掌握度</h2><div id="mastery" class="wrap"></div></section>
+  <section id="wrong-section" class="learning-section"><h2>错题与再次练习</h2><div id="wrong" class="wrap"></div></section>
+  <details class="learning-identity"><summary>查看学员信息</summary><div id="identity"></div></details>
 </main>
 
 <script>
@@ -77,10 +68,13 @@
     if (res.status === 401) { location.href = 'login'; return; }
     const p = await res.json();
     const s = p.student;
-    $('title').textContent = `学生档案 — ${s.name}`;
+    $('title').textContent = `${s.name}的学习记录`;
     table($('identity'), [s], [['login', '登录名'], ['name', '姓名'], ['created_at', '创建时间']]);
-    $('progress').innerHTML =
-      `<p>已完成场景：${esc(p.progress.completed_scenarios)}</p>`;
+    $('progress').innerHTML = [
+      ['book', '已完成课题', p.progress.completed_scenarios],
+      ['clipboard', '考试记录', (p.exams || []).length],
+      ['refresh', '待复习课题', p.wrong_scenarios.length],
+    ].map(([icon, label, value]) => `<div class="learning-stat"><span class="learning-stat-label" data-icon="${icon}">${label}</span><strong>${esc(value)}</strong></div>`).join('');
     table($('mastery'), p.mastery,
       [['tag_name', '知识点'], ['category', '分类'], ['level', '熟练度'], ['updated_at', '更新时间']]);
     const MODE = { practice: '练习', exam: '考试' };
@@ -123,14 +117,16 @@
           `<td>${x.status === 'finished' ? `<a href="exam/report?id=${x.id}">查看</a>` : '交卷后可看'}</td></tr>`).join('') +
         '</tbody></table>';
     }
-    table($('wrong'), p.wrong_scenarios.map((w) => ({ ...w, scenario_html: scen(w) })),
+    table($('wrong'), p.wrong_scenarios.map((w) => ({ ...w, scenario_html: scen(w),
+      action_html: `<a href="courses?s=${encodeURIComponent(w.scenario_id)}&platform=${encodeURIComponent(w.scenario_platform || '')}">再次练习</a>` })),
       [['scenario_html', '场景'], ['symptom', '现象'], ['fail_count', '未通过次数'],
-       ['last_attempt_at', '最近一次']]);
+       ['last_attempt_at', '最近一次'], ['action_html', '操作']]);
   }
 
   load();
 </script>
 <script src="static/labswitch.js"></script>
+<script src="static/aiset.js"></script>
 <script src="static/page.js"></script>
 </body>
 </html>

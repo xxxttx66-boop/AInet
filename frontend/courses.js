@@ -24,6 +24,12 @@
   const L = window.LabSwitch;
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const EXAM_CH = '__exam__';
+  const incoming = new URLSearchParams(location.search);
+  let requestedTopic = incoming.get('s');
+  const requestedPlatform = incoming.get('platform');
+  const pageView = incoming.get('view') || (requestedTopic ? 'catalog' : 'home');
+  const envSettingsPage = pageView === 'environments';
+  const examPage = pageView === 'exams';
   const esc = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const stars = (n) => '★'.repeat(Math.max(0, Math.min(5, n || 0))) || '—';
   const store = {
@@ -47,13 +53,15 @@
     envs: null,          // GET api/lab/environments
     env: null,           // 正在浏览的环境 key
     data: null,          // GET api/scenarios?env=
+    studentName: '',
+    hasSelection: !!store.get('topic') || !!requestedTopic,
     chapter: null,
     topic: null,         // 场景 id，或 tpl:<模板 id>
     templates: null,
     cur: null,           // GET api/topology/current（当前环境的拓扑，用于预览）
     busy: false,
     token: null,
-    epOpen: null,        // 打开着「接入设置」气泡的环境 key
+    epOpen: envSettingsPage ? incoming.get('env') : null, // 设置页可通过 ?env= 直接打开对应环境
     epMsg: null,         // 气泡里保存后的结果（重画后仍显示）
     epSuggest: {},       // 已存 http 地址的「建议改为 https」检测结果 {'<key>|<地址>': https 地址 | '' | 'pending'}
     examActive: false,   // 有考试进行中：不显示接入设置
@@ -90,22 +98,25 @@
     const envs = st.envs.environments;
     const ok = (e) => !!e.available;
     let pick = st.env || store.get('env');
+    if (!st.env && requestedPlatform) pick = (envs.find((e) => ok(e) && e.platform === requestedPlatform) || {}).key || pick;
     if (!envs.some((e) => e.key === pick && ok(e))) {
       pick = (envs.find((e) => e.current && ok(e)) || envs.find(ok) || {}).key || null;
     }
     renderEnvs();
-    if (pick !== st.env || force) await selectEnv(pick, true);
+    if (!envSettingsPage && (pick !== st.env || force)) await selectEnv(pick, true);
   }
   function renderEnvs() {
     const box = $('c-envs');
     box.innerHTML = '';
-    $('c-env-add').hidden = st.examActive || !(st.envs.types || []).length;   // 考试中不显示「+」
-    for (const e of st.envs.environments) {
+    $('c-env-add').hidden = !envSettingsPage || st.examActive || !(st.envs.types || []).length;
+    $('c-env-manage').hidden = envSettingsPage;
+    const displayOrder = (e) => e.key === 'ensp' ? 2 : e.key === 'enspro' ? 1 : 0;
+    for (const e of [...st.envs.environments].sort((a, b) => displayOrder(a) - displayOrder(b))) {
       // 环境按钮与「接入设置」齿轮是兄弟元素（按钮里不能套按钮；离线时环境按钮禁用，齿轮仍可点——离线时最需要改地址）
       const wrap = document.createElement('div');
       wrap.className = 'c-env-wrap' + (st.epOpen === e.key ? ' open' : '');
       const b = document.createElement('button');
-      b.className = 'c-env' + (e.key === st.env ? ' on' : '') + (e.available ? '' : ' off');
+      b.className = 'c-env' + ((envSettingsPage ? e.current : e.key === st.env) ? ' on' : '') + (e.available ? '' : ' off');
       b.dataset.key = e.key;
       b.disabled = !e.available;
       const short = L.reasonText(e.reason_code);
@@ -117,13 +128,22 @@
         : `（离线${short ? ` · ${esc(short)}` : ''}）`;
       b.innerHTML = `<span class="c-env-name"><span class="env-dot ${e.available ? (e.warning ? 'st-error' : 'st-running') : 'st-none'}"></span>${esc(e.label)}</span>` +
         `<span class="c-env-sub">${sub}</span>` + (why ? `<span class="c-env-why">${esc(why)}</span>` : '');
-      b.onclick = () => { if (!st.busy) selectEnv(e.key); };
+      b.onclick = () => {
+        if (st.busy) return;
+        if (!envSettingsPage) { selectEnv(e.key); return; }
+        if (!e.endpoint) return;
+        st.epOpen = st.epOpen === e.key ? null : e.key;
+        st.epMsg = null;
+        renderEnvs();
+        const input = document.getElementById('c-ep-input');
+        if (input) input.focus();
+      };
       wrap.appendChild(b);
-      if (e.endpoint && !st.examActive) {           // 考试中不显示接入设置
+      if (envSettingsPage && e.endpoint && !st.examActive) {
         const g = document.createElement('button');
         g.type = 'button';
         g.className = 'c-env-cfg';
-        g.textContent = '⚙';
+        g.dataset.icon = 'settings';
         g.title = '接入设置（地址、凭据状态、测试连接）';
         g.setAttribute('aria-label', `${e.label} 接入设置`);
         g.setAttribute('aria-expanded', String(st.epOpen === e.key));
@@ -139,6 +159,75 @@
       }
       box.appendChild(wrap);
     }
+    renderHome();
+  }
+
+  function renderHome() {
+    const greeting = $('home-greeting');
+    if (!greeting) return;
+    greeting.textContent = st.studentName ? `欢迎回来，${st.studentName}` : '欢迎回来';
+    $('home-subtitle').textContent = st.hasSelection
+      ? '从你上次练习的位置继续，或换一个模拟环境挑战其他课题。'
+      : st.env ? `已为你选择 ${envInfo().label}，查看课程进度与推荐课题，再开始排障练习。`
+        : '先选择模拟环境，查看课程进度与推荐课题，再开始排障练习。';
+    const envs = (st.envs && st.envs.environments) || [];
+    $('home-env-count').textContent = String(envs.filter((e) => e.available).length);
+    const scenarios = (st.data && st.data.scenarios) || [];
+    const passed = scenarios.filter((s) => s.progress === 'passed').length;
+    $('home-passed').textContent = st.data ? String(passed) : '—';
+    $('home-remaining').textContent = st.data ? String(Math.max(0, scenarios.length - passed)) : '—';
+    const env = envInfo();
+    $('home-progress-caption').textContent = st.data
+      ? `${env.label} · 共 ${scenarios.length} 道课题，已通过 ${passed} 道`
+      : envs.some((e) => e.available) ? '正在读取课程进度…' : '模拟环境离线，启动后可查看课程进度';
+
+    const storedId = st.hasSelection && st.topic && !st.topic.startsWith('tpl:') ? st.topic
+      : st.hasSelection ? store.get('topic') : null;
+    const last = scenarios.find((s) => s.id === storedId);
+    const next = last && last.progress !== 'passed' ? last
+      : scenarios.find((s) => s.progress !== 'passed') || last || null;
+    const heading = $('home-next-heading');
+    const label = $('home-next-label');
+    const title = $('home-next-title');
+    const desc = $('home-next-desc');
+    const link = $('home-next-link');
+    const continueLink = $('home-continue');
+    if (!st.data || !env.key) {
+      heading.textContent = '接下来做什么';
+      label.textContent = '开始训练';
+      title.textContent = '先选择一个在线模拟环境';
+      desc.textContent = '环境就绪后，即可浏览课程并开始排障练习。';
+      $('home-next-caption').textContent = '选择在线环境后，我们会按学习进度推荐课题';
+      link.textContent = '查看课程';
+      link.href = 'courses?view=catalog';
+      continueLink.textContent = '浏览课程';
+      continueLink.href = 'courses?view=catalog';
+      return;
+    }
+    if (!next) {
+      heading.textContent = '本环境课程';
+      label.textContent = '课程已完成';
+      title.textContent = '当前环境的课题都已通过';
+      desc.textContent = '你可以回顾课程，也可以重复练习已通过的课题。';
+      $('home-next-caption').textContent = `${env.label} · 当前环境的课题都已通过`;
+      link.textContent = '查看课程';
+      link.href = 'courses?view=catalog';
+      continueLink.textContent = '回顾课程';
+      continueLink.href = 'courses?view=catalog';
+      return;
+    }
+    const repeat = next.progress === 'passed';
+    const lastSelected = last === next && st.hasSelection;
+    const target = `courses?view=catalog&s=${encodeURIComponent(next.id)}`;
+    heading.textContent = lastSelected ? '继续上次训练' : '推荐下一道课题';
+    label.textContent = lastSelected ? (repeat ? '已通过 · 可重练' : '上次练习') : (repeat ? '练习推荐' : '下一道课题');
+    title.textContent = next.title;
+    desc.textContent = `${next.summary || next.symptom || ''}${next.est_minutes ? ` · 约 ${next.est_minutes} 分钟` : ''}`;
+    $('home-next-caption').textContent = `${env.label} · ${lastSelected ? '回到上次课题' : '按章节顺序推荐下一道未通过课题'}`;
+    link.textContent = repeat ? '再次练习' : '查看课题';
+    link.href = target;
+    continueLink.textContent = lastSelected ? (repeat ? '再次练习' : '继续上次训练') : '开始推荐课题';
+    continueLink.href = target;
   }
 
   // ---------- 接入设置气泡（spec §5.2「接入设置」）：地址与来源、凭据有无、测试连接、保存 ----------
@@ -498,22 +587,27 @@
       $('c-chapters').innerHTML = '<div class="c-pad muted">没有在线的模拟环境，请启动模拟器后点「↻ 重新检测环境」</div>';
       $('c-topics').innerHTML = '';
       renderPreview();
+      renderHome();
       return;
     }
     try {
       st.data = await api('GET', `api/scenarios?env=${encodeURIComponent(key)}`);
     } catch (e) {
       $('c-chapters').innerHTML = `<div class="c-err c-pad">读取课题失败：${esc(e.message)}</div>`;
+      renderHome();
       return;
     }
     st.templates = null;
     const env = envInfo();
-    $('c-chap-head').textContent = `${env.label} · 学习章节`;
-    let ch = keepTopic ? (st.chapter || store.get('chapter')) : null;
+    $('c-chap-head').textContent = examPage ? `${env.label} · 考试` : `${env.label} · 学习章节`;
+    let ch = examPage ? EXAM_CH : keepTopic ? (st.chapter || store.get('chapter')) : null;
+    const target = requestedTopic && st.data.scenarios.find((s) => s.id === requestedTopic);
+    if (target) { ch = target.chapter; st.topic = target.id; keepTopic = true; requestedTopic = null; }
     const counts = chapterCounts();
     if (ch !== EXAM_CH && !counts[ch]) ch = (st.data.chapters.find((c) => counts[c.id]) || {}).id || null;
     renderChapters();
     await selectChapter(ch, keepTopic);
+    renderHome();
   }
   const envInfo = () => (st.envs && st.envs.environments.find((e) => e.key === st.env)) || { label: st.env || '', platform: '' };
 
@@ -527,7 +621,7 @@
     const box = $('c-chapters');
     box.innerHTML = '';
     const counts = chapterCounts();
-    for (const c of st.data.chapters || []) {
+    for (const c of (examPage ? [] : st.data.chapters || [])) {
       const n = counts[c.id] || 0;
       const b = document.createElement('button');
       b.className = 'c-chap' + (c.id === st.chapter ? ' on' : '') + (n ? '' : ' empty');
@@ -541,9 +635,9 @@
       b.onclick = () => { if (!st.busy) selectChapter(c.id); };
       box.appendChild(b);
     }
-    const nochap = (st.data.scenarios || []).filter((s) => !s.chapter).length;
+    const nochap = examPage ? 0 : (st.data.scenarios || []).filter((s) => !s.chapter).length;
     if (nochap) box.insertAdjacentHTML('beforeend', `<div class="c-pad muted">另有 ${nochap} 道题未归入章节</div>`);
-    if (st.data.capacity_hidden) {                 // 同时运行设备上限（里程碑 6.17）隐藏的题
+    if (!examPage && st.data.capacity_hidden) {    // 同时运行设备上限（里程碑 6.17）隐藏的题
       box.insertAdjacentHTML('beforeend', `<div class="c-pad muted" id="c-cap-hidden">另有 ${st.data.capacity_hidden} 道题需要更多设备` +
         `（超过同时运行 ${st.data.max_devices} 台），本机已隐藏</div>`);
     }
@@ -569,13 +663,37 @@
     try {
       const d = await api('GET', 'api/exam/templates');
       const plat = envInfo().platform;
-      // platform_ok 是对「当前」环境算的；这里按正在浏览的环境平台过滤（全部题目都属于该平台的模板）
-      st.templates = d.templates.filter((t) => t.platforms && t.platforms.length && t.platforms.every((p) => p === plat));
+      // 考试中心展示全部模板并标明适用环境；课程目录仍只显示当前环境可参加的模板。
+      st.templates = examPage ? d.templates : d.templates.filter((t) =>
+        t.platforms && t.platforms.length && t.platforms.every((p) => p === plat));
       st.templateTitles = d.scenarios || {};
     } catch (e) {
       st.templates = [];
       st.templateError = e.message;
     }
+  }
+  function templateAvailability(t) {
+    const platforms = Array.isArray(t.platforms) ? t.platforms : [];
+    const env = envInfo();
+    const matches = platforms.length > 0 && platforms.every((p) => p === env.platform);
+    const targetEnvs = [...new Set(platforms)].map((p) => {
+      const names = ((st.envs && st.envs.environments) || [])
+        .filter((e) => e.platform === p).map((e) => e.label);
+      return { platform: p, names };
+    });
+    const targetLabel = targetEnvs.map(({ platform, names }) =>
+      names.length ? `${names.join(' / ')}（${L.platformText(platform)}）` : L.platformText(platform)
+    ).join('、') || '模板指定的平台';
+    let reason = '';
+    if (!matches) {
+      const compatible = ((st.envs && st.envs.environments) || [])
+        .filter((e) => platforms.includes(e.platform));
+      const online = compatible.filter((e) => e.available);
+      if (online.length) reason = `此模板适用于 ${targetLabel}，请切换到在线的「${online.map((e) => e.label).join(' / ')}」后开考。`;
+      else if (compatible.length) reason = `此模板适用于 ${targetLabel}；匹配环境目前离线，启动后即可参加。`;
+      else reason = `此模板适用于 ${targetLabel}，当前尚未配置匹配的模拟环境。`;
+    }
+    return { matches, targetLabel, reason };
   }
   function topicsOfChapter() {
     return (st.data.scenarios || []).filter((s) => s.chapter === st.chapter)
@@ -589,18 +707,28 @@
     let pick = keepTopic ? (st.topic || store.get('topic')) : null;
     if (st.chapter === EXAM_CH) {
       $('c-topic-head').textContent = '考试 · 模板';
-      $('c-topic-foot').textContent = `只列出题目全部属于 ${env.label} 环境的模板（模板在「管理模板」页编辑）`;
+      $('c-topic-foot').textContent = examPage
+        ? '列出所有已配置的多题考试；请按模板标注的环境参加。单题考试可在课程训练的课题详情中开启。'
+        : `只列出适用于 ${env.label} 环境的模板（模板在「考试模板」页编辑）`;
       const ts = st.templates || [];
-      if (!ts.length) box.innerHTML = `<div class="c-pad muted">${esc(st.templateError || `${env.label} 环境还没有可用的考试模板`)}</div>`;
+      if (!ts.length) {
+        box.innerHTML = st.templateError
+          ? `<div class="c-pad muted">${esc(st.templateError)}</div>`
+          : examPage
+            ? '<div class="c-pad muted">还没有配置多题考试模板。可到 <a href="exam/templates">考试模板</a> 创建；单题考试可在「课程训练」中选择课题后开启。</div>'
+            : `<div class="c-pad muted">${esc(env.label)} 环境暂时没有适用的多题考试模板。单题考试可在「课程训练」中选择课题后开启。</div>`;
+      }
       for (const t of ts) {
         const c = t.config || {};
+        const availability = templateAvailability(t);
         const card = document.createElement('button');
         card.className = 'c-card';
         card.dataset.id = `tpl:${t.id}`;
-        card.innerHTML = `<span class="c-card-top"><strong>${esc(t.name)}</strong><span class="c-tag-n">${(c.questions || []).length} 题</span></span>` +
+        card.innerHTML = `<span class="c-card-top"><strong>${esc(t.name)}</strong><span class="c-prog ${availability.matches ? 'ok' : 'na'}">${availability.matches ? '当前可考' : '需匹配环境'}</span></span>` +
+          `<span class="c-card-sum">适用环境：${esc(availability.targetLabel)}</span>` +
           `<span class="c-card-sum">总时长 ${Math.round((c.duration_s || 0) / 60)} 分钟${c.question_duration_s ? ` · 单题 ${Math.round(c.question_duration_s / 60)} 分钟` : ''}` +
           `${c.hints && c.hints.allowed ? ' · 允许提示' : ' · 禁用提示'}${c.show_topology === false ? ' · 不显示拓扑' : ''}</span>`;
-        card.onclick = () => { if (!st.busy) selectTopic(card.dataset.id); };
+        card.onclick = () => { if (!st.busy) selectTopic(card.dataset.id, true); };
         box.appendChild(card);
       }
       if (!ts.some((t) => `tpl:${t.id}` === pick)) pick = ts.length ? `tpl:${ts[0].id}` : null;
@@ -617,24 +745,28 @@
         const card = document.createElement('button');
         card.className = 'c-card';
         card.dataset.id = s.id;
-        card.innerHTML = `<span class="c-card-top"><strong>${esc(s.title)}</strong><span class="c-prog ${pcls}">${ptxt}</span></span>` +
+        card.innerHTML = `<span class="c-topic-label" data-icon="network">${esc(chap ? chap.title : '实操课题')}</span>` +
+          `<span class="c-card-top"><strong>${esc(s.title)}</strong><span class="c-prog ${pcls}">${ptxt}</span></span>` +
           `<span class="c-card-sum">${esc(s.summary || '')}</span>` +
           `<span class="c-card-tags"><span class="c-diff">难度 ${stars(s.difficulty || s.level)}</span>` +
           `${s.est_minutes ? `<span class="c-mins">约 ${s.est_minutes} 分钟</span>` : ''}` +
           // 草稿题（未真机验证）只在服务端开了 AINET_SHOW_DRAFTS 时才会列出
-          `${s.draft ? '<span class="c-mins" title="未在真机上验证（AINET_SHOW_DRAFTS=1 时才列出）">草稿 · 未验证</span>' : ''}</span>`;
-        card.onclick = () => { if (!st.busy) selectTopic(s.id); };
+          `${s.draft ? '<span class="c-mins" title="未在真机上验证（AINET_SHOW_DRAFTS=1 时才列出）">草稿 · 未验证</span>' : ''}</span>` +
+          '<span class="c-topic-link">查看工单与拓扑<span aria-hidden="true">→</span></span>';
+        card.onclick = () => { if (!st.busy) selectTopic(s.id, true); };
         box.appendChild(card);
       }
       if (!items.some((s) => s.id === pick)) pick = items.length ? items[0].id : null;
     }
     selectTopic(pick);
   }
-  function selectTopic(id) {
+  function selectTopic(id, userSelected = false) {
     st.topic = id;
+    if (userSelected && id) st.hasSelection = true;
     store.set('topic', id);
     for (const c of document.querySelectorAll('#c-topics .c-card')) c.classList.toggle('on', c.dataset.id === id);
     renderPreview();
+    renderHome();
   }
   const topicScenario = () => (st.data && (st.data.scenarios || []).find((s) => s.id === st.topic)) || null;
   const topicTemplate = () => (st.topic && st.topic.startsWith('tpl:') && (st.templates || [])
@@ -651,7 +783,10 @@
     const box = $('c-preview');
     const s = topicScenario();
     const tpl = topicTemplate();
+    document.body.classList.toggle('c-empty-selection', !(s || tpl));
+    const canRepeat = !!(s && s.progress === 'passed');
     $('c-actions').hidden = !(s || tpl);
+    if (window.AInetUI) window.AInetUI.syncCourseEntry(!!tpl);
     if (!s && !tpl) {
       box.innerHTML = '<div class="muted">选择左侧的课题查看详情</div>';
       return;
@@ -662,20 +797,39 @@
     if (tpl) {
       const c = tpl.config || {};
       const qs = c.questions || [];
+      const availability = templateAvailability(tpl);
+      const examButton = $('c-exam-tpl');
+      examButton.dataset.envUnavailable = availability.matches ? '' : '1';
+      examButton.dataset.envUnavailableTitle = availability.reason;
+      examButton.disabled = !availability.matches || !!st.lockApplied;
+      examButton.textContent = availability.matches ? '开始考试' : '当前环境不可开始';
+      examButton.title = availability.matches ? '' : availability.reason;
+      $('c-action-kind').textContent = '考试模板';
+      $('c-action-topic').textContent = tpl.name;
       box.innerHTML = `<div class="c-title"><h1>${esc(tpl.name)}</h1><span class="muted">考试 · ${qs.length} 题 · 总时长 ${Math.round((c.duration_s || 0) / 60)} 分钟</span></div>` +
         `<ol class="c-qlist">${qs.map((q) => `<li>${esc((st.templateTitles || {})[q.scenario] || q.scenario)}</li>`).join('')}</ol>` +
         `<p class="c-desc">每题单独计时验收：排查修复后点「提交本题」，${c.retries ? `每题可重试 ${c.retries} 次，` : ''}` +
         `${c.hints && c.hints.allowed ? `允许提示（每级扣 ${c.hints.penalty} 分）` : '不提供提示'}；考试中不能使用 Agent。交卷后出成绩单。</p>`;
-      $('c-prep').innerHTML = `开始前会依次准备每道题需要的 ${esc(env.label)} 环境，计时从第 1 题注入故障完成后开始`;
+      $('c-prep').innerHTML = availability.matches
+        ? `开始前会依次准备每道题需要的 ${esc(env.label)} 环境，计时从第 1 题注入故障完成后开始`
+        : `${esc(availability.reason)} <a href="courses?view=environments">检查环境设置</a>`;
       return;
     }
+    $('c-exam-tpl').dataset.envUnavailable = '';
+    $('c-exam-tpl').dataset.envUnavailableTitle = '';
+    $('c-exam-tpl').textContent = '开始考试';
+    $('c-exam-tpl').title = '';
     const chap = (st.data.chapters || []).find((c) => c.id === s.chapter);
+    $('c-action-kind').textContent = canRepeat ? '已通过课题' : '当前课题';
+    $('c-action-topic').textContent = s.title;
+    $('c-practice').textContent = canRepeat ? '再次练习' : '准备环境并开始练习';
+    $('c-practice').title = canRepeat ? '本题已通过，可重复练习；每次会单独记录' : '';
     box.innerHTML = `<div class="c-title"><h1>${esc(s.title)}</h1><span class="muted">${esc(chap ? chap.id : '')}` +
       ` · 难度 ${stars(s.difficulty || s.level)}${s.est_minutes ? ` · 约 ${s.est_minutes} 分钟` : ''}</span></div>` +
-      `<p class="c-desc">${esc(s.symptom)}</p>` +
       `<div class="c-tags">${(s.tags || s.knowledge_tags || []).map((t) => `<span class="c-chip">${esc(t)}</span>`).join('')}</div>` +
       '<div class="c-topo"><div class="c-topo-cap" id="c-topo-cap"></div><svg id="c-topo-svg" xmlns="http://www.w3.org/2000/svg"></svg>' +
-      '<div class="c-topo-legend">橙框 = 本题涉及 · 虚线 = 未启动</div></div>';
+      '<div class="c-topo-legend" id="c-topo-legend"></div></div>' +
+      `<section class="c-ticket"><h2>工单与验收目标</h2><p class="c-desc">${esc(s.symptom)}</p></section>`;
     drawTopo(s);
     // 将要准备的环境
     const req = s.required_devices || [];
@@ -692,7 +846,7 @@
       prep = `ainet 不能远程打开 eNSP 经典版的拓扑：需要在 eNSP 中打开 <b>${esc(s.topology.replace(/\.topo$/i, ''))}</b> ` +
         `拓扑并启动 ${esc(req.join('、'))}，检测到就绪后才进入`;
     }
-    $('c-prep').innerHTML = prep;
+    $('c-prep').innerHTML = prep + (canRepeat ? '<br><b>本题已通过，可再次练习；每次练习都会单独记录。</b>' : '');
   }
 
   function svgEl(tag, attrs, parent) {
@@ -701,21 +855,51 @@
     if (parent) parent.appendChild(el);
     return el;
   }
-  const ICON = { router: [54, 42], switch: [54, 42], pc: [40, 40], cloud: [85, 50], other: [50, 50] };
+  const ICON = { router: [54, 54], switch: [54, 54], pc: [54, 54], cloud: [85, 85], other: [54, 54] };
+  const deviceIconSize = (d) => (window.AInetDeviceIcons && window.AInetDeviceIcons.size(d)) || ICON[d.kind] || ICON.other;
+  const abbrIf = (name) => String(name || '').replace(/^GigabitEthernet/i, 'GE').replace(/^Ethernet/i, 'Eth').replace(/^Serial/i, 'S');
   const center = (d) => {
     if (d.anchor === 'center') return [d.x, d.y];
-    const [w, h] = ICON[d.kind] || ICON.other;
+    const [w, h] = deviceIconSize(d);
     return [d.x + w / 2, d.y + h / 2];
   };
+  function drawPreviewLink(svg, a, b, link, sizeA, sizeB, offset = 0) {
+    const [ax, ay] = center(a), [bx, by] = center(b);
+    const dx = bx - ax, dy = by - ay, length = Math.hypot(dx, dy) || 1;
+    const ux = dx / length, uy = dy / length, nx = -uy, ny = ux;
+    const sx = ax + nx * offset, sy = ay + ny * offset;
+    const tx = bx + nx * offset, ty = by + ny * offset;
+    const radiusA = Math.min(sizeA[0], sizeA[1]) / 2 + 1;
+    const radiusB = Math.min(sizeB[0], sizeB[1]) / 2 + 1;
+    const x1 = sx + ux * radiusA, y1 = sy + uy * radiusA;
+    const x2 = tx - ux * radiusB, y2 = ty - uy * radiusB;
+    const group = svgEl('g', { class: 'c-link-group' }, svg);
+    svgEl('line', { x1, y1, x2, y2, class: 'c-link' }, group);
+    svgEl('circle', { cx: x1, cy: y1, r: 2.1, class: 'c-link-port' }, group);
+    svgEl('circle', { cx: x2, cy: y2, r: 2.1, class: 'c-link-port' }, group);
+    const side = offset < 0 ? -1 : 1;
+    const label = (x, y, value, anchor, deviceName) => {
+      if (!value) return;
+      const text = svgEl('text', { x, y, class: 'c-if-label', 'text-anchor': anchor, 'dominant-baseline': 'middle' }, group);
+      text.textContent = abbrIf(value);
+      svgEl('title', {}, text).textContent = `${deviceName} ${value}`;
+    };
+    label(x1 + ux * 7 + nx * 8 * side, y1 + uy * 7 + ny * 8 * side, link.src_label,
+      Math.abs(ux) < 0.2 ? 'middle' : (ux > 0 ? 'start' : 'end'), a.name);
+    label(x2 - ux * 7 - nx * 8 * side, y2 - uy * 7 - ny * 8 * side, link.dst_label,
+      Math.abs(ux) < 0.2 ? 'middle' : (ux > 0 ? 'end' : 'start'), b.name);
+    svgEl('title', {}, group).textContent = `${a.name} ${link.src_label || ''} ↔ ${b.name} ${link.dst_label || ''}`;
+  }
   function drawTopo(s) {
     const svg = $('c-topo-svg');
     const cap = $('c-topo-cap');
+    const legend = $('c-topo-legend');
     if (!svg) return;
     const req = new Set(s.required_devices || []);
-    const W = 72, H = 34;
     if (sameTopology(s)) {
       const t = st.cur.topology;
       cap.textContent = `拓扑预览 · ${envInfo().sandboxes ? '沙箱' : '拓扑'} ${t.name}`;
+      legend.textContent = '橙色名称 = 本题设备 · 接口标签 = 两端端口 · 灰色名称 = 未启动';
       const devs = t.devices;
       const byId = Object.fromEntries(devs.map((d) => [d.id, d]));
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -723,35 +907,65 @@
       const span = Math.max(x1 - x0, y1 - y0, 200);
       const k = span / 8;     // 设备框按拓扑尺寸缩放
       svg.setAttribute('viewBox', `${x0 - k * 1.2} ${y0 - k} ${x1 - x0 + k * 2.4} ${y1 - y0 + k * 2}`);
+      const pairTotals = {}, pairSeen = {};
+      const pairKey = (l) => [l.src_id, l.dst_id].sort().join('|');
+      for (const l of t.links || []) pairTotals[pairKey(l)] = (pairTotals[pairKey(l)] || 0) + 1;
       for (const l of t.links || []) {
         const a = byId[l.src_id], b = byId[l.dst_id];
         if (!a || !b) continue;
-        const [ax, ay] = center(a), [bx, by] = center(b);
-        svgEl('line', { x1: ax, y1: ay, x2: bx, y2: by, class: 'c-link', 'stroke-width': k / 30 }, svg);
+        const key = pairKey(l), count = pairTotals[key], index = pairSeen[key] = (pairSeen[key] ?? -1) + 1;
+        const offset = (index - (count - 1) / 2) * 8;
+        const iconSize = Math.min(52, k * 0.76);
+        drawPreviewLink(svg, a, b, l, [iconSize, iconSize], [iconSize, iconSize], offset);
       }
       for (const d of devs) {
         const [x, y] = center(d);
         const on = (st.cur.devices || {})[d.id] === 'online';
         const g = svgEl('g', { class: `c-node${req.has(d.name) ? ' req' : ''}${on ? '' : ' off'}` }, svg);
-        svgEl('rect', { x: x - k * 0.55, y: y - k * 0.28, width: k * 1.1, height: k * 0.56, rx: k * 0.1, 'stroke-width': k / (req.has(d.name) ? 18 : 30) }, g);
-        const te = svgEl('text', { x, y: y + k * 0.09, 'font-size': k * 0.26, 'text-anchor': 'middle' }, g);
+        const iconSize = Math.min(52, k * 0.76);
+        if (window.AInetDeviceIcons) window.AInetDeviceIcons.appendSvg(g, d, svgEl,
+          { x: x - iconSize / 2, y: y - iconSize / 2, width: iconSize, height: iconSize });
+        else svgEl('rect', { class: 'shape', x: x - iconSize / 2, y: y - iconSize / 2, width: iconSize, height: iconSize, rx: 4 }, g);
+        const te = svgEl('text', { x, y: y + iconSize / 2 + 14, class: 'c-node-label', 'font-size': Math.min(13, k * 0.18), 'text-anchor': 'middle' }, g);
         te.textContent = d.name;
+        svgEl('title', {}, g).textContent = `${d.name} · ${d.model || d.kind || '设备'}`;
       }
       return;
     }
     // 拓扑还没加载（进入时才切换）：只示意本题设备
-    cap.textContent = `拓扑预览 · ${s.topology.replace(/\.topo$/i, '')}（进入时加载完整拓扑，这里只示意本题设备）`;
+    const previewLinks = s.preview_links || [];
+    cap.textContent = `拓扑预览 · ${s.topology.replace(/\.topo$/i, '')}` +
+      (previewLinks.length ? '（完整拓扑进入时加载；这里显示本题设备与已知端口连接）' : '（当前环境未匹配；这里只显示本题设备）');
+    legend.textContent = previewLinks.length
+      ? '橙色名称 = 本题设备 · 接口标签 = 题目拓扑的两端端口'
+      : '橙色名称 = 本题设备 · 匹配拓扑后显示实际端口连接';
     const names = [...req];
-    const gap = 26;
-    const width = names.length * (W + gap) - gap;
-    svg.setAttribute('viewBox', `${-20} ${-30} ${Math.max(width + 40, 300)} 120`);
-    names.forEach((n, i) => {
-      const x = i * (W + gap);
-      if (i) svgEl('line', { x1: x - gap, y1: H / 2, x2: x, y2: H / 2, class: 'c-link', 'stroke-width': 1.5 }, svg);
+    const gap = 26, previewW = 74, iconSize = 42;
+    const width = names.length * (previewW + gap) - gap;
+    svg.setAttribute('viewBox', `${-20} ${-20} ${Math.max(width + 40, 300)} 112`);
+    const nodes = names.map((name, i) => {
+      const x = i * (previewW + gap), cx = x + previewW / 2;
+      return { name, model: name, kind: /^[RT]\d+$/i.test(name) ? 'router' : undefined, anchor: 'center', x: cx, y: 20 };
+    });
+    const nodeByName = Object.fromEntries(nodes.map((node) => [node.name, node]));
+    const nodeSizes = Object.fromEntries(nodes.map((node) => [node.name, [iconSize, iconSize]]));
+    const pairTotals = {}, pairSeen = {};
+    const pairKey = (link) => [link.src_device, link.dst_device].sort().join('|');
+    for (const link of previewLinks) pairTotals[pairKey(link)] = (pairTotals[pairKey(link)] || 0) + 1;
+    for (const link of previewLinks) {
+      const a = nodeByName[link.src_device], b = nodeByName[link.dst_device];
+      if (!a || !b) continue;
+      const key = pairKey(link), count = pairTotals[key], index = pairSeen[key] = (pairSeen[key] ?? -1) + 1;
+      drawPreviewLink(svg, a, b, { src_label: link.src_label, dst_label: link.dst_label },
+        nodeSizes[a.name], nodeSizes[b.name], (index - (count - 1) / 2) * 8);
+    }
+    nodes.forEach((device) => {
+      const [, cy] = center(device), cx = device.x;
       const g = svgEl('g', { class: 'c-node req' }, svg);
-      svgEl('rect', { x, y: 0, width: W, height: H, rx: 6, 'stroke-width': 2 }, g);
-      const te = svgEl('text', { x: x + W / 2, y: H / 2 + 4, 'font-size': 12, 'text-anchor': 'middle' }, g);
-      te.textContent = n;
+      if (window.AInetDeviceIcons) window.AInetDeviceIcons.appendSvg(g, device, svgEl,
+        { x: cx - iconSize / 2, y: cy - iconSize / 2, width: iconSize, height: iconSize });
+      const te = svgEl('text', { x: cx, y: cy + iconSize / 2 + 15, class: 'c-node-label', 'font-size': 12, 'text-anchor': 'middle' }, g);
+      te.textContent = device.name;
     });
   }
 
@@ -1030,6 +1244,7 @@
   }
   function setBusy(on) {
     st.busy = on;
+    $('c-entry-modes').disabled = on;
     for (const id of ['c-lab', 'c-practice', 'c-exam', 'c-exam-tpl', 'c-recheck']) $(id).disabled = on || $(id).dataset.locked === '1';
     document.body.classList.toggle('c-busy', on);
   }
@@ -1105,6 +1320,10 @@
     const s = topicScenario();
     const tpl = topicTemplate();
     if (kind === 'template' ? !tpl : !s) return;
+    if (kind === 'template') {
+      const availability = templateAvailability(tpl);
+      if (!availability.matches) { alert(availability.reason); return; }
+    }
     if (!again && kind === 'exam' && !confirm(`开始「${s.title}」的单题考试？\n\n准备好环境、注入故障后立即开始计时（15 分钟）；考试中不能使用 Agent、没有提示，` +
       '排查修复后点「提交本题」，交卷后出成绩单。')) return;
     if (!again && kind === 'template' && !confirm(`开始考试「${tpl.name}」？\n\n先准备每道题的环境，然后开始计时；考试中不能使用 Agent。`)) return;
@@ -1167,9 +1386,12 @@
     try {
       const ex = await api('GET', 'api/exam/current');
       st.examActive = !!ex.active;
+      if (window.AInetUI) window.AInetUI.setExamLocked(st.examActive);
       $('um-ai').hidden = st.examActive || !window.AiSettings;
       if (ex.active) {
-        text = `考试「${ex.name}」进行中（第 ${ex.current + 1} / ${ex.total} 题）`; href = './?mode=exam';
+        text = `考试「${ex.name}」进行中（第 ${ex.current + 1} / ${ex.total} 题）`;
+        const scenarioId = ex.question && ex.question.scenario_id;
+        href = `./?mode=exam${scenarioId ? `&s=${encodeURIComponent(scenarioId)}` : ''}`;
         st.epOpen = null;
       }
       if (!text) {
@@ -1187,9 +1409,15 @@
     } catch (e) { /* 忽略 */ }
     $('c-active').hidden = !text;
     $('c-active-text').textContent = !text ? ''
-      : (resetting ? `${text}（通常几十秒），完成后即可换题、换环境…` : `${text}：换题、换环境之前请先回到操作页结束它。`);
-    $('c-active-go').hidden = resetting;
-    $('c-active-go').onclick = () => { location.href = href; };
+      : (resetting ? `${text}（通常几十秒），完成后即可换题、换环境…`
+        : st.examActive ? `${text}：进度已保存，考试计时继续；返回工作台可继续作答。结束本场考试后才能开始其他练习。`
+        : `${text}：换题、换环境之前请先回到操作页结束它。`);
+    const resume = $('c-active-go');
+    resume.hidden = resetting;
+    resume.dataset.resumeHref = href;
+    resume.href = href || './';
+    resume.setAttribute('aria-disabled', String(resetting || !href));
+    resume.tabIndex = resetting || !href ? -1 : 0;
     document.body.classList.toggle('c-locked', !!text);
     clearTimeout(st.resetTimer);
     if (resetting) st.resetTimer = setTimeout(async () => { applyLock(await checkActive()); }, 1500);
@@ -1198,13 +1426,16 @@
   // 有进行中的练习 / 考试（或上一题还在后台复位）时锁住进入按钮
   function applyLock(locked) {
     for (const id of ['c-lab', 'c-practice', 'c-exam', 'c-exam-tpl']) {
-      $(id).dataset.locked = locked ? '1' : '';
+      const button = $(id);
+      const unavailable = id === 'c-exam-tpl' && button.dataset.envUnavailable === '1';
+      button.dataset.locked = locked ? '1' : '';
       if (locked) {
-        $(id).disabled = true;
-        $(id).title = '有进行中的练习 / 考试，或上一题还在后台复位，请稍候';
-      } else if (st.lockApplied) {
-        $(id).disabled = false;
-        $(id).title = '';
+        button.disabled = true;
+        button.title = '有进行中的练习 / 考试，或上一题还在后台复位，请稍候';
+      } else {
+        button.disabled = unavailable;
+        if (id === 'c-exam-tpl') button.title = unavailable ? button.dataset.envUnavailableTitle : '';
+        else if (st.lockApplied) button.title = '';
       }
     }
     if (!locked && st.lockApplied) loadEnvs(false);      // 环境列表的「切换锁」也随之解除
@@ -1216,16 +1447,42 @@
   }
 
   async function init() {
+    if (envSettingsPage) {
+      document.title = '环境设置 · ainet';
+      document.querySelector('.topbar .page-title').textContent = '环境设置';
+      document.querySelector('.course-intro .ui-eyebrow').textContent = '模拟器接入与运行参数';
+      document.querySelector('.course-intro h1').textContent = '管理模拟环境';
+      document.querySelector('.course-intro p').textContent = '集中设置环境地址、设备密码、启动超时和设备容量。';
+      $('c-env-foot').textContent = '离线环境也可以修改接入参数；保存后会重新检测连接状态。';
+    } else if (examPage) {
+      document.title = '考试中心 · ainet';
+      document.querySelector('.topbar .page-title').textContent = '考试中心';
+      document.querySelector('.course-intro .ui-eyebrow').textContent = '网络实操训练 · 阶段测评';
+      document.querySelector('.course-intro h1').textContent = '选择一场考试';
+      document.querySelector('.course-intro p').textContent = '查看所有已配置的考试模板及适用环境；选择匹配的在线环境后即可开考。';
+      $('c-env-heading').textContent = '考试环境';
+      $('c-env-foot').textContent = '模板会标明适用环境；匹配环境在线时才能开始。环境参数可在环境设置页修改。';
+    } else if (pageView === 'catalog') {
+      document.title = '课程训练 · ainet';
+      document.querySelector('.topbar .page-title').textContent = '课程训练';
+      $('c-env-heading').textContent = '当前练习环境';
+      $('c-env-foot').textContent = '更换环境只切换课程浏览；进入课题时才准备设备。环境参数可在环境设置页修改。';
+    } else {
+      document.title = '学习首页 · ainet';
+      $('c-env-foot').textContent = '选择环境后，首页会显示对应课程进度与下一道推荐课题。';
+    }
     const res = await fetch('api/me');
     if (res.status === 401) { location.href = 'login'; return; }
     const me = await res.json();
     $('who').textContent = `${me.student.name}（${me.student.login}）`;
+    st.studentName = me.student.name;
     if (me.auto_login) { $('um-switch').hidden = true; $('logout').hidden = true; }   // 自动登录模式：不切换、不登出
     const locked = await checkActive();
     for (const id of ['c-lab', 'c-practice', 'c-exam', 'c-exam-tpl']) {
       $(id).dataset.locked = locked ? '1' : '';
     }
     await Promise.all([refreshCurrent(), loadEnvs(false)]);
+    renderHome();
     if (locked) applyLock(true);
   }
 

@@ -249,6 +249,7 @@ class PracticeManager:
         self.scorer: Any = None            # grading.Scorer（main 注入）；None = 不评分
         self.hinter: Any = None            # hints.Hinter（main 注入）；None = 只用静态提示
         self.lab: Any = None               # 实验后端（main 注入）：终端主机的地址配置、干净基线的键
+        self.capacity_guard: Callable[[dict[str, Any]], str | None] | None = None
         self.baseline_auto = config.LAB_BASELINE_AUTO
         hub.add_listener(self.on_hub_event)
 
@@ -362,6 +363,16 @@ class PracticeManager:
             return text                    # eNSP 经典版的 VRP5 不自动保存：不需要基线
         key = self._baseline_key(cur, dev)
         raw = await asyncio.to_thread(db.get_setting, key)
+        # ainet_test 以前以沙箱原始节点名 T1/T2 保存过干净基线；改为 AInet 展示别名后，
+        # 首次开练时先迁移旧键，避免把已被污染的配置误当成新基线。
+        topo = cur.get("topology") or {}
+        native = {"AR1": "T1", "AR2": "T2"}.get(dev) \
+            if (cur.get("lab") or {}).get("kind") == "enspro" and str(topo.get("name", "")).casefold() == "ainet_test" else None
+        if raw is None and native:
+            legacy_key = f"{key.rsplit(':', 1)[0]}:{native}"
+            raw = await asyncio.to_thread(db.get_setting, legacy_key)
+            if raw is not None:
+                await asyncio.to_thread(db.set_setting, key, raw)
         if raw is None:
             if self.baseline_auto:
                 await asyncio.to_thread(db.set_setting, key, json.dumps({"config": text, "at": _now_iso()},
@@ -497,6 +508,9 @@ class PracticeManager:
             template = self.scenarios.get(scenario_id)
             if template is None:
                 raise PracticeError(404, f"场景不存在：{scenario_id}")
+            reason = self.capacity_guard(template) if self.capacity_guard else None
+            if reason:
+                raise PracticeError(409, reason)
             if seed is None:
                 seed = config.PRACTICE_SEED if config.PRACTICE_SEED is not None else new_seed()
             try:
@@ -508,6 +522,11 @@ class PracticeManager:
             if not rd["ready"]:
                 raise PracticeError(409, rd["reason"])
             ports = rd["ports"]
+            if (cur.get("lab") or {}).get("kind", "ensp") == "ensp" and hasattr(self.hub, "check_ready"):
+                for device in s["required_devices"]:
+                    ready = await self.hub.check_ready(ports[device])
+                    if not ready.ok:
+                        raise PracticeError(409, f"{device} console 未就绪（busy）：{ready.reason}，请稍后重试")
 
             def create() -> dict[str, Any]:
                 return db.create_attempt(student_id, self.scenario_ids[s["id"]], mode, seed=s["seed"],

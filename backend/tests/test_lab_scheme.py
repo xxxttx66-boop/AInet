@@ -77,9 +77,10 @@ def cert(tmp_path_factory):
         pytest.skip("没有 openssl，无法生成测试用自签证书")
     d = tmp_path_factory.mktemp("tls")
     key, crt = str(d / "k.pem"), str(d / "c.pem")
+    (d / "openssl.cnf").write_text("[req]\ndistinguished_name=dn\n[dn]\n", encoding="ascii")
     subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes",
-                    "-keyout", key, "-out", crt, "-days", "1", "-subj", "/CN=localhost"],
-                   check=True, capture_output=True, timeout=30)
+                    "-config", "openssl.cnf", "-keyout", "k.pem", "-out", "c.pem", "-days", "1", "-subj", "/CN=localhost"],
+                   check=True, capture_output=True, timeout=30, cwd=d)
     return crt, key
 
 

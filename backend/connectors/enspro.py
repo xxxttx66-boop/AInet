@@ -16,8 +16,8 @@
   - 提示符 `<…>` / `[…]` → 登录成功；`[Y/N]`（如登录后询问是否修改密码）→ 回答 N；`---- More ----`（上个会话
     停在分页上的残留）→ q；`Press ENTER` → 回车。
   - 绝不在 `Password:` 后面补空回车（会被设备当成一次失败的登录）。
-- 交给 hub 之后，若设备又回到登录提示（console 空闲超时把会话登出、学员在用户视图敲了 quit）：连接器先吞掉学员输入，
-  自己按同样的规则登录一次（同样只试一次），成功后恢复转发；失败则 block 并断开。
+- 交给 hub 之后，若设备又回到登录提示（console 空闲超时把会话登出、学员在用户视图敲了 quit）：连接器暂存学员输入，
+  自己按同样的规则登录一次（同样只试一次），成功后按顺序转发暂存输入；失败则 block 并断开。
 - 设备 console 密码由 provider.password() 提供（secrets.env 的 ENSPRO_DEVICE_PASSWORD），不进日志、不进异常信息。
 """
 from __future__ import annotations
@@ -144,7 +144,8 @@ class EnsproConnector(DeviceConnector):
         self._login_buf = ""                     # 登录阶段收到的输出
         self._login_event = asyncio.Event()
         self._handed = False                     # 已交给 hub
-        self._relogin = False                    # 交给 hub 之后的自动重登进行中：吞掉学员输入
+        self._relogin = False                    # 自动重登期间暂存输入，成功后再发给命令行
+        self._relogin_input = bytearray()
         self._tail = ""                          # 交给 hub 之后的最近输出（识别又回到登录提示）
         self._watch: asyncio.Task | None = None
         self._recv_task: asyncio.Task | None = None
@@ -242,7 +243,7 @@ class EnsproConnector(DeviceConnector):
             self._tail = (self._tail + body)[-2000:]
             self._out.put_nowait(body.encode("utf-8"))
             if not self._relogin and not self._closed and self._login_prompt_tail(self._tail):
-                self._relogin = True                # 从这一刻起吞掉学员输入
+                self._relogin = True                # 从这一刻起暂存学员输入
                 self._watch = asyncio.get_running_loop().create_task(self._relogin_task())
 
     async def _heartbeat_loop(self) -> None:
@@ -400,12 +401,12 @@ class EnsproConnector(DeviceConnector):
         return not re.match(r"^[<\[][^\s<>\[\]]+[>\]]\s*\S", prev)
 
     async def _relogin_task(self) -> None:
-        """交给 hub 之后设备回到登录提示：自动登录一次（同样只试一次）。学员输入从提示出现那一刻起就被吞掉
+        """交给 hub 之后设备回到登录提示：自动登录一次（同样只试一次）。学员输入从提示出现那一刻起暂存
         （_on_output 里同步置位 _relogin），不会混进密码。"""
         try:
             await asyncio.sleep(self.quiet)
             if not self._login_prompt_tail(self._tail):     # 只是输出里出现过、随后又有别的输出：不是登录提示
-                self._relogin = False
+                await self._flush_relogin_input()
                 return
             self._login_buf = self._tail
             self._tail = ""
@@ -419,10 +420,21 @@ class EnsproConnector(DeviceConnector):
                 self._out.put_nowait(f"\r\n[ainet] {exc}\r\n".encode("utf-8"))
                 await self.close()
                 return
-            finally:
-                self._relogin = False
+            await self._flush_relogin_input()
         except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            self.error = f"console 重登或转发失败：{type(exc).__name__}"
+            self._out.put_nowait(f"\r\n[ainet] {self.error}\r\n".encode("utf-8"))
+            await self.close()
+
+    async def _flush_relogin_input(self) -> None:
+        # Keep buffering while writes await the socket, preserving input order.
+        while self._relogin_input and not self._closed:
+            data = bytes(self._relogin_input)
+            self._relogin_input.clear()
+            await self._type(data.decode("utf-8", "replace"))
+        self._relogin = False
 
     # ---- DeviceConnector ----
 
@@ -430,7 +442,12 @@ class EnsproConnector(DeviceConnector):
         if self.ws is None:
             raise RuntimeError("connector not connected")
         if self._relogin:
-            return                                  # 自动重登中：学员输入不能落到 Password: 上
+            if len(self._relogin_input) + len(data) > 65536:
+                self._out.put_nowait(b"\r\n[ainet] Input buffer full during console login; reconnect.\r\n")
+                await self.close()
+                return
+            self._relogin_input.extend(data)
+            return                                  # 不把学员输入发到 Password: 上
         await self._type(data.decode("utf-8", "replace"))
 
     async def read(self) -> bytes:
@@ -451,6 +468,7 @@ class EnsproConnector(DeviceConnector):
         if self._closed:
             return
         self._closed = True
+        self._relogin_input.clear()
         for t in (self._watch, self._hb_task):
             if t is not None and t is not asyncio.current_task():
                 t.cancel()

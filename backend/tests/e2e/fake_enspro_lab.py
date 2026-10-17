@@ -1,9 +1,9 @@
 """假 eNSP Pro 版实验环境（不连任何真实设备 / eNSP Pro 虚机，不进默认 pytest）：同一个进程里跑
 假 STOMP console 服务（tests/fake_enspro.py）+ 假 REST（httpx.MockTransport，设备启动有延时）+ ainet 服务（uvicorn）。
 
-- 沙箱 ainet_test（id 2）：T1（6）、T2（7）两台 YunShan AR（NetYunShan，GE0/0/1 互联，ping 按配置计算）+ PC1（12，PC-CLIENT）。
+- 沙箱 ainet_test（id 2）：AR1（6）、AR2（7）两台 YunShan AR（NetYunShan，GE0/0/1 互联，ping 按配置计算）+ PC1（12，PC-CLIENT）。
   设备开始时全部停止；batchStart 后状态 2（分配资源）→ 6（启动系统）→ 4（运行），用时 start_delay 秒，便于看准备进度。
-- 场景目录：仓库 scenarios/ 的副本 + 一道只给 e2e 用的题 e2e-pc-t1t2（T1 / T2 / PC1 都开放，PC1 在 hosts 里），
+- 场景目录：仓库 scenarios/ 的副本 + 一道只给 e2e 用的题 e2e-pc-t1t2（AR1 / AR2 / PC1 都开放，PC1 在 hosts 里），
   用于在浏览器里验证 PC 设置气泡（练习 / 考试中的修改进操作记录、结束时随复位还原）。
 - eNSP 经典版：AINET_ENSP_CLIENT=0（离线），课程页显示「（离线）」。
 - AINET_ENSPRO_URL 指向假服务的端口（课程页的在线探测只做 TCP 连接）。
@@ -32,24 +32,24 @@ sys.path.insert(0, BACKEND)
 
 PW = "Fake-Pw#1234"
 E2E_SCENARIO = {
-    "id": "e2e-pc-t1t2", "title": "T1 与 T2 互联不通（PC 气泡 e2e）", "level": 1, "platform": "yunshan",
-    "chapter": "L02", "difficulty": 1, "est_minutes": 10, "summary": "T1 ping 不通 T2，PC1 也在同一个沙箱里",
+    "id": "e2e-pc-t1t2", "title": "AR1 与 AR2 互联不通（PC 气泡 e2e）", "level": 1, "platform": "yunshan",
+    "chapter": "L02", "difficulty": 1, "est_minutes": 10, "summary": "AR1 ping 不通 AR2，PC1 也在同一个沙箱里",
     "tags": ["IP 编址", "PC 设置"], "knowledge_tags": ["IP 地址规划"],
-    "topology": "ainet_test", "required_devices": ["T1", "T2", "PC1"], "accessible_devices": ["T1", "T2", "PC1"],
+    "topology": "ainet_test", "required_devices": ["AR1", "AR2", "PC1"], "accessible_devices": ["AR1", "AR2", "PC1"],
     "hosts": ["PC1"],
-    "symptom": "工单：T1 与 T2 之间有一条直连链路（T1 GE0/0/1 — T2 GE0/0/1），规划网段为 10.0.12.0/24，T1 一端为 10.0.12.1，"
-               "T2 一端为 10.0.12.2。现在从 T1 上 ping 10.0.12.2 不通。PC1 是同一沙箱里的用户电脑（10.0.10.10/24）。",
-    "baseline": {"T1": ["system-view", "interface GE0/0/1", "ip address 10.0.12.1 24"],
-                 "T2": ["system-view", "interface GE0/0/1", "ip address 10.0.12.2 24"],
+    "symptom": "工单：AR1 与 AR2 之间有一条直连链路（AR1 GE0/0/1 — AR2 GE0/0/1），规划网段为 10.0.12.0/24，AR1 一端为 10.0.12.1，"
+               "AR2 一端为 10.0.12.2。现在从 AR1 上 ping 10.0.12.2 不通。PC1 是同一沙箱里的用户电脑（10.0.10.10/24）。",
+    "baseline": {"AR1": ["system-view", "interface GE0/0/1", "ip address 10.0.12.1 24"],
+                 "AR2": ["system-view", "interface GE0/0/1", "ip address 10.0.12.2 24"],
                  "PC1": ["ip address 10.0.10.10 24", "ip gateway 10.0.10.1"]},
-    "inject": {"T2": ["system-view", "interface GE0/0/1", "ip address 10.0.21.2 24"]},
-    "restore": {"T1": ["system-view", "interface GE0/0/1", "undo ip address"],
-                "T2": ["system-view", "interface GE0/0/1", "undo ip address"],
+    "inject": {"AR2": ["system-view", "interface GE0/0/1", "ip address 10.0.21.2 24"]},
+    "restore": {"AR1": ["system-view", "interface GE0/0/1", "undo ip address"],
+                "AR2": ["system-view", "interface GE0/0/1", "undo ip address"],
                 "PC1": ["undo ip address", "undo ip gateway"]},
-    "solution": {"T2": ["system-view", "interface GE0/0/1", "ip address 10.0.12.2 24"]},
-    "checks": [{"device": "T1", "command": "ping -c 2 10.0.12.2", "expect": "\\b[12] packet\\(s\\) received",
-                "desc": "T1 能 ping 通 T2"}],
-    "hints": ["先确认两端接口地址是否在同一网段", "display ip interface brief", "把 T2 的地址改回规划值"],
+    "solution": {"AR2": ["system-view", "interface GE0/0/1", "ip address 10.0.12.2 24"]},
+    "checks": [{"device": "AR1", "command": "ping -c 2 10.0.12.2", "expect": "\\b[12] packet\\(s\\) received",
+                "desc": "AR1 能 ping 通 AR2"}],
+    "hints": ["先确认两端接口地址是否在同一网段", "display ip interface brief", "把 AR2 的地址改回规划值"],
     "reference_path": "两端 display ip interface brief 对照规划。",
 }
 
@@ -131,9 +131,9 @@ async def fake_enspro_lab(work_dir: str, http_port: int, *, start_delay: float =
     from fake_vrp import FakeNet
     base_cfg = open(os.path.join(BACKEND, "tests", "fixtures", "configs", "yunshan_ar6700_base.cfg"),
                     encoding="utf-8").read()
-    net = FakeNet([(("T1", "GE0/0/1"), ("T2", "GE0/0/1"))])
-    t1 = net.add("T1", NetYunShan(base_cfg, password=PW))
-    t2 = net.add("T2", NetYunShan(base_cfg, password=PW))
+    net = FakeNet([(("AR1", "GE0/0/1"), ("AR2", "GE0/0/1"))])
+    t1 = net.add("AR1", NetYunShan(base_cfg, password=PW))
+    t2 = net.add("AR2", NetYunShan(base_cfg, password=PW))
     pc1 = FakePC(reachable=set())
     devices = {6: t1, 7: t2, 12: pc1}
     server = await FakeStompServer(devices).start()

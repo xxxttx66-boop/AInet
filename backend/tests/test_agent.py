@@ -319,6 +319,35 @@ def test_lab_chat_streams_and_runs_readonly_tool(pclient, monkeypatch):
     assert hist["mode"] == "lab" and [m["role"] for m in hist["messages"]] == ["user", "assistant"]
 
 
+def test_custom_lab_attaches_output_without_tools_or_foreign_history(pclient, monkeypatch):
+    login(pclient)
+    svc = pclient.app.state.agent
+    mgr = pclient.app.state.labmgr
+    monkeypatch.setattr(mgr, "sandbox", 77)
+    custom = db.create_custom_lab(1, mgr.key, 77, "自建实验")
+    other = db.create_custom_lab(1, mgr.key, 78, "另一个实验")
+    db.add_agent_message(1, None, f"custom:{other['id']}", "user", "other-sandbox-secret")
+    svc.termlog.on_event("command", 2000, "display clock")
+    svc.termlog.on_event("output", 2000, "first-part\n")
+    svc.termlog.on_event("output", 2000, "last-part\n")
+    fake = use_ai(monkeypatch, FakeAI([(["建议先检查接口。"], [tool("AR0", "display version")])]))
+    _, evs = chat(pclient, "解释输出", [{"role": "user", "content": "client-foreign-history"}])
+    assert not any(e["type"] == "tool" for e in evs)
+    assert fake.calls[0]["tools"] is None
+    sent = json.dumps(fake.calls[0]["messages"])
+    assert "first-part" in sent and "last-part" in sent
+    assert "other-sandbox-secret" not in sent and "client-foreign-history" not in sent
+    assert evs[0]["attached_commands"] == 1
+    assert evs[0]["context_key"] == f"custom:{custom['id']}"
+    own = pclient.get("/api/agent/history").json()
+    assert len(own["messages"]) == 2
+    monkeypatch.setattr(mgr, "sandbox", 78)
+    svc.on_env_switch("另一个实验")
+    other_history = pclient.get("/api/agent/history").json()
+    assert [m["content"] for m in other_history["messages"]] == ["other-sandbox-secret"]
+    assert svc.termlog.recent() == []
+
+
 def test_tool_limit_and_rejections(pclient, monkeypatch):
     login(pclient)
     fake = use_ai(monkeypatch, FakeAI([
@@ -389,6 +418,7 @@ def test_practice_mentor_mode_question_not_penalized(pclient, monkeypatch):
     fake = use_ai(monkeypatch, FakeAI([(["先比较两端接口所在的网段。"], [])]))
     _, evs = chat(pclient, "我该先查什么？")
     assert evs[0]["mode"] == "practice" and evs[0]["devices"] == ["AR0", "AR2"]
+    assert evs[0]["context_key"] == f"practice:{st['attempt_id']}"
     assert not [e for e in evs if e["type"] == "penalty"]
     sent = fake.calls[0]["messages"]
     assert sent[0]["content"] == prompts.AGENT_SYSTEM_MENTOR
@@ -402,6 +432,7 @@ def test_practice_mentor_mode_question_not_penalized(pclient, monkeypatch):
     rows = db.agent_messages(attempt_id=st["attempt_id"])
     assert [(r["role"], r["mode"], r["leaked"]) for r in rows] == [("user", "practice", 0), ("assistant", "practice", 0)]
     assert db.get_attempt(st["attempt_id"])["agent_penalties"] is None
+    assert pclient.get("/api/agent/history").json()["context_key"] == f"practice:{st['attempt_id']}"
 
 
 def test_practice_mentor_leak_is_penalized_once_as_level3(pclient, monkeypatch):
@@ -456,10 +487,10 @@ def test_cancel_after_leak_still_penalized(pclient, monkeypatch):
             await t
         except asyncio.CancelledError:
             pass
-        for _ in range(100):
-            if db.get_attempt(st["attempt_id"])["agent_penalties"]:
-                break
-            await asyncio.sleep(0.02)
+        # 扣分写入发生在回复落库之前，不能把扣分当作整个收尾任务已完成。
+        pending = tuple(svc._bg)
+        if pending:
+            await asyncio.wait_for(asyncio.gather(*pending), timeout=10)
         return got
     got = pclient.portal.call(go)
     assert sum('"delta"' in g for g in got) == 2

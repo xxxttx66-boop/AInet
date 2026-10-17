@@ -359,17 +359,17 @@ def test_api_switch_any_logged_in_user(app):
     assert [(s["id"], s["name"], s["devices"], s["running"], s["current"]) for s in sb["sandboxes"]] == \
         [(2, "ainet_test", 2, 2, True), (3, "ainet_campus", 2, 0, False)]
     assert any(p == "/service/ensp/sandbox/getByPage" and b.get("projectId") == 1 for _, p, b in rest.calls if b)
-    # 切沙箱：旧 eNSP Pro 后端登出，拓扑换成新沙箱
+    # 同一环境的沙箱共享 REST 会话；切换选中沙箱不能把后台看门狗登出。
     out_before = rest.logouts
     assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 3}).status_code == 200
-    assert rest.logouts == out_before + 1
+    assert rest.logouts == out_before
     cur = c.get("/api/topology/current").json()
     assert cur["topology"]["name"] == "ainet_campus" and cur["env"]["sandbox"] == 3
     assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 99}).status_code == 404
-    # 切回 eNSP：eNSP Pro 再登出一次
+    # 切回 eNSP：eNSP Pro 的后台环境仍由独立上下文监测，服务关闭时统一登出。
     out_before = rest.logouts
     assert c.post("/api/lab/environment", json={"key": "ensp"}).status_code == 200
-    assert rest.logouts == out_before + 1
+    assert rest.logouts == out_before
     assert db.get_setting("lab:env") == "ensp" and db.get_setting("lab:sandbox:enspro") == "3"
 
 
@@ -428,11 +428,15 @@ def test_scenarios_empty_reason(app, monkeypatch):
     assert d["scenarios"] == [] and "还没有题目" in d["empty_reason"]
 
 
-def test_exam_template_platform_mismatch(app):
+def test_mixed_platform_exam_templates_are_rejected_and_legacy_templates_are_blocked(app):
     c = app.c
     login(c)
     cfg = {"questions": [{"scenario": "campus-ar0-ar2-link", "seed": 0}, {"scenario": "enspro-t1-t2-link", "seed": 0}]}
-    tid = c.post("/api/exam/templates", json={"name": "混合", "config": cfg}).json()["id"]
+    created = c.post("/api/exam/templates", json={"name": "混合", "config": cfg})
+    assert created.status_code == 422 and "同一设备平台" in created.json()["detail"]
+
+    # 老数据库中可能已有混合平台模板；仍能在列表里说明兼容性，但绝不允许开考。
+    tid = db.create_template("旧混合模板", json.dumps(cfg, ensure_ascii=False))
     t = next(x for x in c.get("/api/exam/templates").json()["templates"] if x["id"] == tid)
     assert t["platforms"] == ["vrp5", "yunshan"] and t["platform_ok"] is False
     assert [m["index"] for m in t["mismatch"]] == [1]
@@ -441,6 +445,16 @@ def test_exam_template_platform_mismatch(app):
     detail = r.json()["detail"]
     assert "第 2 题" in detail and "不匹配" in detail and "第 1 题" not in detail
     assert c.app.state.exam.exam is None
+
+    # 云服务器环境能匹配 YunShan 模板；环境切换只改测试运行上下文，不触碰真实模拟器。
+    switched = c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2})
+    assert switched.status_code == 200, switched.text
+    templates = c.get("/api/exam/templates").json()
+    ys = next(x for x in templates["templates"] if x["name"] == "Campus 基础排障测验（YunShan）")
+    assert templates["platform"] == "yunshan" and ys["platform_ok"] is True and ys["mismatch"] == []
+    # 旧的混合模板依然会被拒绝，即使当前环境匹配其中一半。
+    blocked = c.post("/api/exam/start", json={"template_id": tid})
+    assert blocked.status_code == 409 and "第 1 题" in blocked.json()["detail"]
 
 
 def test_agent_snapshot_follows_switch(app):
@@ -459,7 +473,7 @@ def test_agent_snapshot_follows_switch(app):
     assert svc.env_gen == g0 + 1 and svc.termlog.recent() == []          # 旧环境的终端命令不再进快照
 
     async def tool():
-        return await svc.run_tool("T1", "display version", {"t1": 6}, gen=g0)
+        return await svc.run_tool("AR1", "display version", {"ar1": 6}, gen=g0)
     r = c.portal.call(tool)
     assert r["status"] == "rejected" and "已切换" in r["reason"]
 
@@ -471,7 +485,34 @@ def test_baseline_key_follows_sandbox(app):
     for sb, name in ((2, "ainet_test"), (3, "ainet_campus")):
         assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": sb}).status_code == 200
         cur = c.portal.call(pm.resolve)
-        assert pm._baseline_key(cur, "T1") == f"baseline:enspro:{name}:T1"
+        assert pm._baseline_key(cur, "AR1") == f"baseline:enspro:{name}:AR1"
+
+
+def test_baseline_renames_legacy_ainet_test_device_keys(app, monkeypatch):
+    from practice import Active
+
+    pm = app.c.app.state.practice
+    config_text = "sysname HUAWEI\nreturn\n"
+    old = json.dumps({"config": config_text, "at": "2026-10-17T00:00:00+00:00"})
+    settings = {"baseline:enspro:ainet_test:T1": old}
+    writes = []
+    monkeypatch.setattr(db, "get_setting", lambda key: settings.get(key))
+
+    def save(key, value):
+        settings[key] = value
+        writes.append((key, value))
+    monkeypatch.setattr(db, "set_setting", save)
+
+    async def snapshot(_active, _device):
+        return config_text
+    monkeypatch.setattr(pm, "_snapshot", snapshot)
+    active = Active(attempt_id=0, scenario={"required_devices": ["AR1"]}, student_id=0, started_at="",
+                    ports={"AR1": 6}, allowed_ports=set())
+    cur = {"lab": {"kind": "enspro"}, "topology": {"name": "ainet_test"}}
+    result = app.c.portal.call(lambda: pm._check_baseline(active, cur, "AR1"))
+    assert result == config_text
+    assert settings["baseline:enspro:ainet_test:AR1"] == old
+    assert writes == [("baseline:enspro:ainet_test:AR1", old)]
 
 
 def test_prepare_switches_sandbox_and_starts_devices(app):
@@ -492,7 +533,7 @@ def test_prepare_switches_sandbox_and_starts_devices(app):
             break
         time.sleep(0.05)
     assert job["ok"], job
-    assert job["sandbox"] == 2 and job["devices"] == {"T1": "online", "T2": "online"} and job["stage"] == "done"
+    assert job["sandbox"] == 2 and job["devices"] == {"AR1": "online", "AR2": "online"} and job["stage"] == "done"
     assert mgr.key == "enspro" and mgr.sandbox == 2
     assert any(p == "/service/ensp/device/batchStart" and sorted(b["deviceIds"]) == [6, 7]
                for _, p, b in rest.calls if b)
@@ -555,7 +596,7 @@ def test_prepare_restarts_stuck_device_once(app, monkeypatch):
         time.sleep(0.05)
     job = c.get("/api/lab/prepare").json()["job"]
     assert job["ok"], job
-    # 看门狗逐台处理卡住的设备：T1、T2 各停止 1 次、启动 2 次（第一次一起启动，重启时各自启动）
+    # 看门狗逐台处理卡住的设备：AR1、AR2 各停止 1 次、启动 2 次（第一次一起启动，重启时各自启动）
     def per_dev(path):
         n = {6: 0, 7: 0}
         for _, p, b in rest.calls:
@@ -597,7 +638,7 @@ def test_prepare_view_steps_device_info_and_estimate(app):
     job = _wait_job(c, lambda j: j["stage"] == "wait")
     states = {x["key"]: x["state"] for x in job["steps"]}
     assert states == {"switch": "done", "sandbox": "done", "start": "done", "wait": "active", "done": "pending"}
-    t1 = job["device_info"]["T1"]
+    t1 = job["device_info"]["AR1"]
     assert t1["status"] == "starting" and t1["kind"] == "router" and t1["restarts"] == 0 and not t1["restarting"]
     assert t1["phase"] == "starting" and t1["round_s"] >= 0
     est = job["estimate"]
@@ -608,7 +649,7 @@ def test_prepare_view_steps_device_info_and_estimate(app):
     job = _wait_job(c, lambda j: j["done"])
     assert job["ok"] and job["progress"] == 1.0 and job["estimate"] is None
     assert all(x["state"] == "done" for x in job["steps"])
-    assert job["devices"] == {"T1": "online", "T2": "online"}
+    assert job["devices"] == {"AR1": "online", "AR2": "online"}
     # 再准备一次：已在目标沙箱、设备都在运行 → 切换环境 / 启动 / 等待都标为跳过
     c.post("/api/lab/prepare", json={"scenario_id": "enspro-t1-t2-link"})
     job = _wait_job(c, lambda j: j["done"])
@@ -629,6 +670,7 @@ def test_prepare_view_reports_restart_count(app, monkeypatch):
             rest.instant_start = True
         return orig(req)
     rest.handle = handle
+    assert c.post("/api/lab/environment", json={"key": "enspro", "sandbox": 2}).status_code == 200
     mgr = c.app.state.labmgr
     mgr.prepare_poll = 0.05
     mgr.power.start_timeout, mgr.power.poll, mgr.power.restart_gap = 0.3, 0.05, 0.5
@@ -648,7 +690,7 @@ def test_prepare_view_reports_restart_count(app, monkeypatch):
     assert rs and f"（第 1 次，最多 {mgr.power.retries} 次）" in rs[0]["message"]
     assert any(j["steps"][3]["key"] == "wait" and j["steps"][3]["state"] == "active" for j in rs)   # restart 属于「等待运行」
     assert any(d["restarting"] and d["restarts"] == 1 for j in rs for d in j["device_info"].values())
-    assert seen[-1]["device_info"]["T1"]["restarts"] == 1 and not seen[-1]["device_info"]["T1"]["restarting"]
+    assert seen[-1]["device_info"]["AR1"]["restarts"] == 1 and not seen[-1]["device_info"]["AR1"]["restarting"]
 
 
 def test_prepare_view_classic_and_error_step(app):
@@ -670,7 +712,7 @@ def test_explicit_switch_refused_while_prepare_job_running(db_path, probes_ok):
     async def run():
         mgr = make_mgr([])
         mgr.boot()
-        mgr.job = {"id": 1, "title": "T1 与 T2 互联不通", "message": "等待设备运行", "done": False}
+        mgr.job = {"id": 1, "title": "AR1 与 AR2 互联不通", "message": "等待设备运行", "done": False}
         with pytest.raises(lab_lib.LabError) as e:
             await mgr.switch("enspro", 3, sandbox_given=True)
         assert e.value.status == 409 and "准备环境" in e.value.detail

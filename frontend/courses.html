@@ -5,16 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ainet 课程选择</title>
   <link rel="stylesheet" href="static/app.css" />
+  <link rel="stylesheet" href="static/ui.css?v=ui-20261015-1" />
+  <script src="static/ui.js?v=exam-nav-20261017-1"></script>
 </head>
-<!-- 课程选择页（spec §16.3，布局见 docs/design/ui-layout.html ⑤）：模拟环境 → 章节 → 课题 → 预览四列。
+<!-- 学员路径：学习首页（环境选择 / 进度 / 推荐）→ 课程目录或考试中心 → 课题详情 / 进入实验。
+     保留 spec §16.3 中的选题、环境准备和进入规则。
      点环境只是浏览（GET api/scenarios?env=），不触发切换；点「自由实验 / 开始练习 / 单题考试」才按题目准备环境
      （eNSP Pro：POST api/lab/prepare 轮询进度；eNSP 经典版：提示在 eNSP 中打开拓扑，就绪后才放行），再进操作页。 -->
-<body class="course-page">
+<body class="course-page" data-ui-page="courses">
   <header id="bar" class="topbar">
     <a class="logo" href="courses" title="课程选择">ainet</a>
-    <span class="page-title">课程选择</span>
+    <span class="page-title">学习首页</span>
     <span class="spacer"></span>
-    <button id="c-recheck" class="tb-btn sm-h" title="重新探测各模拟环境是否在线">↻ 重新检测环境</button>
+    <button id="c-recheck" class="tb-btn sm-h" title="重新探测各模拟环境是否在线">重新检测环境</button>
     <div class="user-wrap">
       <button id="user-btn" class="user-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu"><span id="who">…</span> <span class="caret">▾</span></button>
       <div id="user-menu" class="menu" role="menu" aria-label="学员菜单" hidden>
@@ -27,15 +30,45 @@
   </header>
   <div id="c-active" class="c-active" hidden>
     <span id="c-active-text"></span>
-    <button id="c-active-go" class="primary">回到操作页</button>
+    <a id="c-active-go" class="home-cta primary" href="./" data-icon="arrow">回到操作页</a>
   </div>
 
   <main id="c-main" class="c-main">
-    <nav class="c-col c-envs" aria-label="模拟环境">
-      <div class="c-head c-head-row"><span>模拟环境</span><button id="c-env-add" type="button" class="c-env-add" title="添加环境（如另一台 eNSP Pro）" aria-label="添加模拟环境" hidden>+</button></div>
-      <div id="c-envs" class="c-list"><div class="muted c-pad">检测中…</div></div>
-      <div class="c-foot">打开本页时自动检测；离线的环境不可选，⚙ 可查看 / 修改接入地址，+ 可添加环境</div>
-    </nav>
+    <section id="c-home" class="learner-home" aria-label="学习首页">
+      <div class="home-welcome">
+        <div class="ui-eyebrow">网络实操训练 · 学员空间</div>
+        <h1><span id="home-greeting">欢迎回来</span>，继续你的实战训练</h1>
+        <p id="home-subtitle">从上次的课题继续，或先选择一个模拟环境开始练习。</p>
+        <div class="home-actions">
+          <a id="home-continue" class="home-cta primary" href="courses?view=catalog" data-icon="play">继续学习</a>
+          <a class="home-cta" href="courses?view=catalog" data-icon="book">浏览课程</a>
+          <a class="home-cta" href="custom-labs" data-icon="network">自定义实验</a>
+          <a class="home-cta" href="courses?view=exams" data-icon="shield">进入考试中心</a>
+        </div>
+      </div>
+      <nav id="environment-settings" class="c-col c-envs" aria-label="模拟环境">
+        <div class="c-head c-head-row"><span id="c-env-heading">选择模拟环境</span><a id="c-env-manage" class="c-env-manage" href="courses?view=environments" data-icon="settings">环境设置</a><button id="c-env-add" type="button" class="c-env-add" title="添加环境（如另一台 eNSP Pro）" aria-label="添加模拟环境" hidden></button></div>
+        <div id="c-envs" class="c-list"><div class="muted c-pad">检测中…</div></div>
+        <div id="c-env-foot" class="c-foot">选择环境后，首页会显示对应课程进度与下一道推荐课题。</div>
+      </nav>
+      <section class="home-progress" aria-label="课程进度">
+        <div class="home-section-head"><div><h2>我的学习进度</h2><p id="home-progress-caption">选择环境后查看该环境的课程进度</p></div><a href="profile">查看学习记录 <span aria-hidden="true">→</span></a></div>
+        <div class="home-stats">
+          <article class="home-stat"><span>已通过</span><strong id="home-passed">—</strong><small>道课题</small></article>
+          <article class="home-stat"><span>待练习</span><strong id="home-remaining">—</strong><small>道课题</small></article>
+          <article class="home-stat"><span>可用环境</span><strong id="home-env-count">—</strong><small>个在线</small></article>
+        </div>
+      </section>
+      <section class="home-next" aria-label="建议继续学习">
+        <div class="home-section-head"><div><h2 id="home-next-heading">接下来做什么</h2><p id="home-next-caption">选好环境后，系统会为你推荐下一道课题</p></div></div>
+        <article id="home-next-card" class="home-next-card">
+          <span class="home-next-icon" data-icon="terminal" aria-hidden="true"></span>
+          <div class="home-next-copy"><span id="home-next-label" class="ui-eyebrow">推荐课题</span><strong id="home-next-title">先选择一个在线模拟环境</strong><p id="home-next-desc">环境就绪后，即可浏览课程并开始排障练习。</p></div>
+          <a id="home-next-link" href="courses?view=catalog" class="home-next-link" data-icon="arrow">查看课程</a>
+        </article>
+      </section>
+    </section>
+    <section class="course-intro"><div class="ui-eyebrow">网络实操训练</div><h1>按课程章节练习</h1><p>选择一道课题，阅读工单与拓扑，再准备环境进入练习或考试。</p></section>
     <nav class="c-col c-chapters" aria-label="章节">
       <div id="c-chap-head" class="c-head">学习章节</div>
       <div id="c-chapters" class="c-list"></div>
@@ -48,11 +81,17 @@
     <section class="c-col c-preview" aria-label="预览">
       <div id="c-preview" class="c-preview-body"><div class="muted">选择左侧的课题查看详情</div></div>
       <div id="c-actions" class="c-actions" hidden>
-        <div id="c-prep" class="c-prep"></div>
+        <div class="c-action-context"><span id="c-action-kind" class="c-action-kind">当前课题</span><strong id="c-action-topic"></strong><div id="c-prep" class="c-prep"></div></div>
+        <fieldset id="c-entry-modes" class="c-entry-modes"><legend>进入方式</legend>
+          <label data-icon="book"><input type="radio" name="entry-mode" value="practice" checked />练习</label>
+          <label data-icon="terminal"><input type="radio" name="entry-mode" value="lab" />自由实验</label>
+          <label data-icon="shield"><input type="radio" name="entry-mode" value="exam" />考试</label>
+        </fieldset>
+        <p id="c-entry-note" class="c-entry-note"></p>
         <div class="c-btns">
-          <button id="c-lab" class="c-btn" title="不注入故障，在本题的拓扑上自由操作">自由实验</button>
-          <button id="c-practice" class="c-btn primary">开始练习</button>
-          <button id="c-exam" class="c-btn" title="本题的考试：计时 15 分钟、无 Agent、无提示，交卷后出成绩单">单题考试</button>
+          <button id="c-lab" class="c-btn" title="不注入故障，在本题的拓扑上自由操作">准备环境并进入实验</button>
+          <button id="c-practice" class="c-btn primary">准备环境并开始练习</button>
+          <button id="c-exam" class="c-btn" title="本题的考试：计时 15 分钟、无 Agent、无提示，交卷后出成绩单">准备环境并开始考试</button>
           <button id="c-exam-tpl" class="c-btn primary" hidden>开始考试</button>
         </div>
       </div>
@@ -97,6 +136,7 @@
 
   <script src="static/labswitch.js"></script>
   <script src="static/aiset.js"></script>
-  <script src="static/courses.js"></script>
+  <script src="static/device_icons.js?v=ensp-icons-20261016-3"></script>
+  <script src="static/courses.js?v=exam-center-20261017-2"></script>
 </body>
 </html>
